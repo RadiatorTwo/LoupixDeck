@@ -133,11 +133,17 @@ public sealed class RotaryOverride
     public Func<Task>? OnLeft  { get; init; }
     public Func<Task>? OnRight { get; init; }
     public Func<Task>? OnPress { get; init; }
+    public string? Label { get; init; }
+    public Func<AdjustmentValue?>? GetValue { get; init; }
 }
 ```
 
 Use when the folder needs the rotary encoders to do something context-specific
 — e.g. scroll a long list, dial a value, confirm a selection.
+
+SDK 1.31.0 adds the label and value accessor for host-drawn side-strip indicators.
+For custom folder strip sessions, see
+[Folder side strips](Recent-SDK-Additions#folder-side-strips).
 
 ## PluginColor
 

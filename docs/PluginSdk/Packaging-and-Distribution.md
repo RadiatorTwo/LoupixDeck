@@ -5,7 +5,7 @@ manifest and any runtime dependencies. LoupixDeck v1.28.0 and later can install
 plugins from its curated Plugin Store. Store plugins publish releases from their
 own GitHub repository; they are not bundled with the main application.
 
-LoupixDeck v1.38.0 provides SDK 1.28.0. The recent API additions are documented
+LoupixDeck v1.47.0 provides SDK 1.33.0. The recent API additions are documented
 in [Recent SDK additions](Recent-SDK-Additions). Older plugins keep working;
 publish the SDK version your plugin builds against so the Store can exclude
 hosts that do not provide its newer APIs.
@@ -20,7 +20,7 @@ match the `PluginMetadata` returned by the plugin:
   "id": "myplugin",
   "name": "My Plugin",
   "version": "1.0.0",
-  "sdkVersion": "1.28.0",
+  "sdkVersion": "1.33.0",
   "entryAssembly": "MyPlugin.dll",
   "platform": "All",
   "author": "Example Author",
@@ -34,6 +34,12 @@ Required Store-release fields are `id`, `version`, `sdkVersion`, and
 `entryAssembly`. `platform` is `All`, `Windows`, `Linux`, or `macOS` and defaults
 to `All`. The release workflow requires `version` in plain `major.minor.patch`
 form, and a GitHub Release tag must be exactly `v<version>`.
+
+The optional `architectures` array restricts a package to `x64`, `arm64`, or
+both. Omit it (or use an empty array) for architecture-independent code. For
+example, a plugin loading an x64-only vendor DLL declares
+`"architectures": ["x64"]`. The host leaves an incompatible installed plugin
+disabled with a reason, and the Store does not offer that package to ARM64.
 
 Two versions matter:
 
@@ -52,6 +58,7 @@ The host requires the same SDK major version. The Plugin Store is stricter: it
 offers a release only when its SDK version is not newer than the SDK in the
 running LoupixDeck and its platform matches the current operating system. Older
 compatible releases can therefore remain available to users on an older app.
+CPU-architecture restrictions are checked in addition to platform and SDK version.
 
 The SDK's `AssemblyVersion` remains pinned at `1.0.0.0` across the 1.x line so
 the plugin load context resolves one shared SDK assembly. The package targets
@@ -174,6 +181,20 @@ Only the package matching the manifest platform is generated. A manual
 attach them to a GitHub Release. Release notes shown by the Store come from the
 GitHub Release description.
 
+For a plugin with native dependencies on multiple architectures, pass runtime
+identifiers to build one package per runtime:
+
+```yaml
+    with:
+      runtimes: win-x64 win-arm64
+```
+
+The x64 package retains `<id>-<version>-windows.zip`; the ARM64 package uses
+`<id>-<version>-windows-arm64.zip`. Linux and macOS runtime identifiers work the
+same way. Each packaged manifest declares its actual architecture. The workflow
+emits the corresponding catalogue package entries; copy them instead of guessing
+filenames. Without `runtimes`, the existing single-package behavior is retained.
+
 ## Add the plugin to the Store
 
 Only repositories listed in schema-v2 `plugin-store.json` in the
@@ -190,13 +211,13 @@ adds an entry such as:
   "repository": "example/LoupixDeck.Plugin.MyPlugin",
   "icon": "https://example.com/myplugin.png",
   "platforms": ["Windows", "Linux"],
-  "minSdkVersion": "1.23.0",
+  "minSdkVersion": "1.33.0",
   "commandPrefixes": ["MyPlugin."],
   "release": {
     "version": "1.0.0",
     "tag": "v1.0.0",
     "publishedAt": "2026-09-16T12:00:00Z",
-    "sdkVersion": "1.23.0",
+    "sdkVersion": "1.33.0",
     "releaseNotesUrl": "https://github.com/example/LoupixDeck.Plugin.MyPlugin/releases/tag/v1.0.0",
     "packages": [
       {
@@ -218,7 +239,10 @@ running system's own package is listed regardless;
 `sdkVersion` decides actual compatibility. The release object is authoritative
 for the version offered by the Store and includes its tag, publication time,
 notes URL, and one or more platform packages (`windows`, `linux`, `macos`, or a
-single `any`) with exact filenames, URLs, and checksums. Copy that object from
+single `any`, plus architecture-specific names such as `windows-arm64`) with
+exact filenames, URLs, and checksums. A plain platform package can also carry an
+`architectures` array, for example `["x64"]`; a suffix such as `-arm64` already
+identifies the architecture. Copy that object from
 the release workflow's job summary or `store-entry.json` instead of
 transcribing it by hand. List every stable command prefix in
 `commandPrefixes` so LoupixDeck can recognise assignments when the plugin is

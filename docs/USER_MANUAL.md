@@ -1,6 +1,6 @@
 # LoupixDeck User Manual
 
-This manual is for people who want to use LoupixDeck, not develop plugins for it. It covers LoupixDeck v1.38.0 and is based on the GitHub README, existing docs, application source, and Plugin Store catalogue and manifests. Plugins release independently, so their command names and available features can differ by installed version.
+This manual is for people who want to use LoupixDeck, not develop plugins for it. It covers LoupixDeck v1.47.0 and is based on the GitHub README, existing docs, application source, and Plugin Store catalogue and manifests. Plugins release independently, so their command names and available features can differ by installed version.
 
 ## Index
 
@@ -49,13 +49,13 @@ Current documented support:
 | Loupedeck Live S | 5 x 3 touch grid, 2 rotary encoders, 8 physical buttons |
 | Razer Stream Controller | 4 x 3 touch grid, side panels, 6 rotary encoders, 8 LED buttons |
 | Razer Stream Controller X | 5 x 3 physical-key panel; no dials, LED buttons, side strips, or haptic motor |
-| Loupedeck CT | Partial support; not all controls are feature-complete yet |
+| Loupedeck CT | 4 x 3 touch grid, side strips, 6 side dials, centre wheel with round display, round and named physical keys |
 
 Multiple devices can run at the same time. If more than one device is connected, the main window shows a device selector. Two identical devices are separated reliably by USB serial number—including composite USB devices on Windows—so each keeps its own layout. Existing configuration files keep their names; connecting a second unit gives it a separate file instead of renaming the first unit's file.
 
 The Stream Controller X's physical keys act like touches at the centre of their matching keys. Touch-button actions, including press-and-hold, work normally. Settings and controls for hardware the device does not have are hidden.
 
-Since v1.34.0, the CT's main touch grid and side strips draw on their shared display area, and its wheel display uses the correct colours. CT support remains partial; this display fix does not imply that every CT control is implemented.
+The CT's touch grid, side strips, and centre wheel are supported. The centre wheel has page-specific commands, modes, a live value display, and an editable round-screen canvas; see [Loupedeck CT centre wheel](#loupedeck-ct-centre-wheel). The on-screen physical-key legends and arrangement follow the hardware.
 
 ## Install and Start
 
@@ -66,11 +66,11 @@ Windows users have two download choices:
 - `LoupixDeck-Setup-win-x64.exe`: native Windows installer.
 - `LoupixDeck-win-x64.zip`: portable ZIP, useful when you do not want an installed app.
 
-On Windows on ARM devices (e.g. Surface Pro X, Snapdragon laptops), download `LoupixDeck-Setup-win-arm64.exe` or `LoupixDeck-win-arm64.zip` instead; the x64 build shows blank windows under emulation. An existing x64 installation can be updated with the ARM64 setup in place, and the in-app updater switches to the ARM64 setup automatically once a release provides one.
+On Windows on ARM64 devices (e.g. Surface Pro X, Snapdragon laptops), download `LoupixDeck-Setup-win-arm64.exe` or `LoupixDeck-win-arm64.zip` instead; x64 emulation can leave windows blank. An existing x64 installation can be updated with the ARM64 setup in place, and the in-app updater selects the native ARM64 setup. On x64 machines it keeps selecting x64. The optional Interception driver is unavailable on ARM64, where macros use `SendInput`.
 
 For most users, use the installer:
 
-1. Download `LoupixDeck-Setup-win-x64.exe` from the latest GitHub release.
+1. Download the setup for your architecture (`win-x64` or `win-arm64`) from the latest GitHub release.
 2. Run the installer.
 3. Choose the install location.
 4. Choose whether to create Start menu and desktop shortcuts.
@@ -81,7 +81,7 @@ The installer is self-contained, so you do not need to install the .NET runtime 
 
 If you prefer the portable build:
 
-1. Download `LoupixDeck-win-x64.zip`.
+1. Download the ZIP for your architecture (`win-x64` or `win-arm64`).
 2. Extract it to a folder you control.
 3. Run `LoupixDeck.exe`.
 
@@ -140,6 +140,28 @@ bash install-loupixdeck.sh --restart
 
 The in-app Linux updater uses this option automatically. If the update is cancelled or fails while the previous installation is still available, the script starts that version again so LoupixDeck is not left closed.
 
+### macOS (experimental alpha)
+
+macOS support is experimental and may have missing features or rough edges. Download `LoupixDeck-osx-arm64.dmg` for Apple Silicon or `LoupixDeck-osx-x64.dmg` for an Intel Mac, open the disk image, and drag LoupixDeck into **Applications**.
+
+Keyboard and mouse actions require **System Settings > Privacy & Security > Accessibility** permission for LoupixDeck. The app asks on first use; without permission, macOS discards injected input. Recorded shortcuts display **⌘** and **⌥**, while saved assignments retain their existing identifiers.
+
+Devices can be plugged in or removed while the app runs. Compatible platform-independent and macOS plugin packages are available in the Plugin Store. Use **Open release page** in the updater to download an update; if opening the browser fails, the dialog keeps the link visible for copying. The macOS application menu provides **About LoupixDeck** and **Quit**.
+
+### Trying a virtual device
+
+Run any supported model without hardware using `--virtual-device <slug>` or the `LOUPIXDECK_VIRTUAL_DEVICE` environment variable. For example:
+
+```powershell
+.\LoupixDeck.exe --virtual-device loupedeck-ct
+```
+
+On Linux use `./LoupixDeck --virtual-device loupedeck-ct`; on macOS use the executable inside `/Applications/LoupixDeck.app/Contents/MacOS/`. Model slugs are `loupedeck-live`, `loupedeck-live-s`, `loupedeck-ct`, `razer-stream-controller`, and `razer-stream-controller-x`. The former `LOUPIXDECK_FAKE_DEVICE` setting has been replaced.
+
+The simulator opens automatically and mirrors the screens, LEDs, brightness, and vibration sent by the app. Click or drag a screen to touch it, scroll over a dial or the CT wheel to turn it, and click a dial or physical button to press it. On Stream Controller X, clicking the screen presses the corresponding key. Use the header's **Virtual device** button to reopen the selected simulator.
+
+It works in release builds alongside real connected devices and saves to `config_<slug>_VIRTUAL.json`, separate from real-device layouts. Commands and plugins assigned to it still execute, so they can control real applications even though there is no hardware transport.
+
 ### Update notifications
 
 LoupixDeck checks GitHub for a newer stable release shortly after it starts. The check runs in the background: no network connection, a timeout or a GitHub rate limit never delays startup or opens an error dialog; the result only goes to the log. Pre-releases and drafts are never offered.
@@ -156,7 +178,7 @@ Turn the automatic check off under `Settings > General > Check for updates autom
 
 ### Runtime and performance
 
-In v1.22.0 and later, display frames reuse pooled buffers, WebSocket payloads are masked in place, and incoming serial data is parsed through a fixed buffer. Command parsing, lookup tables, and native calls also use lower-allocation paths. These changes are automatic; there is no performance setting to enable, and existing layouts and plugins continue to work.
+Current releases reuse images and buffers, scale decoded GIF/WebP frames to the displayed size, and avoid sending unchanged keys, side strips, and wheel pictures. These optimizations are automatic. Device animations and live updates pause while the device is off; hidden or minimized windows do no preview rendering. Animations continue through page changes where possible, and pages using the same video clip keep it playing instead of restarting it.
 
 ## First Launch
 
@@ -190,10 +212,11 @@ The main window is a live editor for your connected device.
 - Use `+` and delete controls to add or remove pages.
 - Edit the page name directly in the page name field.
 - Open the left apps and commands panel or the right Folders panel from the header.
-- Use the hamburger menu for `Settings`, `Plugins`, `Macros`, `About`, and `Quit`. The Plugins window remains available even when no device is connected.
+- Use the header buttons for `Settings`, `Macros`, `Plugins`, and `About`. For a selected virtual device, its button reopens the simulator. The Plugins window remains available even when no device is connected.
+- On Windows and Linux, the header's `Quit` button asks before exiting. On macOS, use Quit in the application or menu-bar menu instead.
 - On macOS the Dock icon is only shown while the window is open. Closing the window hides it to the menu bar, where the LoupixDeck icon's menu offers `Show` to bring it back and `Quit` to exit.
 
-The top header shows your current context. It contains `DEVICE`, `PROFILE`, and `WORKSPACE` selectors. If only one device is connected, the device selector is hidden and you will usually just see the profile and workspace selectors. The hamburger menu sits at the right end of this header.
+The header contains `DEVICE`, `PROFILE`, and `WORKSPACE` selectors alongside the action buttons. If only one device is connected, the device selector is hidden. The selectors move onto a second row when the window is too narrow. There is no hamburger menu in v1.47.0.
 
 Changing profile or workspace from the header changes what the device shows and what the editor is editing. The selectors also update when a rule, command, or device button switches context for you.
 
@@ -201,7 +224,15 @@ Next to the `PROFILE` and `WORKSPACE` selectors there is a `⋮` button. It crea
 
 The profile menu can also link an application to the active profile: pick it from the list, and the profile opens whenever that application is in front, as long as automatic switching is turned on. This creates a profile rule, which you can refine under `Settings > Profile Rules`. Remove the link from the same menu.
 
-Switching to a device with a different physical layout resizes the main window to fit it. A maximized window stays maximized. The apps and commands panel keeps its open or closed state across device switches instead of unexpectedly disappearing or reopening.
+Switching to a device with a different physical layout resizes the main window to fit it. A maximized window stays maximized. The apps and commands panel keeps its open or closed state across device switches.
+
+Both side panels are columns inside the main window. Opening one grows the window on that side while keeping the deck in place; if the screen edge prevents this, the window grows the other way or temporarily reduces the deck zoom. Closing the panel gives the space back. On Linux X11/XWayland, `LOUPIX_SIDEPANEL_EDGE=jump` restores the older immediate edge movement if the animated left edge causes trouble under your window manager.
+
+### Device view zoom
+
+Hold `Ctrl` and scroll, use `Ctrl +` / `Ctrl -`, or press the zoom strip's buttons to choose 50–300%. Click its percentage or press `Ctrl 0` to reset to 100%. The strip appears below the device while the pointer is over the window. Zooming keeps the window size and centres the device; scroll when the view no longer fits. Each device remembers its zoom for the current session and starts at 100% next time. Preview zoom does not change the image sent to hardware.
+
+Hover a touch key to see its assigned command sequence. A key with commands but no visible artwork has a small corner dot in the editor. These hints do not appear on the physical device.
 
 ### Apps and commands panel
 
@@ -209,8 +240,8 @@ When a device is connected, the button at the left of the header opens a side pa
 
 | Tab | What it contains |
 | --- | --- |
-| Apps | Applications discovered on the computer, plus applications added manually |
 | Commands | The same searchable command catalogue used by the button editors |
+| Apps | Applications discovered on the computer, plus applications added manually |
 | Dial presets | Built-in, plugin-provided, and user-created mappings for all three gestures of a rotary control, grouped by source |
 
 Single-click a panel row to select it. To assign it, first select a compatible touch key, physical LED button, or dial and then double-click the row, or drag the row directly onto the control. An invalid target is outlined in red and is not changed. If the target already has content, LoupixDeck asks before replacing it. Command-picker groups stay expanded when a plugin finishes loading its menu, and the tighter rows keep more entries visible.
@@ -365,11 +396,15 @@ Deleting a folder warns about nested folders, buttons that link to it, and affec
 
 Use the built-in commands `Folder Back` to move up one level and `Close All Folders` to return directly to the normal page. `Go to Home Workspace` closes open folders too.
 
+The folder panel header can hide the folder badge on keys for this workspace. Existing workspaces keep badges enabled. The panel's right-click menu offers the same folder operations without opening an editor.
+
 ### Plugin folders
 
 Some plugin commands open a temporary folder directly on the device, for example an audio mixer, an OBS scene picker, or a monitoring dashboard. The folder uses the active device's real key layout rather than assuming a 5×3 grid. The bottom-left key is reserved for Back; on 4×3 devices, entries stay within the twelve centre keys and do not overwrite the side strips.
 
 Opening a different profile or workspace closes the current folder, including nested folders, and draws the selected layout. Leaving through the Back key instead returns to the previous folder level or the normal page.
+
+A plugin folder can also supply side-strip content, dial labels, and value indicators. If it supplies none, the strips stay black. Parent folders stop updating the visible view while a subfolder is open. Changing touch pages closes an open plugin menu before drawing the new page. On a video-wallpaper page, the open folder sits on the clip's last frame.
 
 ## Touch Buttons
 
@@ -395,6 +430,8 @@ The command picker is wider in these editors. In the Touch Button editor, the be
 
 The touch button editor also has a **Parameters** tab beside **Properties** and **Commands**. It appears when a known command in the current sequence has parameters, and shows one card per such command. Text fields, key recorders where available, drop-downs, and checkboxes edit the same values as the command chip's pencil menu. Use **Commands** to add, remove, or reorder the sequence; use **Parameters** to adjust its values together.
 
+The left panel scrolls when the window is short. The Layers list keeps a usable height, while a long **Behavior for State** section scrolls inside its own area. Image, animation, and wallpaper file pickers open in front of the editor.
+
 ### Editing and Rearranging Buttons
 
 In v1.14.0 and later, the main window supports faster editing for buttons and side displays:
@@ -409,6 +446,14 @@ In v1.14.0 and later, the main window supports faster editing for buttons and si
 
 The drop-target ring previews the action before you release the mouse: green means move, amber means swap, blue means copy, and red means the drop is not valid. If a paste or `Ctrl`-drag copy would overwrite a configured target, LoupixDeck asks for confirmation first.
 
+### Key layout templates
+
+Use **Layout template** in the touch editor or a key's right-click menu to choose **Icon only**, **Icon + text at the top**, **Icon + text at the bottom**, or **Text only**. These templates arrange a key's layers; they are separate from the whole-profile templates.
+
+If a template needs an icon and there is none, the symbol picker opens. The app asks before removing other layers and reports how many will be removed. A full-key background picture, dial indicators, and plugin-rendered layers are kept. Leftover layers from commands no longer assigned to the key can be removed.
+
+**Apply to all keys on this page** applies the layout to every state of eligible keys on the visible page or open folder, with one confirmation showing the totals. Keys the template cannot handle are left as they are. Both package import and Loupedeck import offer a layout template and preview the affected-key and removed-layer counts. For `.lp5` imports, supported key labels become editable text; unmapped keys are left alone. Choose **None** to keep the imported layout.
+
 ## Button Layers
 
 Touch buttons are built from layers. A button can contain image, text, symbol, and plugin-rendered layers.
@@ -422,6 +467,14 @@ Typical layer workflow:
 5. Reorder layers so background images sit below text and symbols.
 
 The editor has a live preview. Layers are useful because you can build a button from reusable pieces instead of flattening everything into one image.
+
+The layer list shows the topmost layer first. **Move up** brings a layer towards the front; **Move down** sends it back.
+
+### Text fonts and live values
+
+Each text layer has a font picker with **Default** followed by installed fonts. **Default** keeps the earlier Liberation Sans appearance. Set `Settings > General > Text layers > Default font` to choose the initial font of newly created text layers. That choice is copied into each new layer; changing it later does not restyle existing layers. Fonts are selected from this machine's installed families, so make the required fonts available when moving a profile to another computer.
+
+Touch keys can show values reported by plugin commands through an **Indicator** arc and text layers. Use **+ Indicator**, then style its track, fill, thickness, angles, and rounded ends. For text, **Text source** offers **Own text**, **Value**, or **Value detail**. The editor uses a sample when no live value is available so you can style the result. Plugin commands may create these ordinary layers and a background colour on assignment, and declared button states can each have their own initial layers. Existing artwork is kept.
 
 ### Symbols, SVG images, and custom icon packs
 
@@ -598,6 +651,20 @@ Use rotary controls for repeated actions such as volume up/down, scene switching
 
 For device brightness, use `Brightness Up` and `Brightness Down` from the `Device Control` group. A common setup is to put `Brightness Down` on rotate left and `Brightness Up` on rotate right. Each command has a `Step` setting, pre-filled with `5`, which controls how much brightness changes per rotary click. Brightness is clamped to the 0 to 100 range.
 
+### Loupedeck CT centre wheel
+
+The CT's centre wheel is configured per touch page and follows profile, workspace, and touch-page switches. Double-click it in the device view, or choose **Advanced settings…** from its right-click menu, to set rotate-left, rotate-right, and press commands in the rotary editor. Turning runs the turn commands; a short tap on the round screen runs the press command. Adjustment commands can show a live value arc and text instead of only a label.
+
+Each page can have multiple wheel modes. Use the wheel pager below the device to select, add, delete, and label modes. On the hardware, swipe up/down on the wheel screen to open the mode menu, turn the wheel or keep swiping to highlight a mode, and tap to select it. The menu closes after a few idle seconds. A horizontal swipe changes workspace: left goes to the next workspace and right to the previous one.
+
+Choose **Edit appearance…** from the wheel's right-click menu or use the brush button in the wheel-modes bar. Each mode can have its own canvas with indicator, text, symbol, image, and animated-image layers. The round 240 x 240 display hides the square canvas's corners. The appearance editor has no button states, haptics, or command sequence; turn/press actions remain in the rotary editor.
+
+Style the indicator's track/fill, thickness, angles, and rounded ends. Text sources include **Own text**, **Wheel label**, **Value**, **Value detail**, and **Dynamic text command**. Dynamic text follows the selected command's update interval and plugin refreshes. An image-command layer can show a rendered command such as **Analog Clock**. GIF, WebP, and video layers play on the wheel; wheel video imports retain up to 30 fps and need `ffmpeg`. Animation pauses while the mode menu, screensaver, or device-off state is active.
+
+**Reset** restores the default appearance layers. **Use automatic layout** removes this mode's custom canvas and returns to the automatic label/value display. Copy/paste and exported profile packages carry the canvas. See [Wheel Screen Appearance](CT_WHEEL_APPEARANCE.md) for detailed layer behavior.
+
+A plugin can take over wheel rendering and claim touches or swipes. If it claims a gesture, the normal tap, workspace swipe, or mode menu does not run for that gesture. A renderer that declines or fails falls back to the normal appearance.
+
 ## Physical Buttons
 
 Physical buttons are edited similarly to touch buttons, but without the touch-screen layer editor. Double-click a physical button in the main window, then assign one or more commands.
@@ -614,7 +681,7 @@ Good uses include:
 
 ## Macros
 
-Open the macro editor from the hamburger menu with `Macros`.
+Open the macro editor with the `Macros` button in the main-window header.
 
 Macros are reusable sequences. After creating a macro, it appears in the command picker under user macros and can be assigned to buttons, knobs, or page actions.
 
@@ -694,7 +761,11 @@ With the standard Windows backend, the final key press of a combination and ever
 
 On Linux, macro execution uses `uinput`; recording may need access to `/dev/input/event*`.
 
+On macOS, keyboard/mouse injection uses `CGEventPost` and requires Accessibility permission. The optional Interception backend is Windows x64 only.
+
 ## Dynamic Text
+
+**Analog Clock** in the **Dynamic Text** group draws a clock face on a touch key. Set its `Seconds` parameter to `false` to hide the second hand; `DynamicText.AnalogClock(false)` is the equivalent command string. On a CT wheel canvas, choose it as an **Image command** layer. This draws an image rather than returning clock text.
 
 Dynamic text commands provide text that updates automatically. The built-in clock command updates once per second.
 
@@ -712,6 +783,8 @@ Plugins can add more dynamic text providers, for example now-playing information
 
 Touch pages can have wallpapers. Go to `Settings > Pages`, then use the wallpaper edit button for the page.
 
+**Inherit wallpaper from previous pages** is on by default. A page without its own wallpaper uses the nearest earlier page that has one. A folder starts looking from the page it was opened from. Turn inheritance off to make each page show only its own wallpaper. New pages and folders do not receive a copied wallpaper; the Settings thumbnails show the resolved inherited image. Wallpaper edits update the device immediately.
+
 Wallpapers are separate from button layers. They are best for page-wide context, such as a color theme, app logo, or background image. Button layers still sit on top.
 
 The main wallpaper can be a still image or a video clip. Select the main panel in `Edit Wallpaper`, press `Select`, and choose an image or a supported video such as MP4, WebM, MOV, MKV, M4V, or AVI. Video wallpaper options include frame rate, opacity, and three fitting modes:
@@ -720,11 +793,11 @@ The main wallpaper can be a still image or a video clip. Select the main panel i
 - `Fill` preserves the aspect ratio and crops the overflow.
 - `Stretch` distorts the clip to fill the panel.
 
-On devices with side displays, the main clip also covers those columns. A still wallpaper assigned directly to a side display remains on top of the video for that side. Side-display wallpaper slots accept still images, not separate video clips.
+On devices with side displays, the main clip also covers those columns. A still wallpaper assigned directly to a side display remains on top of the video for that side. Side-display wallpaper slots accept still images, not separate video clips. Plugin strips, dial labels, and free-draw strips draw over a video wallpaper, and transparent areas of plugin strips reveal the page wallpaper.
 
 Video wallpapers need `ffmpeg` on your system `PATH`. If `ffmpeg` or the selected clip is unavailable, LoupixDeck keeps using the slot's still image and logs the problem once. Short looping clips that are at most 15 seconds long and fit within the 96 MB decoded-frame cache are decoded once for a seamless loop; longer or larger clips stream through `ffmpeg` instead.
 
-Buttons keep updating over the playing clip, including animated button layers. Playback pauses while a screensaver, plugin full-display takeover, folder, or exclusive touch-grid renderer owns the display. It is stopped when you change to another page, so pages without video render and use resources exactly as before.
+Buttons keep updating over the playing clip, including animated button layers. Playback pauses while a screensaver, plugin full-display takeover, folder, exclusive touch-grid renderer, or the device-off state owns the display. Switching to a page using the same clip keeps playback running; a different wallpaper changes the source. Page-name overlays no longer need repeated repaints over animation.
 
 ## Feedback and Haptics
 
@@ -810,17 +883,21 @@ Process matching is case-insensitive, and a trailing `.exe` is ignored. On Linux
 
 ## Plugins and Integrations
 
-LoupixDeck v1.28.0 and later install integrations separately from the app. In v1.30.0 and later, open **Plugins** from the hamburger menu instead of looking under Settings. The separate window remains usable without a connected device. Its left rail switches between installed plugins and the Plugin Store and shows the installed count plus a badge when updates are pending.
+LoupixDeck v1.28.0 and later install integrations separately from the app. Open **Plugins** using its main-window header button. The separate window remains usable without a connected device. Its left rail switches between installed plugins and the Plugin Store and shows the installed count plus a badge when updates are pending.
 
 ### Plugin Store
 
 Search the store or browse its two-column tile grid. Each tile shows the plugin's description, author, published version, compatibility, and installed state. Release notes load on demand and can be read without installing anything.
 
-Installed plugins with updates are listed first, followed by other installed plugins and then plugins not yet installed. Opening Plugins while plugin updates are pending takes you straight to the Store, including when several updates are waiting.
+Plugins with updates or changes waiting for restart are grouped first, followed by other installed plugins and then plugins not yet installed. Installing, updating, adopting, or removing a plugin keeps the current list positions instead of moving the tile you just used. Opening Plugins while plugin updates are pending takes you straight to the Store, including when several updates are waiting.
 
 Use `Install`, `Update`, or `Remove` on a tile. Before an install or update starts, LoupixDeck shows that release's notes and waits for confirmation. It then displays download progress and verifies the package's SHA-256 checksum before opening the archive. A missing or mismatched checksum prevents installation, and `Cancel` stops a download in progress.
 
 The store lists the plugins that ship a build for your operating system or a platform-independent one. It selects only releases whose `plugin.json` supports the current operating system and an SDK version provided by this LoupixDeck release. A plugin without a compatible release is labelled accordingly instead of being installed. Plugin releases are independent from LoupixDeck releases, so fixes can be delivered without updating the main app.
+
+CPU architecture is checked too. A plugin limited to x64 is not offered on ARM64; an already installed incompatible copy remains listed as disabled with the reason. When a publisher provides separate x64/ARM64 packages, the Store selects the matching build and can replace a wrong-architecture installation with it. Voicemeeter is x64-only because of its native remote DLL.
+
+**Open project page** beside **Release notes** opens the plugin's repository. Details can use the catalogue's repository link when the plugin supplies none. Project links from plugin details and imported packages accept only HTTP(S) addresses.
 
 Installing a plugin does not enable it. Choose `Setup` to move to the installed-plugins page, select the device, and enable it explicitly. Its commands then appear in the side panel immediately, without restarting. The enabled state is saved as soon as it changes. Updating or removing a plugin also takes effect immediately when its files can be replaced safely. If the operating system has a loaded file locked, LoupixDeck stages the change, shows `Restart required`, and offers to restart before completing it on the next start. Updates preserve the plugin's `settings.json`.
 
@@ -860,30 +937,49 @@ From this page you can:
 - Select a plugin and edit its settings if it provides a settings UI.
 - Enable or disable a plugin for the selected device. The choice is saved immediately and refreshes its commands and dial presets live.
 
-The v1.38.0 Plugin Store catalogue includes these integrations:
+The v1.47.0 Plugin Store catalogue includes these integrations. Platform availability is package-specific; a plugin listed for Windows and Linux is not automatically available on macOS.
 
 | Plugin | Platform |
 | --- | --- |
-| OBS Studio | All |
-| Elgato Key Lights | All |
-| Audio | All |
-| SpotifyPremium | All |
-| CoolerControl | All |
+| Anthem | Windows, Linux, macOS |
 | Argus Monitor | Windows |
+| Audio | Windows, Linux, macOS |
+| Bluetooth | Windows, Linux |
+| Claude | Windows, Linux, macOS |
+| CoolerControl | Windows, Linux |
+| Discord | Windows, Linux |
+| Elgato Key Lights | Windows, Linux |
+| Govee Lights | Windows, Linux, macOS |
+| Home Assistant | Windows, Linux |
 | HWiNFO | Windows |
-| Home Assistant | All |
+| IME Control | Windows |
+| Kasa Smart Plugs | Windows, Linux, macOS |
 | KDE Plasma | Linux |
 | LibreHardwareMonitor | Windows |
 | LinuxHwInfo | Linux |
-| Media Session | Windows |
 | MPRIS Media | Linux |
+| Network | Linux |
+| OBS Studio | Windows, Linux |
 | PowerToys | Windows |
+| Slack | Windows, Linux, macOS |
+| Speedtest | Windows, Linux |
+| SpotifyPremium | Windows, Linux |
 | SteelSeries Sonar | Windows |
+| Stopwatch | Windows, Linux, macOS |
+| Systemd | Linux |
 | Twitch | Windows |
+| Media Session | Windows |
+| Voicemeeter | Windows (x64 only) |
+| Visual Studio Code | Windows, Linux, macOS |
+| VTube Studio | Windows, Linux |
+| Wacom | macOS |
+| WLED | Windows, Linux, macOS |
+
+For example, **Stopwatch** puts a timer on a touch key: tap to start/pause and hold to reset, with precision from minutes to milliseconds. **IME Control** switches the active window's input method on or off on Windows. Configure external applications and permissions in each plugin's settings before using its commands.
 
 Plugins can add commands, dynamic text, settings pages, folders, side-strip providers, or special integration behavior. The exact command names depend on the installed plugin version and what external app or service is configured.
 
-LoupixDeck v1.38.0 provides Plugin SDK 1.28.0. Recent additions include plugin translations, dial adjustments, per-button identity, initial button layouts, pixel-exact folder rendering, and system-requirement reporting. These additions preserve older plugins; a plugin using newer APIs needs a host that provides them, which the Store's compatibility checks take into account.
+LoupixDeck v1.47.0 provides Plugin SDK 1.33.0. Recent additions include touch-key value layers, per-state initial layouts, folder side strips, wheel rendering/input, and architecture-aware packaging. Existing plugins continue to work without rebuilding; a plugin using newer APIs needs a host that provides them, which the Store's compatibility checks take into account.
 
 The Plugins page only shows plugins that can run on the current operating system. For example, Windows-only plugins are hidden on Linux instead of appearing as disabled rows with controls that cannot work.
 
@@ -905,7 +1001,7 @@ Install **Media Session** on Windows or **MPRIS Media** on Linux for player cont
 
 ### Audio
 
-The Audio plugin from the Plugin Store controls output and input devices on Windows and Linux and can also work with the separate audio streams of running applications. Assign `Audio: Mixer` to a touch or physical button to open a live folder with one tile per application currently playing on any output device. Tap a tile to select that application; the first dial then changes its volume, and pressing the dial toggles mute. The selected tile is blue and muted tiles are red.
+The Audio plugin from the Plugin Store is available on Windows, Linux, and macOS; available controls depend on the platform. On Windows and Linux it can also work with the separate audio streams of running applications. Assign `Audio: Mixer` to a touch or physical button to open a live folder with one tile per application currently playing on any output device. Tap a tile to select that application; the first dial then changes its volume, and pressing the dial toggles mute. The selected tile is blue and muted tiles are red.
 
 The mixer updates when applications start or stop playing. If the selected application disappears, another available tile becomes selected so the dial does not keep pointing at a missing stream. The display is only repainted when its content changes.
 
@@ -980,6 +1076,14 @@ Device control commands can be assigned to buttons or run from automation:
 | Display Test Pattern | Show a diagnostic pattern on the device display |
 
 These are useful for a sleep/wake button, a clean desk mode, or a button that brings the editor back when hidden.
+
+### Following the monitors
+
+Under `Settings > General > Display`, enable **Follow the monitors** and choose **Turn off** or **Dim**, with a target brightness for dimming. Dimming keeps LEDs, the page, and input working. Monitor wake restores only the state caused by this feature: a device you turned off yourself stays off, including after suspend/resume.
+
+Monitor following works on Windows, macOS, and supported Linux sessions (GNOME, KDE/wlroots Wayland, and X11 with monitor-state reporting). If the desktop does not expose the required state, the option is disabled with an explanation. This is separate from the foreground-window detection used by Profile Rules.
+
+On Windows, a running desktop screensaver also counts as monitors off. The separate **Start with the desktop screen saver** option under `Settings > Screensaver` runs the device screensaver with the Windows one, even when its normal idle trigger is disabled. While that screensaver is playing, the device stays on instead of following the monitor-off action.
 
 ### Display test patterns
 
@@ -1083,6 +1187,8 @@ Settings are still saved when the settings window closes. Use the **Save** butto
 - Firmware and serial.
 - Reconnect.
 - Brightness.
+- Follow the monitors: turn off or dim the device with the desktop's monitor state; see [Following the monitors](#following-the-monitors).
+- Text layers: default font for newly created text layers.
 - Dithering.
 - Key alignment: adjust key size, horizontal and vertical spacing, and the first key's X/Y centre. Changes update the device live; use **Show test pattern on device** to line up the crosshair and border, or **Reset to device default** to discard an adjustment.
 - Startup touch page.
@@ -1121,6 +1227,7 @@ Key alignment normally needs no changes: LoupixDeck uses the measured layout for
 
 ### Pages
 
+- Choose whether pages inherit a wallpaper from the nearest earlier page that has one.
 - Manage touch pages for the active workspace.
 - Manage rotary pages for the active workspace.
 - Reorder pages.
@@ -1136,6 +1243,7 @@ Custom folders are created and arranged from the right-side **Folders** panel in
 
 ### Screensaver
 
+- On Windows, optionally start with the desktop screen saver independently of the normal idle trigger.
 - Enable animated screensaver.
 - Choose `Video` or `Plugin` as the source.
 - Select a video/GIF or an installed plugin provider.
@@ -1148,7 +1256,7 @@ Plugin management and the Plugin Store now live in their own **Plugins** window 
 
 ### Macro Driver
 
-Windows only. Shows Interception driver status and lets you install, uninstall, or enable use of the driver for keyboard and mouse macros.
+Windows x64 only. Shows Interception driver status and lets you install, uninstall, or enable use of the driver for keyboard and mouse macros. The page is hidden on Windows ARM64 because no compatible driver exists; `SendInput` remains available there.
 
 Important: Interception is third-party software. It is not bundled with LoupixDeck, and commercial use may require a separate license from its author.
 
@@ -1188,6 +1296,8 @@ Use **Show report** to review the Markdown report before copying it to the clipb
 - System.
 
 Current releases give cards, borders, and hint text distinct tones in both Light and Dark themes. The page-name placeholder in the main pager follows the same readable palette.
+
+Theme is shared across the whole app and remembered across restarts, rather than being chosen independently by each device. Older per-device theme settings migrate automatically.
 
 ### About
 
@@ -1236,8 +1346,9 @@ Per-device layout is scoped by serial number when possible. Existing file names 
 
 ### Macros do not affect the target app
 
-- On Windows, try running without Interception first.
-- If the target app reads raw input, consider the optional Interception driver.
+- On Windows, try the standard SendInput backend first. Interception is available only on x64.
+- On macOS, check LoupixDeck's Accessibility permission under System Settings > Privacy & Security.
+- If a Windows x64 target app reads raw input, consider the optional Interception driver.
 - Some games or protected applications may block synthetic input.
 - On Linux, check `uinput` and input group permissions.
 
@@ -1277,6 +1388,7 @@ Recording needs read access to `/dev/input/event*`. The installer attempts to ha
 ### Plugin commands are missing
 
 - Open **Plugins > Plugin Store** and install a missing catalogue plugin, or update it if a compatible release is available.
+- Check any CPU-architecture reason shown for a disabled plugin. An x64-only native plugin cannot run in an ARM64 host; install a matching package when offered.
 - For **Needs attention**, read the plugin's requirement details, apply its suggested fix, then choose **Check again**. On Linux, Device Doctor also reports those requirements.
 - On the installed-plugins page, check whether the plugin is enabled for the current device.
 - If you use more than one device, enable the plugin on the device where you want to use it.
@@ -1285,6 +1397,10 @@ Recording needs read access to `/dev/input/event*`. The installer attempts to ha
 - A loaded plugin group with no currently available commands stays visible as a grey information row. For example, this can happen when an integration is enabled but no matching external device is connected.
 - Confirm that external services such as OBS, Spotify, or monitoring tools are running and configured.
 - For LibreHardwareMonitor, confirm that LibreHardwareMonitor is running in the background and that its HTTP web server is enabled. If the web server uses authentication, check the username and password in the plugin settings.
+
+### Side strips or dials stop updating
+
+Update to v1.43.1 or later if an older installation freezes its side strips or dial displays after repeated turns, especially in a plugin folder. Current releases recover from a missed or delayed device reply with a short pause rather than permanently stopping drawing. If a connection problem remains on Linux or macOS, `LOUPIXDECK_LEGACY_SERIAL=1` selects the older serial behavior for troubleshooting; the normal backend has lower idle CPU usage.
 
 ### Monitoring tiles look wrong or still use old settings
 
@@ -1312,7 +1428,7 @@ These flags cover managed errors. Native crashes are not captured this way; for 
 ## Notes and Limitations
 
 - The project is actively developed, so this manual may lag behind new features.
-- Loupedeck CT support is currently partial.
+- macOS support is experimental; report platform-specific problems with the app and plugin versions.
 - Plugin command lists can differ by installed version.
 - Shell commands and macros are powerful. Only assign commands you trust.
 - Runtime CLI updates are temporary and reset when the page is redrawn or the app restarts.
