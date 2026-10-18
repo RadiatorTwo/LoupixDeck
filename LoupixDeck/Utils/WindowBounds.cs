@@ -1,8 +1,8 @@
+using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media.Imaging;
 #if WINDOWS
-using System.Runtime.InteropServices;
 using Avalonia.Platform;
 #endif
 
@@ -15,7 +15,8 @@ namespace LoupixDeck.Utils;
 /// <remarks>
 /// Avalonia moves and resizes a window in two separate calls. Growing a window to the left takes
 /// both, and between them the window shows for a frame at its new position with its old width,
-/// so whatever sits in the middle of it visibly jumps. Win32 does both in one SetWindowPos.
+/// so whatever sits in the middle of it visibly jumps. Win32 does both in one SetWindowPos, X11
+/// in one XMoveResizeWindow.
 /// </remarks>
 public static partial class WindowBounds
 {
@@ -39,9 +40,56 @@ public static partial class WindowBounds
         return SetWindowPos(hwnd, IntPtr.Zero, left, frame.Top, width, frame.Bottom - frame.Top,
             SwpNoZOrder | SwpNoActivate | SwpNoOwnerZOrder);
 #else
-        return false;
+        if (XWindow(window) is not { } xid || X11Display() is var display && display == IntPtr.Zero)
+            return false;
+
+        // The same request Avalonia sends for a new position, so x means what Position means.
+        uint width = (uint)Math.Round(clientWidth * window.RenderScaling);
+        uint height = (uint)Math.Round(window.ClientSize.Height * window.RenderScaling);
+        XMoveResizeWindow(display, xid, x, window.Position.Y, width, height);
+        XFlush(display);
+        return true;
 #endif
     }
+
+    /// <summary>
+    /// Whether <see cref="TrySetLeftAndWidth"/> moves and resizes <paramref name="window"/> in one
+    /// step, so its left edge can follow an animation frame by frame.
+    /// </summary>
+    public static bool CanSetLeftAndWidth(Window window)
+        => OperatingSystem.IsWindows() || (XWindow(window) != null && X11Display() != IntPtr.Zero);
+
+    private static IntPtr? XWindow(Window window)
+        => OperatingSystem.IsLinux() && window.TryGetPlatformHandle() is { HandleDescriptor: "XID" } handle
+            ? handle.Handle
+            : null;
+
+    // Avalonia keeps its own connection to itself; requests on a second one reach the same server.
+    private static IntPtr _x11Display;
+    private static bool _x11Tried;
+
+    private static IntPtr X11Display()
+    {
+        if (_x11Tried) return _x11Display;
+        _x11Tried = true;
+        try
+        {
+            _x11Display = XOpenDisplay(IntPtr.Zero);
+        }
+        catch (DllNotFoundException)
+        {
+        }
+        return _x11Display;
+    }
+
+    [LibraryImport("libX11.so.6")]
+    private static partial IntPtr XOpenDisplay(IntPtr name);
+
+    [LibraryImport("libX11.so.6")]
+    private static partial int XMoveResizeWindow(IntPtr display, IntPtr window, int x, int y, uint width, uint height);
+
+    [LibraryImport("libX11.so.6")]
+    private static partial int XFlush(IntPtr display);
 
     /// <summary>The window's frame in screen pixels, or null where the platform does not tell.</summary>
     public static PixelRect? GetFrame(Window window)
