@@ -989,9 +989,10 @@ public static class BitmapHelper
                 }
 
                 canvas.Save();
-                using (var clip = new SKPath())
+                using (var clipBuilder = new SKPathBuilder())
                 {
-                    clip.AddCircle(c, c, glassR);
+                    clipBuilder.AddCircle(c, c, glassR);
+                    using SKPath clip = clipBuilder.Detach();
                     canvas.ClipPath(clip, SKClipOperation.Intersect, true);
                 }
                 using (SKMaskFilter glassBlur = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 3f * ss))
@@ -1482,9 +1483,9 @@ public static class BitmapHelper
             var keyRect = new SKRect(0, 0, width, height);
             bitmap = new SKBitmap(width, height);
             using var canvas = new SKCanvas(bitmap);
-            canvas.DrawBitmap(cache.Under, keyRect);
+            canvas.DrawBitmap(cache.Under, keyRect, SKSamplingOptions.Default);
             DrawLayers(canvas, [animated], width, height, dial);
-            canvas.DrawBitmap(cache.Over, keyRect);
+            canvas.DrawBitmap(cache.Over, keyRect, SKSamplingOptions.Default);
         }
 
         touchButton.RenderedDisplayValue = value;
@@ -3612,7 +3613,7 @@ public static class BitmapHelper
             if (strip is RecordedBitmap { Picture: { } picture })
                 canvas.DrawPicture(picture);
             else
-                canvas.DrawBitmap(strip, new SKRect(0, 0, width, height));
+                canvas.DrawBitmap(strip, new SKRect(0, 0, width, height), SKSamplingOptions.Default);
 
             var composed = recording.Finish();
             composed.SetImmutable();
