@@ -62,7 +62,7 @@ public class UpdateButtonCommand(IDeviceController controller, IAssetService ass
         var assignments = new List<(string Key, string Value)>(parameters.Length - 1);
         for (var i = 1; i < parameters.Length; i++)
         {
-            if (TrySplitKeyValue(layerName, out var key, out var value))
+            if (TrySplitKeyValue(parameters[i], out var key, out var value))
             {
                 if (key == "layer")
                 {
