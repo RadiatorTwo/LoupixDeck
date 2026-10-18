@@ -1427,11 +1427,9 @@ public partial class LoupedeckLiveSController(
         // plugin's I/O, and lets the backend's own notification thread — which wants the gate to
         // repaint — deadlock against the render thread waiting on the backend. Inside the gate
         // the pulls are served from this snapshot, so they neither block nor re-enter.
-        // A strip that draws no dial labels skips it: a free-draw canvas, and a plugin-override
-        // strip whose session draws it (its fallback snapshots on its own, see
-        // RenderPluginStripOrFallback).
+        // A free-draw canvas reads no dial values and skips it (#472).
         var idx = SideIndex(side);
-        if (StripDrawsDialLabels(page, side, useSessions))
+        if (page.StripMode != StripMode.FreeDraw)
             _frameAdjustmentValues[idx] = SnapshotAdjustmentValues(page, side);
         try
         {
@@ -1453,17 +1451,6 @@ public partial class LoupedeckLiveSController(
     /// own) finds no snapshot and resolves live.
     /// </summary>
     private readonly Dictionary<int, AdjustmentValue?>[] _frameAdjustmentValues = new Dictionary<int, AdjustmentValue?>[2];
-
-    /// <summary>True when <see cref="RenderStripLocked"/> draws the segmented dial labels up front,
-    /// the only path that reads adjustment values. A plugin-override strip with a session counts as
-    /// not drawing them: the session draws the strip unless it declines.</summary>
-    private bool StripDrawsDialLabels(RotaryButtonPage page, RotarySide side, bool useSessions) =>
-        page.StripMode switch
-        {
-            StripMode.FreeDraw => false,
-            StripMode.PluginOverride => !useSessions || _stripSession[SideIndex(side)] == null,
-            _ => true
-        };
 
     /// <summary>Resolves the adjustment value of every dial on the side's page, off the Skia gate.</summary>
     private Dictionary<int, AdjustmentValue?> SnapshotAdjustmentValues(RotaryButtonPage page, RotarySide side)
@@ -1751,10 +1738,7 @@ public partial class LoupedeckLiveSController(
             }
         }
 
-        // Unbound / orphaned id / declined / failed → segmented labels. A declined session left
-        // RenderStripFor without a snapshot; take it now, outside the gate, for the same reason.
-        var idx = SideIndex(side);
-        _frameAdjustmentValues[idx] ??= SnapshotAdjustmentValues(page, side);
+        // Unbound / orphaned id / declined / failed → segmented labels.
         return BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side,
             valueFor: AdjustmentValueFor(page, side), drawBackground: drawBackground);
     }
@@ -1824,7 +1808,8 @@ public partial class LoupedeckLiveSController(
         {
             var r = rotaries[i];
             // The list is a snapshot, so the value has to be a closure the provider pulls at
-            // render time — a value copied in here would freeze at session creation.
+            // render time — a value copied in here would freeze at session creation. Pulled from
+            // inside the render, under the Skia gate, it is served from the frame's snapshot.
             var dial = r;
             var globalIndex = side == RotarySide.Right ? i + 3 : i;
 
@@ -3262,7 +3247,7 @@ public partial class LoupedeckLiveSController(
             Side = side == RotarySide.Right ? StripSide.Right : StripSide.Left,
             Width = StripWidth,
             Height = StripHeight,
-            Rotaries = BuildFolderStripRotaries(FolderStripOverrides(side)),
+            Rotaries = BuildFolderStripRotaries(FolderStripOverrides(side), idx),
             // The rotary pages are frozen while a folder is open.
             RequestNextPage = static () => { },
             RequestPreviousPage = static () => { }
@@ -3321,22 +3306,70 @@ public partial class LoupedeckLiveSController(
     }
 
     /// <summary>Maps the folder's dials to the SDK's rotary context. They have no command strings;
-    /// label and value come from the folder's rotary overrides.</summary>
-    private static IReadOnlyList<SideStripRotary> BuildFolderStripRotaries(
-        Services.FolderNavigation.RotaryOverride[] overrides)
+    /// label and value come from the folder's rotary overrides. A value pulled while a render is in
+    /// flight comes from the values pulled before it, off the Skia gate.</summary>
+    private IReadOnlyList<SideStripRotary> BuildFolderStripRotaries(
+        Services.FolderNavigation.RotaryOverride[] overrides, int idx)
     {
         var list = new List<SideStripRotary>(overrides.Length);
         for (var i = 0; i < overrides.Length; i++)
         {
             var ov = overrides[i];
+            var segment = i;
             list.Add(new SideStripRotary
             {
                 Index = i,
                 Label = ov?.Label ?? string.Empty,
-                GetValue = ov?.GetValue ?? (static () => null)
+                GetValue = ov?.GetValue is not { } getValue
+                    ? static () => null
+                    : () => _frameFolderValues[idx] is { } values && segment < values.Length
+                        ? values[segment]
+                        : getValue()
             });
         }
         return list;
+    }
+
+    /// <summary>
+    /// Per side, the folder dials' values pulled for the render in flight, by segment; the folder
+    /// counterpart of <see cref="_frameAdjustmentValues"/>. Null outside a render.
+    /// </summary>
+    private readonly AdjustmentValue?[][] _frameFolderValues = new AdjustmentValue?[2][];
+
+    /// <summary>Pulls the folder dials' values, off the Skia gate: a value is plugin code that may
+    /// wait on its backend (see <see cref="RenderStripFor"/>).</summary>
+    private static AdjustmentValue?[] PullFolderDialValues(Services.FolderNavigation.RotaryOverride[] overrides,
+        RotarySide side)
+    {
+        var values = new AdjustmentValue?[overrides.Length];
+        for (var i = 0; i < overrides.Length; i++)
+        {
+            if (overrides[i]?.GetValue is not { } getValue) continue;
+
+            try { values[i] = getValue(); }
+            catch (Exception ex) { Console.WriteLine($"Folder dial value {i} ({side}) failed: {ex.Message}"); }
+        }
+
+        return values;
+    }
+
+    /// <summary>
+    /// Pulls every dial value the side's strip session may read during a render, off the Skia gate,
+    /// so the session's <see cref="SideStripRotary.GetValue"/> is served from them under it. Pair
+    /// with <see cref="ClearSessionDialValues"/>.
+    /// </summary>
+    private void SnapshotSessionDialValues(int idx, RotarySide side)
+    {
+        if (_stripFolder[idx] != null)
+            _frameFolderValues[idx] = PullFolderDialValues(FolderStripOverrides(side), side);
+        else if (_stripPage[idx] is { } page)
+            _frameAdjustmentValues[idx] = SnapshotAdjustmentValues(page, side);
+    }
+
+    private void ClearSessionDialValues(int idx)
+    {
+        _frameAdjustmentValues[idx] = null;
+        _frameFolderValues[idx] = null;
     }
 
     /// <summary>
@@ -3350,23 +3383,15 @@ public partial class LoupedeckLiveSController(
         var idx = SideIndex(side);
         var overrides = FolderStripOverrides(side);
 
-        // Pulled here, before the Skia gate, for the reason given in RenderStripFor: a value is
-        // plugin code that may wait on its backend.
-        var labels = new string[overrides.Length];
-        var values = new AdjustmentValue?[overrides.Length];
-        for (var i = 0; i < overrides.Length; i++)
-        {
-            labels[i] = overrides[i]?.Label;
-            if (overrides[i]?.GetValue is not { } getValue) continue;
-
-            try { values[i] = getValue(); }
-            catch (Exception ex) { Console.WriteLine($"Folder dial value {i} ({side}) failed: {ex.Message}"); }
-        }
+        var labels = overrides.Select(ov => ov?.Label).ToArray();
+        var values = PullFolderDialValues(overrides, side);
 
         var session = _stripFolder[idx] != null ? _stripSession[idx] : null;
         if (session != null)
         {
-            // Same render as a plugin-override strip (RenderPluginStripOrFallback).
+            // Same render as a plugin-override strip (RenderPluginStripOrFallback); the session's
+            // dials read the values pulled above.
+            _frameFolderValues[idx] = values;
             try
             {
                 using var recording = new RecordedRender(StripWidth, StripHeight);
@@ -3382,6 +3407,10 @@ public partial class LoupedeckLiveSController(
             catch (Exception ex)
             {
                 Console.WriteLine($"Folder side-strip session RenderStrip failed ({side}): {ex.Message}");
+            }
+            finally
+            {
+                _frameFolderValues[idx] = null;
             }
         }
 
