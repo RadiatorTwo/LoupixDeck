@@ -636,6 +636,32 @@
       }
     },
     {
+      "id": "stopwatch",
+      "name": "Stopwatch",
+      "description": "Stopwatch on a touch button: tap to start/pause, hold to reset. Precision from minutes to milliseconds.",
+      "author": "resper",
+      "repository": "resper/LoupixDeck.Plugin.Stopwatch",
+      "icon": "https://raw.githubusercontent.com/resper/LoupixDeck.Plugin.Stopwatch/main/icon.png",
+      "platforms": [ "Windows", "Linux", "macOS" ],
+      "minSdkVersion": "1.27.0",
+      "commandPrefixes": [ "Stopwatch." ],
+      "release": {
+        "version": "1.2.0",
+        "tag": "v1.2.0",
+        "publishedAt": "2026-10-18T12:34:47Z",
+        "sdkVersion": "1.27",
+        "releaseNotesUrl": "https://github.com/resper/LoupixDeck.Plugin.Stopwatch/releases/tag/v1.2.0",
+        "packages": [
+          {
+            "platform": "any",
+            "fileName": "stopwatch-1.2.0-any.zip",
+            "downloadUrl": "https://github.com/resper/LoupixDeck.Plugin.Stopwatch/releases/download/v1.2.0/stopwatch-1.2.0-any.zip",
+            "sha256": "1ac3626649436235ead763b59585e9492440ec9624baf95c679446a5221996ac"
+          }
+        ]
+      }
+    },
+    {
       "id": "systemd",
       "name": "Systemd",
       "description": "Monitor and control systemd user and system units over the native D-Bus API.",
