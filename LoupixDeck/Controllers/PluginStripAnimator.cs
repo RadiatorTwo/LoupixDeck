@@ -280,11 +280,13 @@ public partial class LoupedeckLiveSController
             AnimationFrameInfo info;
 
             // Plugin code may call back into the host, so give it the right ambient device; all
-            // Skia work stays under the shared gate (SkiaRenderCanvas does not lock itself).
+            // Skia work stays under the shared gate (SkiaRenderCanvas does not lock itself). The
+            // dial values the frame may read are pulled before it, off the gate (#513).
             try
             {
                 using (router.Enter(serviceProvider))
                 {
+                    SnapshotSessionDialValues(idx, side);
                     lock (SkiaRenderGate.Sync)
                     {
                         using var canvas = new SKCanvas(bitmap);
@@ -302,6 +304,10 @@ public partial class LoupedeckLiveSController
                 // The plugin threw; its frame was never handed on.
                 bitmap.Dispose();
                 throw;
+            }
+            finally
+            {
+                ClearSessionDialValues(idx);
             }
 
             if (info.IsFinal)
