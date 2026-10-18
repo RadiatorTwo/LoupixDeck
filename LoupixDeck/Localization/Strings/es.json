@@ -677,6 +677,8 @@
   "MainWindow_PROFILE": "PERFIL",
   "MainWindow_ProfileActions": "Acciones de perfil",
   "MainWindow_Quit": "Salir",
+  "MainWindow_QuitConfirmMessage": "Tus dispositivos dejarán de responder hasta que vuelvas a iniciar LoupixDeck.",
+  "MainWindow_QuitConfirmTitle": "¿Salir de LoupixDeck?",
   "MainWindow_RenameProfile": "Renombrar perfil…",
   "MainWindow_RenameWorkspace": "Renombrar espacio de trabajo…",
   "MainWindow_Settings": "Ajustes",

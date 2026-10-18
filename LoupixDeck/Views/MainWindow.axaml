@@ -447,6 +447,16 @@
                     <!-- mdi-information-outline -->
                     <TextBlock Classes="HeaderGlyph" Text="&#xF02FD;" />
                 </Button>
+                <!-- Quits the whole app, not just the window, so it sits apart from the rest. -->
+                <Border Classes="HeaderDivider" IsVisible="{Binding ShowQuitButton}" />
+                <Button Classes="HeaderAction"
+                        VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                        IsVisible="{Binding ShowQuitButton}"
+                        Command="{Binding QuitApplicationCommand}"
+                        ToolTip.Tip="{loc:Tr MainWindow_Quit}">
+                    <!-- mdi-power -->
+                    <TextBlock Classes="HeaderGlyph" Text="&#xF0425;" />
+                </Button>
             </StackPanel>
 
             <!-- One framed bar fusing the three selectors into a single context path. Fine

@@ -345,8 +345,23 @@ public sealed class MainShellViewModel : ViewModelBase
 
     /// <summary>Quit has to work with no device connected too, so the shell owns it rather
     /// than delegating to a device's view model.</summary>
-    public IRelayCommand QuitApplicationCommand { get; } = new RelayCommand(() =>
+    public IAsyncRelayCommand QuitApplicationCommand => field ??= new AsyncRelayCommand(QuitApplication);
+
+    /// <summary>Asks first: the header button sits among everyday ones and is easy to hit.</summary>
+    private async Task QuitApplication()
     {
+        if (_dialogService?.Invoke() is { } dialogs)
+        {
+            LoupixDeck.Models.DialogResult result = await dialogs.ShowDialogAsync<ConfirmDialogViewModel, LoupixDeck.Models.DialogResult>(vm =>
+                vm.Configure(
+                    Loc.Tr("MainWindow_QuitConfirmMessage"),
+                    title: Loc.Tr("MainWindow_QuitConfirmTitle"),
+                    confirmText: Loc.Tr("Confirm_Yes"),
+                    cancelText: Loc.Tr("Confirm_No")));
+
+            if (result?.IsConfirmed != true) return;
+        }
+
         if (Utils.WindowHelper.GetMainWindow() is Views.MainWindow window)
         {
             window.QuitApplication();
@@ -354,7 +369,10 @@ public sealed class MainShellViewModel : ViewModelBase
         }
 
         Environment.Exit(0);
-    });
+    }
+
+    /// <summary>macOS already has Quit in the application menu, so the window leaves it out.</summary>
+    public bool ShowQuitButton { get; } = !OperatingSystem.IsMacOS();
 
     public void Add(MainWindowViewModel device)
     {

@@ -677,6 +677,8 @@
   "MainWindow_PROFILE": "PROFILE",
   "MainWindow_ProfileActions": "Profile actions",
   "MainWindow_Quit": "Quit",
+  "MainWindow_QuitConfirmMessage": "Your devices stop responding until you start LoupixDeck again.",
+  "MainWindow_QuitConfirmTitle": "Quit LoupixDeck?",
   "MainWindow_RenameProfile": "Rename profile…",
   "MainWindow_RenameWorkspace": "Rename workspace…",
   "MainWindow_Settings": "Settings",
