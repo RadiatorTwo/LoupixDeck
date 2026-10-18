@@ -135,6 +135,39 @@ public sealed class DeviceViewZoom
         Apply(device, zoom);
     }
 
+    /// <summary>A zoom the view gave up to make room, with the zoom it was shrunk to.</summary>
+    public sealed record ZoomLoan(MainWindowViewModel Device, double Previous, double Applied);
+
+    /// <summary>
+    /// Zooms the view out, animated like any zoom, until it is no wider than <paramref name="width"/>.
+    /// Returns what to hand to <see cref="Restore"/>, or null when the view already fits.
+    /// </summary>
+    public ZoomLoan ShrinkToWidth(double width)
+    {
+        DeviceZoomPanel panel = Panel;
+        MainWindowViewModel device = _device();
+        if (panel == null || device == null || panel.SizeAt(panel.TargetZoom).Width <= width + 0.5) return null;
+
+        double fit = ZoomFor(width, panel.SizeAt(1.0).Width, panel.SizeAt(2.0).Width);
+        double zoom = Math.Max(MinZoom, Math.Floor(fit * 100) / 100);
+        if (zoom >= device.ViewZoom) return null;
+
+        ZoomLoan loan = new(device, device.ViewZoom, zoom);
+        device.ViewZoom = zoom;
+        return loan;
+    }
+
+    /// <summary>The width the view takes at <paramref name="zoom"/>.</summary>
+    public double ViewWidthAt(double zoom) => Panel?.SizeAt(zoom).Width ?? 0;
+
+    /// <summary>Gives the view back the zoom it gave up, unless the user has zoomed since.</summary>
+    public void Restore(ZoomLoan loan)
+    {
+        if (loan == null || Math.Abs(loan.Device.ViewZoom - loan.Applied) > 0.001) return;
+
+        loan.Device.ViewZoom = loan.Previous;
+    }
+
     private void Apply(MainWindowViewModel device, double zoom)
     {
         double limit = Panel?.MaxZoom ?? MaxZoom;
@@ -195,8 +228,9 @@ public sealed class DeviceViewZoom
         Size client = _window.ClientSize;
         Size frame = _window.FrameSize ?? client;
 
-        // Everything around the view: window decorations, plus the header and notice rows above it.
-        double availableWidth = work.Width - (frame.Width - client.Width);
+        // Everything around the view: window decorations, the open side panels beside it, and the
+        // header and notice rows above it.
+        double availableWidth = work.Width - (frame.Width - client.Width) - (client.Width - _viewport.Bounds.Width);
         double availableHeight = work.Height - (frame.Height - client.Height) - (client.Height - _viewport.Bounds.Height);
 
         Size atOne = panel.SizeAt(1.0);

@@ -5,6 +5,7 @@
         xmlns:models="using:LoupixDeck.Models"
         xmlns:notices="using:LoupixDeck.Services.Notices"
         xmlns:controls="using:LoupixDeck.Views.Controls"
+        xmlns:views="using:LoupixDeck.Views"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
@@ -384,12 +385,12 @@
 
     <!-- Focusable so a drag can grab keyboard focus and receive Esc / live Ctrl during the
          gesture (issue #166 phase 3). IsTabStop=False keeps it out of the tab order. -->
-    <Grid Name="RootGrid" RowDefinitions="Auto,Auto,*,Auto" Focusable="True" IsTabStop="False">
+    <Grid Name="RootGrid" RowDefinitions="Auto,Auto,*,Auto" ColumnDefinitions="Auto,*,Auto" Focusable="True" IsTabStop="False">
         <!-- Device → Profile → Workspace switcher (issue #132). One modern top bar,
              centred, mirroring the original software. The Device selector only appears
              when more than one device is connected (single-device users see just their
              Profile and Workspace). -->
-        <Border Grid.Row="0" Classes="SwitcherBar">
+        <Border Grid.Row="0" Grid.Column="1" Classes="SwitcherBar">
           <!-- Buttons left and right, the context selectors between them (narrow/wide design):
                the selectors share the button row while they fit centred in it and drop to a row
                of their own when they do not. The panel never widens the window, which sizes to
@@ -623,7 +624,7 @@
         <!-- Notice strip (issues #233, #234, #315): one quiet row per notice under the switcher
              instead of a popup — app update, plugin updates, unmet plugin requirements. Each
              text stays short so it never widens the window, which sizes to the deck. -->
-        <ItemsControl Grid.Row="1" ItemsSource="{Binding Notices}">
+        <ItemsControl Grid.Row="1" Grid.Column="1" ItemsSource="{Binding Notices}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="notices:Notice">
                     <Border Background="{DynamicResource AppSurfaceBar}"
@@ -658,7 +659,7 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <Grid Grid.Row="2">
+        <Grid Grid.Row="2" Grid.Column="1">
             <!-- The device view sits centred in whatever room the window gives it (issue #251): a
                  window that sizes itself to the view, or a maximized, full-screen or hand-resized
                  one, which keeps the view at its zoom and scrolls when the view does not fit.
@@ -728,7 +729,7 @@
 
         <!-- Zoom strip under the device view (issue #251). Background so the whole row counts as
              being over the window. Hidden with the deck when no device is connected. -->
-        <Border Grid.Row="3" Height="36" Background="Transparent" IsVisible="{Binding HasDevice}">
+        <Border Grid.Row="3" Grid.Column="1" Height="36" Background="Transparent" IsVisible="{Binding HasDevice}">
             <Border.Styles>
                 <!-- The zoom bar only shows while the pointer is over the window; its row is
                      reserved, so it never covers the deck or its pagers. -->
@@ -785,9 +786,24 @@
             </Border>
         </Border>
 
+        <!-- The side panels: apps and commands left of the deck, folders right of it, each the
+             full height of the window. The header stays in the middle column above the deck, so a
+             panel sliding out (SidePanelLayout) moves neither the deck nor the header buttons on
+             screen. The decorators report no height of their own, so a panel takes the window's
+             height instead of stretching it. -->
+        <controls:FillRemainingDecorator Name="ActionPanelHost" Grid.Row="0" Grid.RowSpan="4" Grid.Column="0"
+                                         ClipToBounds="True" IsVisible="False">
+            <views:ActionPanelView Name="ActionPanelView" HorizontalAlignment="Left"
+                                   BorderThickness="0,0,1,0" BorderBrush="{DynamicResource AppBorderSubtle}" />
+        </controls:FillRemainingDecorator>
+        <controls:FillRemainingDecorator Name="FolderPanelHost" Grid.Row="0" Grid.RowSpan="4" Grid.Column="2"
+                                         ClipToBounds="True" IsVisible="False">
+            <views:FolderPanelView Name="FolderPanelView" HorizontalAlignment="Right" />
+        </controls:FillRemainingDecorator>
+
         <!-- Resize grip in the bottom-right corner, so the window is easy to resize; the OS does the
              resizing (its own cursor, snapping). Only while the window is in its normal state. -->
-        <TextBlock Grid.Row="0" Grid.RowSpan="4"
+        <TextBlock Grid.Row="0" Grid.RowSpan="4" Grid.ColumnSpan="3"
                    HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,1,1" Padding="3"
                    FontFamily="{StaticResource MdiFont}" FontSize="16" Text="&#xF045D;"
                    Foreground="{DynamicResource AppTextSecondary}" Background="Transparent"
@@ -799,7 +815,7 @@
              operation (green move / amber swap / blue copy, red invalid) and a slightly
              translucent ghost of the dragged button in its current state with a rounded frame like
              the touch tiles. Non-hit-testable so it never intercepts pointer input. -->
-        <Canvas Name="DragOverlay" Grid.Row="0" Grid.RowSpan="4"
+        <Canvas Name="DragOverlay" Grid.Row="0" Grid.RowSpan="4" Grid.ColumnSpan="3"
                 IsHitTestVisible="False" IsVisible="False">
             <Border Name="DropHighlight"
                     IsVisible="False"

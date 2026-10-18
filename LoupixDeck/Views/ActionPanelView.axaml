@@ -8,7 +8,7 @@
              mc:Ignorable="d"
              x:Class="LoupixDeck.Views.ActionPanelView"
              x:DataType="panel:ActionPanelViewModel"
-             Width="620">
+             Width="480">
     <UserControl.Styles>
         <StyleInclude Source="avares://LoupixDeck/Views/Styles/SettingsStyles.axaml" />
 

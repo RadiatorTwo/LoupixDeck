@@ -32,8 +32,7 @@ public partial class MainWindow : Window
     private MainShellViewModel _shell;
     private DeviceDragDrop _dragDrop;
     private DeviceViewZoom _zoom;
-    private ActionPanelWindow _panelWindow;
-    private FolderPanelWindow _folderPanelWindow;
+    private SidePanelLayout _sidePanels;
 
     public MainWindow()
     {
@@ -44,6 +43,7 @@ public partial class MainWindow : Window
         CreateTrayIcon();
         InitDragDrop();
         InitZoom();
+        InitSidePanels();
 
         this.Closing += OnWindowClosing;
         this.DataContextChanged += OnDataContextChanged;
@@ -93,6 +93,29 @@ public partial class MainWindow : Window
         _zoom.UserZoomed += (_, _) => ShowZoomBadge();
         LocalizationManager.Instance.PropertyChanged += (_, _) => UpdateZoomText();
         UpdateZoomText();
+    }
+
+    private void InitSidePanels()
+    {
+
+        _sidePanels = new SidePanelLayout(this, this.FindControl<ScrollViewer>("DeviceViewport"), _zoom, ContentHeight,
+            this.FindControl<Control>("ActionPanelHost"), this.FindControl<ActionPanelView>("ActionPanelView").Width,
+            this.FindControl<Control>("FolderPanelHost"), this.FindControl<FolderPanelView>("FolderPanelView").Width);
+    }
+
+    /// <summary>
+    /// The client height the window's content needs: the deck may be zooming while a panel slides.
+    /// Only meaningful while the window sizes itself to its content, where the viewport is exactly
+    /// as tall as the deck.
+    /// </summary>
+    private double ContentHeight()
+    {
+        ScrollViewer viewport = this.FindControl<ScrollViewer>("DeviceViewport");
+        ContentControl deck = this.FindControl<ContentControl>("DeviceLayoutHost");
+        Size client = ClientSize;
+        if (deck.Content == null) return client.Height;
+
+        return client.Height - viewport.Bounds.Height + deck.DesiredSize.Height;
     }
 
     private void UpdateZoomText()
@@ -214,65 +237,11 @@ public partial class MainWindow : Window
             ApplyActionPanelState();
     }
 
-    /// <summary>
-    /// Shows or hides the apps and actions panel, which is its own window flanged to this one's
-    /// left edge.
-    /// </summary>
-    /// <remarks>
-    /// A separate window rather than a column in this one, so that opening the panel never changes
-    /// this window's size or position: Avalonia applies a window's size and its content in separate
-    /// passes, so any variant that widened this window rendered it resized before it rendered its
-    /// new content, which read as the whole window flickering.
-    /// </remarks>
+    /// <summary>Opens or closes the apps and actions panel, left of the deck.</summary>
     private void ApplyActionPanelState()
     {
-        bool open = _panel?.IsOpen == true;
-
-        if (!open)
-        {
-            _panelWindow?.Hide();
-            return;
-        }
-
-        if (_panelWindow == null)
-        {
-            _panelWindow = new ActionPanelWindow();
-            _panelWindow.Attach(this, _dragDrop);
-        }
-
-        _panelWindow.DataContext = _panel;
-        _panelWindow.Show(this);
-        _panelWindow.FollowOwner();
-    }
-
-    /// <summary>Hides the panels with their owner, for the tray, and brings them back with it.</summary>
-    private void SyncPanelVisibility()
-    {
-        if (_panelWindow != null)
-        {
-            if (IsVisible && _panel?.IsOpen == true)
-            {
-                _panelWindow.Show(this);
-                _panelWindow.FollowOwner();
-            }
-            else
-            {
-                _panelWindow.Hide();
-            }
-        }
-
-        if (_folderPanelWindow != null)
-        {
-            if (IsVisible && _folderPanel?.IsOpen == true)
-            {
-                _folderPanelWindow.Show(this);
-                _folderPanelWindow.FollowOwner();
-            }
-            else
-            {
-                _folderPanelWindow.Hide();
-            }
-        }
+        this.FindControl<ActionPanelView>("ActionPanelView").DataContext = _panel;
+        _sidePanels.SetLeftOpen(_panel?.IsOpen == true, animate: IsVisible);
     }
 
     // The custom folder panel (issue #249) whose open state we follow; same rules as the apps panel.
@@ -303,24 +272,11 @@ public partial class MainWindow : Window
             ApplyFolderPanelState();
     }
 
-    /// <summary>Shows or hides the folder panel, its own window flanged to this one's right edge.</summary>
+    /// <summary>Opens or closes the folder panel, right of the deck.</summary>
     private void ApplyFolderPanelState()
     {
-        if (_folderPanel?.IsOpen != true)
-        {
-            _folderPanelWindow?.Hide();
-            return;
-        }
-
-        if (_folderPanelWindow == null)
-        {
-            _folderPanelWindow = new FolderPanelWindow();
-            _folderPanelWindow.Attach(this, _dragDrop);
-        }
-
-        _folderPanelWindow.DataContext = _folderPanel;
-        _folderPanelWindow.Show(this);
-        _folderPanelWindow.FollowOwner();
+        this.FindControl<FolderPanelView>("FolderPanelView").DataContext = _folderPanel;
+        _sidePanels.SetRightOpen(_folderPanel?.IsOpen == true, animate: IsVisible);
     }
 
     /// <summary>Swap the DeviceLayoutHost to the selected device's layout, with that
@@ -445,8 +401,7 @@ public partial class MainWindow : Window
             if (_isMinimizedToTray) return;
             _isMinimizedToTray = true;
             Hide();
-            SyncPanelVisibility();
-            // Policy switch last, once the main window and attached panels are off-screen.
+            // Policy switch last, once the main window is off-screen.
             MacOsDock.Hide();
         });
     }
@@ -461,7 +416,6 @@ public partial class MainWindow : Window
             Show();
             WindowState = WindowState.Normal;
             Activate();
-            SyncPanelVisibility();
             // AppKit may still be mid-way through the accessory→regular switch when the first
             // Activate() runs, leaving the window shown but not key. One deferred retry covers it.
             Avalonia.Threading.DispatcherTimer.RunOnce(() =>
