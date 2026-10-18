@@ -90,14 +90,14 @@
                 BorderThickness="0,1,0,0"
                 Padding="16,12">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
-                <Button Classes="dialogBtn cancel"
-                        Content="{Binding CancelText}"
-                        IsVisible="{Binding ShowCancel}"
-                        Command="{Binding CancelCommand}" />
                 <Button Classes="dialogBtn confirm"
                         Content="{Binding ConfirmText}"
                         IsDefault="True"
                         Command="{Binding ConfirmCommand}" />
+                <Button Classes="dialogBtn cancel"
+                        Content="{Binding CancelText}"
+                        IsVisible="{Binding ShowCancel}"
+                        Command="{Binding CancelCommand}" />
             </StackPanel>
         </Border>
     </Grid>

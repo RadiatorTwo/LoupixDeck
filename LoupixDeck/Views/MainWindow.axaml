@@ -4,6 +4,8 @@
         xmlns:vm="using:LoupixDeck.ViewModels"
         xmlns:models="using:LoupixDeck.Models"
         xmlns:notices="using:LoupixDeck.Services.Notices"
+        xmlns:controls="using:LoupixDeck.Views.Controls"
+        xmlns:views="using:LoupixDeck.Views"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
@@ -166,8 +168,8 @@
             <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
         </Style>
 
-        <!-- The panel toggle wears the same chrome as the hamburger. ToggleButton needs its own
-             selectors: an Avalonia type selector matches the exact type, so the Button rules
+        <!-- The panel toggles wear the same chrome as the header buttons. ToggleButton needs its
+             own selectors: an Avalonia type selector matches the exact type, so the Button rules
              above do not reach it. -->
         <Style Selector="ToggleButton.HeaderAction">
             <Setter Property="Width" Value="34" />
@@ -185,6 +187,24 @@
         <Style Selector="ToggleButton.HeaderAction:checked /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource AppControlBackgroundActive}" />
             <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
+        </Style>
+        <Style Selector="TextBlock.HeaderGlyph">
+            <Setter Property="FontFamily" Value="{DynamicResource MdiFont}" />
+            <Setter Property="FontSize" Value="18" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.HeaderAction:disabled TextBlock.HeaderGlyph">
+            <Setter Property="Opacity" Value="0.4" />
+        </Style>
+        <!-- Sets the panel toggle apart from the buttons that open dialogs. -->
+        <Style Selector="Border.HeaderDivider">
+            <Setter Property="Width" Value="1" />
+            <Setter Property="Height" Value="22" />
+            <Setter Property="Margin" Value="4,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Background" Value="{DynamicResource AppBorderSubtle}" />
         </Style>
 
         <!-- ───────── Device / Profile / Workspace switcher header (issue #132) ─────────
@@ -365,22 +385,87 @@
 
     <!-- Focusable so a drag can grab keyboard focus and receive Esc / live Ctrl during the
          gesture (issue #166 phase 3). IsTabStop=False keeps it out of the tab order. -->
-    <Grid Name="RootGrid" RowDefinitions="Auto,Auto,*,Auto" Focusable="True" IsTabStop="False">
+    <Grid Name="RootGrid" RowDefinitions="Auto,Auto,*,Auto" ColumnDefinitions="Auto,*,Auto" Focusable="True" IsTabStop="False">
         <!-- Device → Profile → Workspace switcher (issue #132). One modern top bar,
              centred, mirroring the original software. The Device selector only appears
              when more than one device is connected (single-device users see just their
              Profile and Workspace). -->
-        <Border Grid.Row="0" Classes="SwitcherBar">
-          <!-- The folder toggle and the hamburger share a column at the right end of this zone,
-               mirrored by an equally wide column on the left, so the selector group stays
-               centred in the window AND the buttons never overlap it on a narrow window. -->
-          <Grid ColumnDefinitions="84,*,84">
+        <Border Grid.Row="0" Grid.Column="1" Classes="SwitcherBar">
+          <!-- Buttons left and right, the context selectors between them (narrow/wide design):
+               the selectors share the button row while they fit centred in it and drop to a row
+               of their own when they do not. The panel never widens the window, which sizes to
+               the deck. -->
+          <controls:HeaderBarPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <!-- Apps and actions panel, opening on the left. -->
+                <ToggleButton Classes="HeaderAction"
+                    VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                    IsVisible="{Binding HasDevice}"
+                    IsChecked="{Binding SelectedDevice.ActionPanel.IsOpen, Mode=TwoWay}"
+                    ToolTip.Tip="{loc:Tr MainWindow_AppsAndCommands}">
+                    <!-- mdi-view-grid-plus-outline -->
+                    <TextBlock Classes="HeaderGlyph" Text="&#xF11D2;" />
+                </ToggleButton>
+                <Border Classes="HeaderDivider" IsVisible="{Binding HasDevice}" />
+                <!-- Settings and Macros act on the selected device, so they go inactive while no
+                     device is connected; Plugins load once for the whole process and stay usable. -->
+                <Button Classes="HeaderAction"
+                        VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                        IsEnabled="{Binding HasDevice}"
+                        Command="{Binding SelectedDevice.SettingsMenuCommand}"
+                        ToolTip.Tip="{loc:Tr MainWindow_Settings}">
+                    <!-- mdi-cog-outline -->
+                    <TextBlock Classes="HeaderGlyph" Text="&#xF08BB;" />
+                </Button>
+                <Button Classes="HeaderAction"
+                        VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                        IsEnabled="{Binding HasDevice}"
+                        Command="{Binding SelectedDevice.MacroEditorMenuCommand}"
+                        ToolTip.Tip="{loc:Tr MainWindow_Macros}">
+                    <!-- mdi-play-box-multiple-outline -->
+                    <TextBlock Classes="HeaderGlyph" Text="&#xF13E6;" />
+                </Button>
+                <Button Classes="HeaderAction"
+                        VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                        Command="{Binding PluginsMenuCommand}"
+                        ToolTip.Tip="{loc:Tr Settings_Plugins}">
+                    <!-- mdi-puzzle-outline -->
+                    <TextBlock Classes="HeaderGlyph" Text="&#xF0A66;" />
+                </Button>
+                <!-- Only for a device that runs without hardware (virtual-device switch). -->
+                <Button Classes="HeaderAction"
+                        VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                        IsVisible="{Binding SelectedDevice.IsVirtualDevice, FallbackValue=False}"
+                        Command="{Binding SelectedDevice.ShowVirtualDeviceCommand}"
+                        ToolTip.Tip="{loc:Tr VirtualDevice_MenuEntry}">
+                    <!-- mdi-monitor -->
+                    <TextBlock Classes="HeaderGlyph" Text="&#xF0379;" />
+                </Button>
+                <Button Classes="HeaderAction"
+                        VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                        Command="{Binding AboutMenuCommand}"
+                        ToolTip.Tip="{loc:Tr MainWindow_About}">
+                    <!-- mdi-information-outline -->
+                    <TextBlock Classes="HeaderGlyph" Text="&#xF02FD;" />
+                </Button>
+                <!-- Quits the whole app, not just the window, so it sits apart from the rest. -->
+                <Border Classes="HeaderDivider" IsVisible="{Binding ShowQuitButton}" />
+                <Button Classes="HeaderAction"
+                        VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                        IsVisible="{Binding ShowQuitButton}"
+                        Command="{Binding QuitApplicationCommand}"
+                        ToolTip.Tip="{loc:Tr MainWindow_Quit}">
+                    <!-- mdi-power -->
+                    <TextBlock Classes="HeaderGlyph" Text="&#xF0425;" />
+                </Button>
+            </StackPanel>
+
             <!-- One framed bar fusing the three selectors into a single context path. Fine
                  vertical hairlines separate the cells; each cell keeps its own label and
                  dropdown. The Device cell (and its trailing divider) only appears when more
                  than one device is connected. With no device at all the whole group goes
                  away — its Profile/Workspace selectors would just be two empty boxes. -->
-            <Border Grid.Column="1" Classes="SwitcherGroup" HorizontalAlignment="Center"
+            <Border Classes="SwitcherGroup"
                     IsVisible="{Binding HasDevice}">
                 <StackPanel Orientation="Horizontal">
                     <!-- Device -->
@@ -523,106 +608,23 @@
                 </StackPanel>
             </Border>
 
-            <!-- Apps and actions panel. Lives in the spacer column that already balances the
-                 hamburger, so adding it leaves the selector group centred. -->
-            <ToggleButton Grid.Column="0" Classes="HeaderAction"
-                VerticalAlignment="Center" HorizontalAlignment="Left"
-                VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
-                IsVisible="{Binding HasDevice}"
-                IsChecked="{Binding SelectedDevice.ActionPanel.IsOpen, Mode=TwoWay}"
-                ToolTip.Tip="{loc:Tr MainWindow_AppsAndCommands}">
-                <!-- mdi-view-grid-plus-outline -->
-                <TextBlock FontFamily="{DynamicResource MdiFont}" FontSize="18"
-                           Foreground="{DynamicResource AppTextPrimary}"
-                           VerticalAlignment="Center" HorizontalAlignment="Center"
-                           Text="&#xF11D2;" />
-            </ToggleButton>
-
             <!-- Custom folder panel (issue #249), opening on the right the way the apps and
-                 commands panel opens on the left. Sits directly left of the hamburger. -->
-            <ToggleButton Grid.Column="2" Classes="HeaderAction"
-                VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,40,0"
+                 commands panel opens on the left. -->
+            <ToggleButton Classes="HeaderAction"
                 VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
                 IsVisible="{Binding HasDevice}"
                 IsChecked="{Binding SelectedDevice.FolderPanel.IsOpen, Mode=TwoWay}"
                 ToolTip.Tip="{loc:Tr MainWindow_Folders}">
                 <!-- mdi-folder -->
-                <TextBlock FontFamily="{DynamicResource MdiFont}" FontSize="18"
-                           Foreground="{DynamicResource AppTextPrimary}"
-                           VerticalAlignment="Center" HorizontalAlignment="Center"
-                           Text="&#xF024B;" />
+                <TextBlock Classes="HeaderGlyph" Text="&#xF024B;" />
             </ToggleButton>
-
-            <Button Grid.Column="2" Classes="HeaderAction"
-                VerticalAlignment="Center" HorizontalAlignment="Right"
-                VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
-            <!-- Theme-aware hamburger (three bars) so the menu icon follows Light/Dark
-                 instead of being a fixed-white SVG that vanishes on a light window. -->
-            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="3.5">
-                <Rectangle Width="16" Height="1.5" RadiusX="0.75" RadiusY="0.75" Fill="{DynamicResource AppTextPrimary}" />
-                <Rectangle Width="16" Height="1.5" RadiusX="0.75" RadiusY="0.75" Fill="{DynamicResource AppTextPrimary}" />
-                <Rectangle Width="16" Height="1.5" RadiusX="0.75" RadiusY="0.75" Fill="{DynamicResource AppTextPrimary}" />
-            </StackPanel>
-            <Button.Flyout>
-                <Flyout Placement="Left">
-                    <StackPanel>
-                        <!-- Configuration group. Settings and Macros act on the selected
-                             device, so they go inactive while no device is connected;
-                             Plugins load once for the whole process, so that entry reaches
-                             no hardware and stays usable. Below the line sit the shell
-                             entries, which configure nothing. -->
-                        <Button MinWidth="100" Height="40" HorizontalAlignment="Stretch"
-                                VerticalContentAlignment="Center"
-                                HorizontalContentAlignment="Center"
-                                FontSize="18"
-                                Content="{loc:Tr MainWindow_Settings}"
-                                IsEnabled="{Binding HasDevice}"
-                                Command="{Binding SelectedDevice.SettingsMenuCommand}" />
-                        <Button MinWidth="100" Height="40" HorizontalAlignment="Stretch"
-                                VerticalContentAlignment="Center" Margin="0,5,0,0"
-                                HorizontalContentAlignment="Center"
-                                FontSize="18"
-                                Content="{loc:Tr MainWindow_Macros}"
-                                IsEnabled="{Binding HasDevice}"
-                                Command="{Binding SelectedDevice.MacroEditorMenuCommand}" />
-                        <Button MinWidth="100" Height="40" HorizontalAlignment="Stretch"
-                                VerticalContentAlignment="Center" Margin="0,5,0,0"
-                                HorizontalContentAlignment="Center"
-                                FontSize="18"
-                                Content="{loc:Tr Settings_Plugins}"
-                                Command="{Binding PluginsMenuCommand}" />
-                        <!-- Only for a device that runs without hardware (virtual-device switch). -->
-                        <Button MinWidth="100" Height="40" HorizontalAlignment="Stretch"
-                                VerticalContentAlignment="Center" Margin="0,5,0,0"
-                                HorizontalContentAlignment="Center"
-                                FontSize="18"
-                                Content="{loc:Tr VirtualDevice_MenuEntry}"
-                                IsVisible="{Binding SelectedDevice.IsVirtualDevice, FallbackValue=False}"
-                                Command="{Binding SelectedDevice.ShowVirtualDeviceCommand}" />
-                        <Separator />
-                        <Button MinWidth="100" Height="40" HorizontalAlignment="Stretch"
-                                VerticalContentAlignment="Center"
-                                HorizontalContentAlignment="Center"
-                                FontSize="18"
-                                Content="{loc:Tr MainWindow_About}"
-                                Command="{Binding AboutMenuCommand}" />
-                        <Button MinWidth="100" Height="40" HorizontalAlignment="Stretch"
-                                VerticalContentAlignment="Center" Margin="0,5,0,0"
-                                HorizontalContentAlignment="Center"
-                                FontSize="18"
-                                Content="{loc:Tr MainWindow_Quit}"
-                                Command="{Binding QuitApplicationCommand}" />
-                    </StackPanel>
-                </Flyout>
-            </Button.Flyout>
-            </Button>
-          </Grid>
+          </controls:HeaderBarPanel>
         </Border>
 
         <!-- Notice strip (issues #233, #234, #315): one quiet row per notice under the switcher
              instead of a popup — app update, plugin updates, unmet plugin requirements. Each
              text stays short so it never widens the window, which sizes to the deck. -->
-        <ItemsControl Grid.Row="1" ItemsSource="{Binding Notices}">
+        <ItemsControl Grid.Row="1" Grid.Column="1" ItemsSource="{Binding Notices}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="notices:Notice">
                     <Border Background="{DynamicResource AppSurfaceBar}"
@@ -657,7 +659,7 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <Grid Grid.Row="2">
+        <Grid Grid.Row="2" Grid.Column="1">
             <!-- The device view sits centred in whatever room the window gives it (issue #251): a
                  window that sizes itself to the view, or a maximized, full-screen or hand-resized
                  one, which keeps the view at its zoom and scrolls when the view does not fit.
@@ -727,7 +729,7 @@
 
         <!-- Zoom strip under the device view (issue #251). Background so the whole row counts as
              being over the window. Hidden with the deck when no device is connected. -->
-        <Border Grid.Row="3" Height="36" Background="Transparent" IsVisible="{Binding HasDevice}">
+        <Border Grid.Row="3" Grid.Column="1" Height="36" Background="Transparent" IsVisible="{Binding HasDevice}">
             <Border.Styles>
                 <!-- The zoom bar only shows while the pointer is over the window; its row is
                      reserved, so it never covers the deck or its pagers. -->
@@ -784,9 +786,24 @@
             </Border>
         </Border>
 
+        <!-- The side panels: apps and commands left of the deck, folders right of it, each the
+             full height of the window. The header stays in the middle column above the deck, so a
+             panel sliding out (SidePanelLayout) moves neither the deck nor the header buttons on
+             screen. The decorators report no height of their own, so a panel takes the window's
+             height instead of stretching it. -->
+        <controls:FillRemainingDecorator Name="ActionPanelHost" Grid.Row="0" Grid.RowSpan="4" Grid.Column="0"
+                                         ClipToBounds="True" IsVisible="False">
+            <views:ActionPanelView Name="ActionPanelView" HorizontalAlignment="Left"
+                                   BorderThickness="0,0,1,0" BorderBrush="{DynamicResource AppBorderSubtle}" />
+        </controls:FillRemainingDecorator>
+        <controls:FillRemainingDecorator Name="FolderPanelHost" Grid.Row="0" Grid.RowSpan="4" Grid.Column="2"
+                                         ClipToBounds="True" IsVisible="False">
+            <views:FolderPanelView Name="FolderPanelView" HorizontalAlignment="Right" />
+        </controls:FillRemainingDecorator>
+
         <!-- Resize grip in the bottom-right corner, so the window is easy to resize; the OS does the
              resizing (its own cursor, snapping). Only while the window is in its normal state. -->
-        <TextBlock Grid.Row="0" Grid.RowSpan="4"
+        <TextBlock Grid.Row="0" Grid.RowSpan="4" Grid.ColumnSpan="3"
                    HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,1,1" Padding="3"
                    FontFamily="{StaticResource MdiFont}" FontSize="16" Text="&#xF045D;"
                    Foreground="{DynamicResource AppTextSecondary}" Background="Transparent"
@@ -798,7 +815,7 @@
              operation (green move / amber swap / blue copy, red invalid) and a slightly
              translucent ghost of the dragged button in its current state with a rounded frame like
              the touch tiles. Non-hit-testable so it never intercepts pointer input. -->
-        <Canvas Name="DragOverlay" Grid.Row="0" Grid.RowSpan="4"
+        <Canvas Name="DragOverlay" Grid.Row="0" Grid.RowSpan="4" Grid.ColumnSpan="3"
                 IsHitTestVisible="False" IsVisible="False">
             <Border Name="DropHighlight"
                     IsVisible="False"

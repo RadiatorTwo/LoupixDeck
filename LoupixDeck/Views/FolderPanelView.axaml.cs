@@ -10,34 +10,28 @@ using LoupixDeck.ViewModels.FolderPanel;
 namespace LoupixDeck.Views;
 
 /// <summary>
-/// The custom folder panel (issue #249), as its own borderless window flanged to the right of the
-/// main window and moving with it — the mirror image of <see cref="ActionPanelWindow"/>, for the
-/// same reason: opening it never resizes the main window.
+/// The custom folder panel (issue #249): the folder tree with its header, search and footer.
 /// </summary>
 /// <remarks>
 /// A press on a folder row is resolved on release. Without movement it opens the folder. A drag
-/// that ends over a key assigns the folder to it through the main window's drag machine; a drag
-/// that ends over this panel moves the folder within the tree.
+/// that ends over a key assigns the folder to it through the window's drag machine; a drag that
+/// ends over this panel moves the folder within the tree.
 /// </remarks>
-public partial class FolderPanelWindow : Window
+public partial class FolderPanelView : UserControl
 {
-    private const int Gap = 0;
-
     /// <summary>Share of a row's height at its top and bottom that means "before" / "after" instead of "into".</summary>
     private const double EdgeZone = 0.25;
 
     private static readonly IBrush ValidBrush = new SolidColorBrush(Color.Parse("#FF3DDB6E"));
     private static readonly IBrush InvalidBrush = new SolidColorBrush(Color.Parse("#FFE5484D"));
 
-    private Window _owner;
+    private Visual _root;
     private DeviceDragDrop _dragDrop;
 
     private bool _dragArmed;
     private FolderNodeViewModel _pressedNode;
 
     private readonly Canvas _overlay;
-    private readonly Border _ghost;
-    private readonly Image _ghostImage;
     private readonly Border _dropIndicator;
     private readonly Border _rootRow;
 
@@ -47,13 +41,11 @@ public partial class FolderPanelWindow : Window
     private FolderNodeViewModel _treeTargetParent;
     private int _treeTargetIndex;
 
-    public FolderPanelWindow()
+    public FolderPanelView()
     {
         InitializeComponent();
 
         _overlay = this.FindControl<Canvas>("DragOverlay");
-        _ghost = this.FindControl<Border>("DragGhost");
-        _ghostImage = this.FindControl<Image>("DragGhostImage");
         _dropIndicator = this.FindControl<Border>("DropIndicator");
         _rootRow = this.FindControl<Border>("RootRow");
 
@@ -67,96 +59,16 @@ public partial class FolderPanelWindow : Window
 
     private FolderPanelViewModel ViewModel => DataContext as FolderPanelViewModel;
 
-    /// <summary>Binds this panel to the main window: same height, against its right edge, following it.</summary>
-    public void Attach(Window owner, DeviceDragDrop dragDrop)
+    /// <summary>Hands drags onto a key to the window's drag machine, in <paramref name="root"/>'s coordinates.</summary>
+    public void Attach(Visual root, DeviceDragDrop dragDrop)
     {
-        _owner = owner;
+        _root = root;
         _dragDrop = dragDrop;
-
-        // Same arrangement as the apps panel: on macOS the window server moves the panel with its
-        // owner as an AppKit child window, so only a resize needs following there.
-        if (!MacOsChildWindow.IsSupported)
-            owner.PositionChanged += (_, _) => FollowOwner();
-        owner.Resized += (_, _) => FollowOwner();
-
-        FollowOwner();
-    }
-
-    protected override void OnOpened(EventArgs e)
-    {
-        base.OnOpened(e);
-
-        if (_owner != null)
-            MacOsChildWindow.Attach(_owner, this);
-    }
-
-    public override void Hide()
-    {
-        if (_owner != null)
-            MacOsChildWindow.Detach(_owner, this);
-
-        base.Hide();
-    }
-
-    /// <summary>Matches the owner's height and parks against its right edge.</summary>
-    public void FollowOwner()
-    {
-        if (_owner == null) return;
-
-        Size frame = _owner.FrameSize ?? _owner.Bounds.Size;
-        if (frame.Height > 0)
-            Height = frame.Height;
-
-        // DesktopScaling, not RenderScaling: window positions are pixels and sizes logical, and on
-        // macOS the former are points, so the two factors differ there (see ActionPanelWindow).
-        int ownerWidth = (int)Math.Round(frame.Width * _owner.DesktopScaling);
-        Position = new PixelPoint(_owner.Position.X + ownerWidth + Gap, _owner.Position.Y);
-    }
-
-    private void OnRootTapped(object sender, TappedEventArgs e)
-        => _ = ViewModel?.CloseFoldersCommand.ExecuteAsync(null);
-
-    // ── In-place rename ────────────────────────────────────────────────────
-
-    private void OnRenameBoxAttached(object sender, VisualTreeAttachmentEventArgs e)
-    {
-        if (sender is not TextBox box) return;
-
-        // The box is created per rename session, so focusing it on attach starts each edit fresh.
-        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-        {
-            box.Focus();
-            box.SelectAll();
-        });
-    }
-
-    private void OnRenameBoxKeyDown(object sender, KeyEventArgs e)
-    {
-        if (sender is not TextBox { DataContext: FolderRenameSession session } box) return;
-
-        switch (e.Key)
-        {
-            case Key.Enter:
-                ViewModel?.CommitRename(session, box.Text);
-                e.Handled = true;
-                break;
-            case Key.Escape:
-                ViewModel?.CancelRename(session);
-                e.Handled = true;
-                break;
-        }
-    }
-
-    private void OnRenameBoxLostFocus(object sender, FocusChangedEventArgs e)
-    {
-        if (sender is TextBox { DataContext: FolderRenameSession session } box)
-            ViewModel?.CommitRename(session, box.Text);
     }
 
     // ── Press, drag, release ───────────────────────────────────────────────
 
-    private Point ToOwner(PointerEventArgs e)
-        => _owner.PointToClient(this.PointToScreen(e.GetPosition(this)));
+    private Point ToRoot(PointerEventArgs e) => e.GetPosition(_root);
 
     private static FolderNodeViewModel FolderRowNode(Visual source)
         => source?.GetSelfAndVisualAncestors()
@@ -170,7 +82,7 @@ public partial class FolderPanelWindow : Window
         if ((e.Source as Visual)?.GetSelfAndVisualAncestors().Any(static v => v is TextBox) != true)
             Focus();
 
-        if (_owner == null || _dragDrop == null) return;
+        if (_dragDrop == null) return;
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
 
         FolderNodeViewModel node = FolderRowNode(e.Source as Visual);
@@ -186,7 +98,7 @@ public partial class FolderPanelWindow : Window
             return;
         }
 
-        _dragArmed = _dragDrop.PanelPointerPressed(e.Source as Visual, ToOwner(e));
+        _dragArmed = _dragDrop.PanelPointerPressed(e.Source as Visual, ToRoot(e));
         if (!_dragArmed) return;
 
         _pressedNode = node;
@@ -206,26 +118,22 @@ public partial class FolderPanelWindow : Window
             return;
         }
 
-        _dragDrop.PanelPointerMoved(ToOwner(e));
-        if (!IsDragging) return;
-
-        UpdateGhost(e);
-        UpdateTreeTarget(e.GetPosition(this));
+        _dragDrop.PanelPointerMoved(ToRoot(e));
+        if (_dragDrop.IsPanelDragging)
+            UpdateTreeTarget(e.GetPosition(this));
     }
-
-    private bool IsDragging => _dragDrop?.PanelDragGhost != null;
 
     private void OnPreviewPointerReleased(object sender, PointerReleasedEventArgs e)
     {
         if (!_dragArmed) return;
 
         FolderNodeViewModel node = _pressedNode;
-        bool dragged = IsDragging;
+        bool dragged = _dragDrop.IsPanelDragging;
         bool overPanel = new Rect(Bounds.Size).Contains(e.GetPosition(this));
         bool moveInTree = _hasTreeTarget && _treeTargetValid;
         FolderNodeViewModel parent = _treeTargetParent;
         int index = _treeTargetIndex;
-        Point ownerPosition = ToOwner(e);
+        Point rootPosition = ToRoot(e);
 
         _dragArmed = false;
         _pressedNode = null;
@@ -250,7 +158,7 @@ public partial class FolderPanelWindow : Window
             return;
         }
 
-        _dragDrop.PanelPointerReleased(ownerPosition);
+        _dragDrop.PanelPointerReleased(rootPosition);
     }
 
     private void OnPreviewPointerCaptureLost(object sender, PointerCaptureLostEventArgs e)
@@ -280,8 +188,7 @@ public partial class FolderPanelWindow : Window
 
     private void UpdateTreeTarget(Point position)
     {
-        _hasTreeTarget = false;
-        _dropIndicator.IsVisible = false;
+        HideFeedback();
 
         FolderPanelViewModel vm = ViewModel;
         if (vm == null || _pressedNode == null || !new Rect(Bounds.Size).Contains(position)) return;
@@ -347,40 +254,50 @@ public partial class FolderPanelWindow : Window
         _dropIndicator.IsVisible = true;
     }
 
-    // ── Ghost ──────────────────────────────────────────────────────────────
-
-    private void UpdateGhost(PointerEventArgs e)
-    {
-        IImage image = _dragDrop.PanelDragGhost;
-        Point position = e.GetPosition(this);
-        bool over = image != null && new Rect(Bounds.Size).Contains(position);
-
-        if (!over)
-        {
-            _ghost.IsVisible = false;
-            _ghostImage.Source = null;
-            _overlay.IsVisible = _dropIndicator.IsVisible;
-            return;
-        }
-
-        Size size = _dragDrop.PanelDragGhostSize;
-        _ghostImage.Source = image;
-        _ghost.Width = size.Width;
-        _ghost.Height = size.Height;
-        _ghost.Padding = _dragDrop.PanelDragGhostPadding;
-        Canvas.SetLeft(_ghost, position.X - (size.Width / 2));
-        Canvas.SetTop(_ghost, position.Y - (size.Height / 2));
-
-        _overlay.IsVisible = true;
-        _ghost.IsVisible = true;
-    }
-
     private void HideFeedback()
     {
         _hasTreeTarget = false;
-        _ghostImage.Source = null;
-        _ghost.IsVisible = false;
         _dropIndicator.IsVisible = false;
         _overlay.IsVisible = false;
+    }
+
+    private void OnRootTapped(object sender, TappedEventArgs e)
+        => _ = ViewModel?.CloseFoldersCommand.ExecuteAsync(null);
+
+    // ── In-place rename ────────────────────────────────────────────────────
+
+    private void OnRenameBoxAttached(object sender, VisualTreeAttachmentEventArgs e)
+    {
+        if (sender is not TextBox box) return;
+
+        // The box is created per rename session, so focusing it on attach starts each edit fresh.
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            box.Focus();
+            box.SelectAll();
+        });
+    }
+
+    private void OnRenameBoxKeyDown(object sender, KeyEventArgs e)
+    {
+        if (sender is not TextBox { DataContext: FolderRenameSession session } box) return;
+
+        switch (e.Key)
+        {
+            case Key.Enter:
+                ViewModel?.CommitRename(session, box.Text);
+                e.Handled = true;
+                break;
+            case Key.Escape:
+                ViewModel?.CancelRename(session);
+                e.Handled = true;
+                break;
+        }
+    }
+
+    private void OnRenameBoxLostFocus(object sender, FocusChangedEventArgs e)
+    {
+        if (sender is TextBox { DataContext: FolderRenameSession session } box)
+            ViewModel?.CommitRename(session, box.Text);
     }
 }

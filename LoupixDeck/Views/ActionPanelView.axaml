@@ -8,7 +8,7 @@
              mc:Ignorable="d"
              x:Class="LoupixDeck.Views.ActionPanelView"
              x:DataType="panel:ActionPanelViewModel"
-             Width="620">
+             Width="480">
     <UserControl.Styles>
         <StyleInclude Source="avares://LoupixDeck/Views/Styles/SettingsStyles.axaml" />
 
@@ -150,6 +150,22 @@
             BorderBrush="{DynamicResource AppBorderSubtle}"
             BorderThickness="0,0,1,0">
         <TabControl Margin="6,4,6,6" Padding="0">
+            <TabItem Header="{loc:Tr ActionPanel_Commands}">
+                <Grid RowDefinitions="Auto,*">
+                    <!-- mdi-refresh. The picker brings its own search, so only the rescan sits
+                         above it. -->
+                    <Button Grid.Row="0" Classes="panel-refresh"
+                            HorizontalAlignment="Right" Margin="0,6,0,4"
+                            Command="{Binding RefreshCommand}" Content="&#xF0450;" />
+
+                    <!-- The same control the button editors use, over the same catalogue: one
+                         command list to learn, and plugins and macros appear in both without a
+                         second projection to keep in step. -->
+                    <views:CommandPickerView Grid.Row="1" Name="CommandPickerControl"
+                                             DataContext="{Binding CommandPicker}" />
+                </Grid>
+            </TabItem>
+
             <TabItem Header="{loc:Tr ActionPanel_Apps}">
                 <Grid RowDefinitions="Auto,Auto,*">
                     <Grid Grid.Row="0" Margin="0,6,0,4" ColumnDefinitions="*,Auto">
@@ -190,22 +206,6 @@
                              Background="Transparent"
                              BorderThickness="0"
                              SelectionMode="Single" />
-                </Grid>
-            </TabItem>
-
-            <TabItem Header="{loc:Tr ActionPanel_Commands}">
-                <Grid RowDefinitions="Auto,*">
-                    <!-- mdi-refresh. The picker brings its own search, so only the rescan sits
-                         above it. -->
-                    <Button Grid.Row="0" Classes="panel-refresh"
-                            HorizontalAlignment="Right" Margin="0,6,0,4"
-                            Command="{Binding RefreshCommand}" Content="&#xF0450;" />
-
-                    <!-- The same control the button editors use, over the same catalogue: one
-                         command list to learn, and plugins and macros appear in both without a
-                         second projection to keep in step. -->
-                    <views:CommandPickerView Grid.Row="1" Name="CommandPickerControl"
-                                             DataContext="{Binding CommandPicker}" />
                 </Grid>
             </TabItem>
 
