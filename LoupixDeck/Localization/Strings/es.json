@@ -6,7 +6,6 @@
   "About_ProjectWebsite": "Sitio web del proyecto",
   "About_UpToDate": "LoupixDeck está actualizado.",
   "About_UpdateCheckFailed": "No se pudo buscar actualizaciones: {0}",
-  "ActionPanelWindow_AppsAndCommands": "Aplicaciones y comandos",
   "ActionPanel_AddAnApplicationTheScan": "Añadir una aplicación que la búsqueda no encontró",
   "ActionPanel_Apps": "Aplicaciones",
   "ActionPanel_CannotLinkToProfile": "No puede abrir un perfil: su proceso no se conoce",

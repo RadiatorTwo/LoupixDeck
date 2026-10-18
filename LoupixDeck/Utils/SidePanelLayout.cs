@@ -438,7 +438,8 @@ public sealed class SidePanelLayout
         double width = _baseWidth + _left.Grown + _right.Grown;
 
         // The window's position is in pixels and its size in logical units; DesktopScaling is the
-        // factor between them (see ActionPanelWindow.FollowOwner for why not RenderScaling).
+        // factor between them, not RenderScaling. The two agree on Windows and X11, but macOS places
+        // windows in points: its DesktopScaling is 1 while a Retina display renders at 2.
         int x = TargetX();
 
         // A moving left edge needs the move and the resize in one step, or the window shows a
