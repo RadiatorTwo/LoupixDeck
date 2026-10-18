@@ -1,6 +1,6 @@
 # Recent SDK additions
 
-LoupixDeck v1.38.0 provides SDK 1.28.0. The following contracts supplement the
+LoupixDeck v1.47.0 provides SDK 1.33.0. The following contracts supplement the
 existing API pages. The SDK targets `net9.0` and `net10.0` and is published on
 nuget.org. All additions preserve existing plugins, but a plugin using a newer
 member needs a host that supplies it. Declare the SDK version you build against
@@ -13,8 +13,11 @@ in `plugin.json`; the Plugin Store checks that version before offering a release
 | 1.26.0 | v1.34.0 | `CommandContext.ButtonKey`, `IRenderCanvas.DrawPixels` |
 | 1.27.0 | v1.37.0 | `CommandDescriptor.ButtonLayout` and its layer descriptors |
 | 1.28.0 | v1.37.0 | `FolderEntry.Render`, `IPluginRequirements`, `PluginRequirement` |
-| 1.29.0 | unreleased | `IValueDisplayCommand`, `AdjustmentValue.Detail`; indicator layers, value text sources and a background colour in button layouts |
-| 1.30.0 | unreleased | `ButtonStateDescriptor.Layout`: starting layers per declared state |
+| 1.29.0 | v1.41.0 | `IValueDisplayCommand`, `AdjustmentValue.Detail`; indicator layers, value text sources and a background colour in button layouts |
+| 1.30.0 | v1.41.0 | `ButtonStateDescriptor.Layout`: starting layers per declared state |
+| 1.31.0 | v1.42.0 | `IFolderSideStripProvider`, `RotaryOverride.Label` and `GetValue` |
+| 1.32.0 | v1.43.0 | Wheel render/input APIs, separate wheel exclusive scope, and the `loupix` plugin tool |
+| 1.33.0 | v1.44.0 | Architecture-aware plugin manifests, release packages, and tool validation; no runtime-contract change |
 
 ## Plugin translations
 
@@ -89,7 +92,7 @@ command paints the complete key and an extra caption would obscure it.
 An omitted layout keeps the host's standard behavior.
 
 For `Custom`, provide `ButtonLayerDescriptor` items in bottom-to-top order.
-`Kind` is `Symbol`, `Text`, or `Image`; symbols can use a full-catalog MDI
+`Kind` is `Symbol`, `Text`, `Image`, or (since SDK 1.29.0) `Indicator`; symbols can use a full-catalog MDI
 `Glyph` or SVG/bitmap `ImageData`. Image data is stored in the host asset store
 at assignment. `KeepOriginalColors` can override automatic icon tinting.
 Offsets and text sizes use a 90-pixel reference key and scale to the device;
@@ -154,3 +157,71 @@ call is logged and treated as no reported requirements. Unmet entries produce
 **Needs attention** in Plugins, a dismissible main-window notice, and warnings
 in Linux Diagnostics. **Check again** and each Doctor run re-evaluate them.
 Provide a repair hint; the host does not install external dependencies for you.
+
+## Folder side strips
+
+A folder provider can also implement `IFolderSideStripProvider` with
+`ISideStripSession? CreateSideStripSession(SideStripContext context)`. The host
+creates one session per side when that folder becomes visible, including on
+return from a subfolder, and disposes it when another view or takeover owns the
+strips. A newly visible folder gets fresh sessions. Return `null` to let the
+host show plain dial labels/values or a blank strip.
+
+These are normal strip sessions: whole-strip rendering, optional
+`ISegmentStripSession`, animation, change events, taps, and swipes work as outside
+a folder. `context.Rotaries` describes the folder's overrides rather than saved
+command strings. Paging callbacks do nothing because rotary pages stay frozen
+while a folder is open; the overrides still handle the dials.
+
+For the standard host indicator, set `RotaryOverride.Label` and its optional
+`Func<AdjustmentValue?> GetValue`. Return a cached value quickly and without
+side effects; reads happen outside the render lock. Turning an override repaints
+the strip; raise the folder's `EntriesChanged` when external data changes.
+
+## CT wheel rendering and input
+
+A command bound to the active CT wheel mode can implement `IWheelRenderer`:
+
+```csharp
+TimeSpan Interval { get; }
+bool RenderWheel(IRenderCanvas canvas, WheelRenderContext context);
+```
+
+The host caps polling at 30 fps; `TimeSpan.Zero` draws only on demand.
+`WheelRenderContext` contains `Command`, `Size`, `Label`, and `Value`. Derive
+coordinates from `Size`: the canvas is square, but only its inscribed circle is
+visible. Draw quickly from cached data; the cleared canvas is valid only during
+the call. Returning `false` or throwing restores the user's wheel canvas or the
+automatic label/value look. Devices without a wheel never call the renderer.
+
+For raw gestures, implement `IWheelInputHandler.OnWheelTouch(WheelTouch touch,
+CommandContext context)` and `OnWheelSwiped(WheelSwipeDirection direction,
+CommandContext context)`. `WheelTouch` contains phase (`Start`, `Move`, `End`),
+canvas-space X/Y, and finger id. Both methods return `bool`. Claiming any phase
+of a touch suppresses its normal tap/swipe/menu action; claiming only a
+classified swipe suppresses the corresponding workspace or mode-menu action.
+The callbacks run on the device input thread and must not block. They are not
+called while the host's mode menu, wake handling, or another owner consumes input.
+
+Exclusive providers gain `RenderWheel(IRenderCanvas)`, `OnWheelTouch`, and
+`OnWheelSwiped`. Use `ExclusiveControlScope.Wheel` to own the wheel independently.
+`WheelFollowsRotaryScope` defaults to `true` for compatibility; set it to `false`
+when rotary flags should own only the side dials. The CT wheel's rotary index is
+6. Older hosts ignore these optional APIs, so keep a usable value/label fallback.
+
+## Plugin tool and architecture-aware packaging
+
+The .NET 10 `LoupixDeck.PluginTool` package provides `loupix new <Name>`,
+`loupix pack [--project <dir>] [-o <dir>]`, and
+`loupix install [--project <dir>] [--debug]`. Packing validates `plugin.json`
+and builds the ZIP, manifest, and `SHA256SUMS`. Installing packs and copies a
+development build to the user's plugin directory; restart the host afterwards.
+The tool itself has native builds for Windows/Linux x64 and macOS x64/ARM64.
+
+In SDK 1.33.0 tooling, a manifest may include `"architectures": ["x64"]` or
+`["arm64"]` (or both); absent/empty means unrestricted. Keep this consistent with
+native dependencies. The Store checks the process architecture, shows a reason
+for an installed mismatch, and picks a matching published package. The reusable
+workflow's `runtimes` input, such as `win-x64 win-arm64`, builds separate packages
+with matching manifest restrictions. See [Packaging & Distribution](Packaging-and-Distribution)
+for catalogue fields and release assets. Existing portable plugins need no rebuild.

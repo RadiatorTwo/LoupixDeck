@@ -1,13 +1,14 @@
 # Exclusive Mode
 
-*Exclusive mode* is a full-device takeover. While a provider is active the host
-suppresses all normal page mappings, freezes folder navigation, and routes
-**every** hardware input on the active device to the provider. Use it for things
-that own the whole device for a while: a telemetry HUD, a game overlay, a
-screensaver, or streaming a video to the screen.
+*Exclusive mode* lets a provider take control of selected device inputs and
+rendering surfaces. Its scope determines which normal mappings are suppressed
+and which inputs reach the provider. A full-device scope can drive a telemetry
+HUD, game overlay, screensaver, or video; narrower scopes can own the CT wheel
+or side dials separately. See [CT wheel rendering and input](Recent-SDK-Additions#ct-wheel-rendering-and-input)
+for the SDK 1.32.0 wheel contracts and compatibility behavior.
 
 It differs from a [folder](Advanced-Folders): a folder is a navigable sub-view
-that coexists with the normal UI; an exclusive provider takes over completely
+that coexists with the normal UI; an exclusive provider owns its requested scope
 until it is released.
 
 A plugin enters exclusive mode through the host bridge:
@@ -59,9 +60,9 @@ public interface IExclusiveModeProvider
 | `RenderMode` | How the host pushes your frames to the device. See below. Defaults to `FullScreen`. |
 | `SingleTileSlot` | Target slot for `SingleTile` mode only; ignored otherwise. Defaults to 0. |
 
-The touch grid is the device's standard 5×3 layout (15 slots, see
-[`FolderLayout`](Advanced-Folders#foldergridinfo-and-folderlayout)). Unlike folders, exclusive mode
-has **no reserved back-button slot** — all 15 slots are yours.
+Use the active device's grid dimensions rather than assuming 5×3: several models
+have a 4×3 grid. See [`FolderGridInfo`](Advanced-Folders#foldergridinfo-and-folderlayout).
+Unlike folders, exclusive mode has **no reserved back-button slot**.
 
 ## ExclusiveRenderMode
 

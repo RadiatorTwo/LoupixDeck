@@ -139,13 +139,15 @@ macOS builds are sponsored by [**Web Engineer**](https://www.web-engineer.co.uk/
 3. Drag an application or command onto a button—or select a control and double-click the item.
 4. Select a button to customize its image, text, symbol, actions and states.
 5. Add profiles, workspaces, pages and folders as your setup grows.
-6. Open **Plugins** from the hamburger menu, then choose **Plugin Store** to install integrations.
+6. Press **Plugins** in the header, then choose **Plugin Store** to install integrations.
 
 LoupixDeck can also start with no device connected. It opens the main window without asking for a model and waits for a supported deck to be plugged in.
 
 On a fresh installation, a template picker opens when the first device connects. Later, use **New profile from template…** in the profile menu or **Add profile from template…** under Settings → Profiles. Templates add a new profile, enable their required plugins for the device, and offer the Plugin Store for missing ones. See [Profile templates](docs/USER_MANUAL.md#profile-templates) for setup details.
 
 For a complete walkthrough, see the [User Manual](docs/USER_MANUAL.md).
+
+The header provides direct buttons for Settings, Macros, Plugins and About. The Commands/Apps and Folders panels now open inside the main window. Zoom the device preview with **Ctrl + mouse wheel** or **Ctrl + / -**, and reset with **Ctrl 0**; preview zoom does not change the hardware image.
 
 ## What you can build
 
@@ -156,6 +158,8 @@ For a complete walkthrough, see the [User Manual](docs/USER_MANUAL.md).
 - Add outlines, colors, transparency and symbols from a curated list or the full Material Design Icons and Material Design Light sets
 - Add custom SVG/image icon folders to the symbol picker; placed icons are copied into the app and can keep their own colors or take a tint
 - Edit a touch button's command parameters together in the **Parameters** tab
+- Apply icon/text layout templates to a key, a visible page or an import, with a preview before removing layers
+- Choose installed fonts per text layer and a default for new layers; add live value indicators and text
 - Use per-page wallpapers and optional touch feedback
 - Give a button several named states with separate visuals and actions
 
@@ -174,6 +178,7 @@ For a complete walkthrough, see the [User Manual](docs/USER_MANUAL.md).
 - Assign related plugin actions as a group
 - Use plugin adjustment commands for a whole dial, with tick-aware turning, a press action and live value indicators on side strips
 - Use independent rotary pages where supported
+- Configure the CT centre wheel per touch page, switch wheel modes with gestures, and edit its round display with live text, images and animation ([wheel guide](docs/USER_MANUAL.md#loupedeck-ct-centre-wheel))
 
 ### Macros and direct input
 
@@ -221,6 +226,8 @@ Built-in commands and plugins cover:
 - **Companion devices:** let companions mirror a master's profiles, workspaces and folders while keeping their own pages
 - **Portable profiles:** export and import profiles, workspaces or pages
 - **Screensavers:** use a video, GIF or plugin-provided renderer
+- **Follow the monitors:** turn off or dim the deck when desktop monitors sleep, preserving a manual off state
+- **Wallpapers:** inherit from the nearest earlier page or keep each page independent
 - **Native haptics:** configure vibration effects on supported touch controls
 - **CLI automation:** control a running instance from scripts and external tools
 - **Automatic recovery:** corrupted configuration files are backed up before replacement
@@ -243,11 +250,13 @@ Keys can play animated GIF and WebP images or short video clips, and a page can 
 
 Plugins can add commands, live text, settings pages, integrations, screensavers, dynamic folders and animated side strips.
 
-Open the separate **Plugins** window from the hamburger menu. Its searchable installed list shows status and version, lets you choose the device being configured, and keeps plugin settings available even when no deck is connected. Enabling remains an explicit per-device action.
+Open the separate **Plugins** window using its header button. Its searchable installed list shows status and version, lets you choose the device being configured, and keeps plugin settings available even when no deck is connected. Enabling remains an explicit per-device action.
 
 The **Plugin Store** page uses a searchable tile grid and one catalogue request to check published versions. You can read release notes on demand, install, update, remove or adopt a hand-copied plugin, cancel a download, and restart when a staged change needs it. Downloads are checked against their published checksums, while settings and missing command assignments survive updates or temporary removal.
 
 Plugins can ship translations that follow the app's language immediately. Plugins reporting unmet system requirements are marked **Needs attention**, with repair hints and **Check again**; Linux Diagnostics includes those requirements too. App updates, plugin updates and requirements share the main-window notice area. The Store lists installed plugins with updates first.
+
+The Store also checks CPU architecture, chooses matching x64/ARM64 packages, and shows why an installed incompatible plugin is disabled. **Open project page** links to the plugin repository, and Store actions preserve the tile order. See the [current integration catalogue](docs/USER_MANUAL.md#installed-plugins-and-settings) for platform availability, including macOS packages.
 
 Want to create a plugin?
 
@@ -408,7 +417,7 @@ The app runs exactly as with real hardware, but nothing is sent to a serial port
 - Scroll over a dial or the CT wheel to turn it.
 - Click a dial or button to press it. Hold the click to hold the press.
 
-The window opens on its own and can be reopened from the main menu. The option works in Release builds and on every platform. It runs alongside any connected devices.
+The window opens on its own and can be reopened with the header's **Virtual device** button when that virtual unit is selected. The option works in Release builds and on every platform. It runs alongside any connected devices. Assigned commands and plugins still control their external applications.
 
 The virtual device uses its own configuration file (`config_<slug>_VIRTUAL.json`) and never changes the configuration of a real device.
 

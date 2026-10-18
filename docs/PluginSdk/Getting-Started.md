@@ -21,16 +21,32 @@ cd MyPlugin
 
 ## 2. Reference the SDK
 
-The SDK is published on nuget.org. For LoupixDeck v1.38.0, reference SDK 1.28.0:
+The SDK is published on nuget.org. For LoupixDeck v1.47.0, reference SDK 1.33.0:
 
 ```powershell
-dotnet add package LoupixDeck.PluginSdk --version 1.28.0
+dotnet add package LoupixDeck.PluginSdk --version 1.33.0
 ```
 
 No SDK source checkout or local feed is needed. If you are developing an
 unreleased SDK change, build the SDK repository and add its `nupkg/` directory
 as a local package source instead. See [Recent SDK additions](Recent-SDK-Additions)
 for the host releases required by newer APIs.
+
+Alternatively, with the .NET 10 SDK installed, scaffold the project using the
+published plugin tool:
+
+```powershell
+dotnet tool install -g LoupixDeck.PluginTool
+loupix new Hello
+```
+
+This creates `LoupixDeck.Plugin.Hello` with a project, manifest, plugin class,
+README, and release workflow, referencing the latest stable SDK on NuGet.
+Choose a contract version supported by the host you intend to test against.
+From that project's directory, `loupix pack` builds Store files in `dist/` and
+`loupix install` installs a local test copy; restart LoupixDeck to load it.
+`loupix install --debug` targets a Debug build's plugin folder. See
+[Plugin tool and architectures](Recent-SDK-Additions#plugin-tool-and-architecture-aware-packaging).
 
 > **Important:** Do **not** copy the SDK DLL into your plugin's output folder.
 > The host provides the SDK assembly — bundling it causes load conflicts. The
