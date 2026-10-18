@@ -56,8 +56,13 @@ public sealed class SidePanelLayout
         _contentHeight = contentHeight;
         if (OperatingSystem.IsWindows())
             _window.Opened += (_, _) => Cover();
-        _left = new Side(leftHost, leftWidth, isLeft: true);
-        _right = new Side(rightHost, rightWidth, isLeft: false);
+
+        // Where the window moves and resizes in one step and no cover can be drawn (X11), its left
+        // edge follows the frames like the right one does. LOUPIX_SIDEPANEL_EDGE=jump turns that off.
+        bool edgeFollows = !OperatingSystem.IsWindows() && WindowBounds.CanSetLeftAndWidth(window) &&
+            Environment.GetEnvironmentVariable("LOUPIX_SIDEPANEL_EDGE") != "jump";
+        _left = new Side(leftHost, leftWidth, isLeft: true, edgeFollows);
+        _right = new Side(rightHost, rightWidth, isLeft: false, edgeFollows);
     }
 
     public bool IsLeftOpen => _left.IsOpen;
@@ -66,7 +71,7 @@ public sealed class SidePanelLayout
     public void SetLeftOpen(bool open, bool animate = true) => SetOpen(_left, open, animate);
     public void SetRightOpen(bool open, bool animate = true) => SetOpen(_right, open, animate);
 
-    private sealed class Side(Control host, double fullWidth, bool isLeft)
+    private sealed class Side(Control host, double fullWidth, bool isLeft, bool edgeFollows)
     {
         public Control Host { get; } = host;
         public double FullWidth { get; } = fullWidth;
@@ -83,9 +88,10 @@ public sealed class SidePanelLayout
 
         /// <summary>
         /// Whether the window's left edge moves for this panel. It then takes its new size in one
-        /// step and only the panel slides, inside the room already made for it.
+        /// step and only the panel slides, inside the room already made for it. Never where the
+        /// edge follows the frames instead.
         /// </summary>
-        public bool Jumps => Shifted > 0 || ShiftTo > 0;
+        public bool Jumps => !edgeFollows && (Shifted > 0 || ShiftTo > 0);
 
         public TranslateTransform Slide { get; } = new();
 
