@@ -3,6 +3,7 @@ using LoupixDeck.PluginSdk;
 using LoupixDeck.Registry;
 using LoupixDeck.Services.AppLauncher;
 using LoupixDeck.Services.Commands;
+using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.ActionPanel;
 
 namespace LoupixDeck.Services.Actions;
@@ -241,17 +242,37 @@ public sealed class PanelAssignmentService(
     /// command owned.
     /// </summary>
     /// <remarks>
-    /// A released state set is always kept, never discarded. The editor asks the user that question,
-    /// but this path runs at the end of a drag or a click with no dialog in flight, and keeping the
-    /// states is the answer that loses nothing — they stay as ordinary editable states.
+    /// A released state set is kept when the new command brings no states of its own. The editor
+    /// asks the user that question, but this path runs at the end of a drag or a click with no
+    /// dialog in flight, and keeping the states is the answer that loses nothing — they stay as
+    /// ordinary editable states.
+    /// <para>
+    /// When the new command declares states too, only the active state survives: it holds the
+    /// layers the assignment just wrote. The other states carry the replaced command's artwork, and
+    /// the new states would reuse them by position, so a status key's outage icon would turn up on
+    /// another command's idle state.
+    /// </para>
     /// </remarks>
     private void ReconcileStates(StatefulButton button)
     {
         if (stateMaterializer.Reconcile(button) != StateSyncResult.ReleaseRequested)
             return;
 
-        stateMaterializer.Release(button, keepStates: true);
+        bool replacedByStates = DeclaresStates(button.Command);
+        if (replacedByStates && button.ActiveState is { } active)
+        {
+            // Release keeps the first state, so move the freshly written one there.
+            button.States.Move(button.States.IndexOf(active), 0);
+        }
+
+        stateMaterializer.Release(button, keepStates: !replacedByStates);
         stateMaterializer.Reconcile(button);
+    }
+
+    private bool DeclaresStates(string boundCommand)
+    {
+        string name = CommandStringParser.GetName(CommandStringParser.SplitChain(boundCommand).FirstOrDefault());
+        return !string.IsNullOrEmpty(name) && commandRegistry.Get(name) is { DeclaresStates: true };
     }
 
     private bool Supports(ActionPanelItemViewModel item, ButtonTargets kind)
