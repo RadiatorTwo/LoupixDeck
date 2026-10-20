@@ -156,6 +156,10 @@ on demand, off the startup path. Keep the check quick and non-throwing; a failed
 call is logged and treated as no reported requirements. Unmet entries produce
 **Needs attention** in Plugins, a dismissible main-window notice, and warnings
 in Linux Diagnostics. **Check again** and each Doctor run re-evaluate them.
+A condition that changes while the plugin runs, such as a service refusing
+requests, can call `IPluginHost.RequestRequirementsRefresh()` (SDK 1.34) when it
+starts and ends, so the notice appears and clears without the Plugins window
+being opened.
 Provide a repair hint; the host does not install external dependencies for you.
 
 ## Folder side strips

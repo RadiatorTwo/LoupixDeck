@@ -891,7 +891,9 @@ public class PluginManager : IPluginManager
             RequestExclusiveMode, ReleaseExclusiveMode, IsInExclusiveMode,
             RequestFullDisplayRenderer,
             GetButtonStates, GetActiveButtonState, SetActiveButtonState,
-            GetFolderGrid);
+            GetFolderGrid,
+            // Fire and forget: the refresh runs off the caller's thread and never throws.
+            () => _ = RefreshRequirementsAsync());
     }
 
     /// <summary>Remembers a full-display session handed to a plugin, pruning released ones.</summary>

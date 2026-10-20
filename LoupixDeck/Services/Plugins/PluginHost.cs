@@ -25,6 +25,7 @@ public sealed class PluginHost : IPluginHost
     private readonly Func<string, string> _getActiveButtonState;
     private readonly Func<string, string, bool> _setActiveButtonState;
     private readonly Func<FolderGridInfo> _getFolderGrid;
+    private readonly Action _requestRequirementsRefresh;
 
     public PluginHost(
         string pluginId,
@@ -43,7 +44,8 @@ public sealed class PluginHost : IPluginHost
         Func<string, IReadOnlyList<string>> getButtonStates,
         Func<string, string> getActiveButtonState,
         Func<string, string, bool> setActiveButtonState,
-        Func<FolderGridInfo> getFolderGrid)
+        Func<FolderGridInfo> getFolderGrid,
+        Action requestRequirementsRefresh)
     {
         _pluginId = pluginId;
         Logger = logger;
@@ -62,6 +64,7 @@ public sealed class PluginHost : IPluginHost
         _getActiveButtonState = getActiveButtonState;
         _setActiveButtonState = setActiveButtonState;
         _getFolderGrid = getFolderGrid;
+        _requestRequirementsRefresh = requestRequirementsRefresh;
     }
 
     public IPluginLogger Logger { get; }
@@ -87,6 +90,8 @@ public sealed class PluginHost : IPluginHost
         _getFolderGrid?.Invoke() ?? new FolderGridInfo(FolderLayout.Columns, 3, FolderLayout.BackSlotIndex);
 
     public void RequestButtonRefresh(string commandName) => _requestButtonRefresh?.Invoke(commandName);
+
+    public void RequestRequirementsRefresh() => _requestRequirementsRefresh?.Invoke();
 
     public void ExecuteCommand(string command) => _executeCommand?.Invoke(command);
 
