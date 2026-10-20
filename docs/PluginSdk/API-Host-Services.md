@@ -18,6 +18,7 @@ public interface IPluginHost
     string Tr(string english);
 
     void RequestButtonRefresh(string commandName);
+    void RequestRequirementsRefresh();
     void ExecuteCommand(string command);
     void OpenFolder(IFolderProvider provider);
 
@@ -35,6 +36,7 @@ public interface IPluginHost
 | `ActiveDevice` | Currently driven device, or `null` if none. Mirrored on `CommandContext.Device`. |
 | `CurrentLanguage` / `Tr(english)` | Active language code and plugin-scoped translation of runtime English text, added in SDK 1.24.0. See [Plugin translations](Recent-SDK-Additions#plugin-translations). |
 | `RequestButtonRefresh(commandName)` | Asks the host to re-render every touch button bound to `commandName`. Use after data backing an `IDisplayCommand` changes via push so the user sees the new value immediately instead of at the next poll tick. |
+| `RequestRequirementsRefresh()` | Asks the host to call `IPluginRequirements.GetRequirements()` again. Use when a condition the plugin reports there changes while it runs, so the main window notice appears or clears straight away instead of the next time the Plugins window opens. SDK 1.34 and later; an older host throws `MissingMethodException`. |
 | `ExecuteCommand(command)` | Runs a command string through the host's command pipeline (`Plugin.Command(arg1,arg2)` syntax). Enables chaining across plugin boundaries — e.g. an action that triggers another plugin's command. |
 | `OpenFolder(provider)` | Pushes a [folder navigation view](Advanced-Folders) onto the touch screen. The host calls `provider.OnEnter()` and starts rendering from `provider.BuildEntries()`. |
 | `RequestFullDisplayRenderer(renderer)` | Takes the **whole display** over and streams raw BGRA frames from your [`IFullDisplayRenderer`](Advanced-Full-Display-Renderer) on the host's animation scheduler. Returns the ownership session, or `null` when the display is already taken. Release it in `Shutdown()`. |
