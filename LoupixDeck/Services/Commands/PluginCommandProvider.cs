@@ -322,6 +322,33 @@ public class PluginCommandProvider : ICommandProvider
             };
         }
 
+        // Only a command with declared states can name one, so a stray implementation on a
+        // stateless command is ignored.
+        Func<string[], ButtonTargets, string, string, string> getButtonState = null;
+        if (command is IButtonStateCommand stateCommand && info.States.Count > 0)
+        {
+            getButtonState = (parameters, target, stateName, buttonKey) =>
+            {
+                try
+                {
+                    return stateCommand.GetButtonState(new CommandContext
+                    {
+                        Parameters = parameters ?? Array.Empty<string>(),
+                        Target = target,
+                        Device = host?.ActiveDevice,
+                        Host = host,
+                        StateName = stateName,
+                        ButtonKey = buttonKey
+                    });
+                }
+                catch (Exception ex)
+                {
+                    host?.Logger?.Error($"GetButtonState failed for '{descriptor.CommandName}'", ex);
+                    return null;
+                }
+            };
+        }
+
         return new RegisteredCommand
         {
             CommandName = descriptor.CommandName,
@@ -329,6 +356,7 @@ public class PluginCommandProvider : ICommandProvider
             SupportedTargets = command.SupportedTargets,
             HiddenFromMenu = descriptor.HiddenFromMenu,
             States = info.States,
+            GetButtonState = getButtonState,
             IsDisplayCommand = isDisplay,
             IsImageDisplayCommand = isImageDisplay,
             IsAnimatedImageCommand = isAnimatedImage,

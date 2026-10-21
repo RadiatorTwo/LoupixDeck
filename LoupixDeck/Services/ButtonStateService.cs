@@ -1,5 +1,7 @@
 using LoupixDeck.Models;
 using LoupixDeck.Models.Layers;
+using LoupixDeck.PluginSdk;
+using LoupixDeck.Services.Commands;
 
 namespace LoupixDeck.Services;
 
@@ -24,9 +26,25 @@ public interface IButtonStateService
     /// The change is marshalled to the UI thread; visible buttons repaint via their refresh hook.
     /// </summary>
     bool SetActiveState(string commandName, string stateNameOrId);
+
+    /// <summary>
+    /// Asks <paramref name="commandName"/> (an <c>IButtonStateCommand</c>) which state each button
+    /// bound to it should show, with that button's parameters, and shows it. Covers the touch pages
+    /// of every workspace, not only the active one, so a workspace switched to later is right too.
+    /// Does nothing for a command that does not report states.
+    /// </summary>
+    void RefreshStates(string commandName);
+
+    /// <summary>
+    /// <see cref="RefreshStates"/> for a single button, asking whichever state-reporting command it
+    /// is bound to. Used when the button may show a stale state: after its states were created or
+    /// its editor closed.
+    /// </summary>
+    void RefreshState(StatefulButton button);
 }
 
-public sealed class ButtonStateService(LoupedeckConfig config) : IButtonStateService
+public sealed class ButtonStateService(LoupedeckConfig config, ICommandRegistry commandRegistry = null)
+    : IButtonStateService
 {
     public IReadOnlyList<string> GetStates(string commandName)
     {
@@ -61,16 +79,76 @@ public sealed class ButtonStateService(LoupedeckConfig config) : IButtonStateSer
         return changed;
     }
 
-    private IEnumerable<StatefulButton> FindButtons(string commandName)
+    public void RefreshStates(string commandName)
+    {
+        RegisteredCommand command = string.IsNullOrWhiteSpace(commandName) ? null : commandRegistry?.Get(commandName);
+        if (command?.GetButtonState == null) return;
+
+        foreach (var button in FindButtons(commandName, allWorkspaces: true))
+            Refresh(button, command);
+    }
+
+    public void RefreshState(StatefulButton button)
+    {
+        if (button?.States == null || commandRegistry == null) return;
+
+        foreach (var state in button.States)
+        {
+            if (string.IsNullOrEmpty(state.Command)) continue;
+            foreach (var part in Utils.CommandStringParser.SplitChain(state.Command))
+            {
+                RegisteredCommand command = commandRegistry.Get(PluginLayerKey.ParseCommandName(part));
+                if (command?.GetButtonState == null) continue;
+
+                Refresh(button, command);
+                return;
+            }
+        }
+    }
+
+    /// <summary>Asks <paramref name="command"/> which state <paramref name="button"/> should show and shows it.</summary>
+    private static void Refresh(StatefulButton button, RegisteredCommand command)
+    {
+        // The parameters come from the segment that binds the button to the command; every state
+        // of a command-owned button carries the same command string.
+        string segment = button.States
+            .Where(s => !string.IsNullOrEmpty(s.Command))
+            .SelectMany(s => Utils.CommandStringParser.SplitChain(s.Command))
+            .FirstOrDefault(part => string.Equals(PluginLayerKey.ParseCommandName(part), command.CommandName,
+                StringComparison.Ordinal));
+        if (segment == null) return;
+
+        ButtonTargets kind = button is SimpleButton ? ButtonTargets.SimpleButton : ButtonTargets.TouchButton;
+        string wanted = command.GetButtonState(Utils.CommandStringParser.GetParameters(segment), kind,
+            button.ActiveState?.Name, button.RuntimeKey);
+        if (string.IsNullOrWhiteSpace(wanted)) return;
+
+        var target = button.States.FirstOrDefault(s => string.Equals(s.Name, wanted, StringComparison.OrdinalIgnoreCase));
+        if (target == null || target.Id == button.ActiveStateId) return;
+
+        var id = target.Id;
+        // Apply on the UI thread; the button's ItemChanged hook repaints it when visible.
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => button.SetActiveState(id));
+    }
+
+    private IEnumerable<StatefulButton> FindButtons(string commandName, bool allWorkspaces = false)
     {
         if (string.IsNullOrWhiteSpace(commandName))
             yield break;
 
-        if (config.ActiveWorkspace != null)
+        List<Workspace> workspaces = config.ActiveWorkspace != null ? [config.ActiveWorkspace] : [];
+        if (allWorkspaces)
+        {
+            workspaces.AddRange((config.Profiles ?? [])
+                .SelectMany(p => p?.Workspaces ?? [])
+                .Where(w => w != null && !ReferenceEquals(w, config.ActiveWorkspace)));
+        }
+
+        foreach (Workspace workspace in workspaces)
         {
             // Pages and custom folder layouts alike: a folder button bound to a plugin state has
             // to show the right state when the folder is opened.
-            foreach (var page in config.ActiveWorkspace.EnumerateTouchLayouts())
+            foreach (var page in workspace?.EnumerateTouchLayouts() ?? [])
             {
                 if (page?.TouchButtons == null) continue;
                 foreach (var button in page.TouchButtons)

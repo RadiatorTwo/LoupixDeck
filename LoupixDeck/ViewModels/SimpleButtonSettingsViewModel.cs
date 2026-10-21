@@ -77,6 +77,7 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
     // ───────── States ─────────
 
     private Guid _originalActiveStateId;
+    private readonly IButtonStateService _buttonStates;
 
     /// <summary>The button's states, shown in the States list.</summary>
     public ObservableCollection<ButtonState> States => ButtonData?.States;
@@ -263,8 +264,10 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
         ICommandRegistry commandRegistry,
         Services.Commands.ICommandStateMaterializer stateMaterializer,
         IDialogService dialogService,
-        Services.Companion.ICommandLockService commandLock)
+        Services.Companion.ICommandLockService commandLock,
+        IButtonStateService buttonStates = null)
     {
+        _buttonStates = buttonStates;
         _commandBuilder = commandBuilder;
         _menuTreeBuilder = menuTreeBuilder;
         _commandRegistry = commandRegistry;
@@ -466,6 +469,10 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
                 ButtonData.SetActiveState(_originalActiveStateId);
             else
                 ButtonData.ResetToDefaultState();
+
+            // The live state may have moved on while the editor was open (or the command changed),
+            // so a command that reports per-button states is asked again.
+            _buttonStates?.RefreshState(ButtonData);
         }
 
         foreach (var segment in Commands)

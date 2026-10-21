@@ -26,6 +26,7 @@ public sealed class PluginHost : IPluginHost
     private readonly Func<string, string, bool> _setActiveButtonState;
     private readonly Func<FolderGridInfo> _getFolderGrid;
     private readonly Action _requestRequirementsRefresh;
+    private readonly Action<string> _refreshButtonStates;
 
     public PluginHost(
         string pluginId,
@@ -45,7 +46,8 @@ public sealed class PluginHost : IPluginHost
         Func<string, string> getActiveButtonState,
         Func<string, string, bool> setActiveButtonState,
         Func<FolderGridInfo> getFolderGrid,
-        Action requestRequirementsRefresh)
+        Action requestRequirementsRefresh,
+        Action<string> refreshButtonStates = null)
     {
         _pluginId = pluginId;
         Logger = logger;
@@ -65,6 +67,7 @@ public sealed class PluginHost : IPluginHost
         _setActiveButtonState = setActiveButtonState;
         _getFolderGrid = getFolderGrid;
         _requestRequirementsRefresh = requestRequirementsRefresh;
+        _refreshButtonStates = refreshButtonStates;
     }
 
     public IPluginLogger Logger { get; }
@@ -122,6 +125,8 @@ public sealed class PluginHost : IPluginHost
 
     public bool SetActiveButtonState(string commandName, string stateNameOrId) =>
         _setActiveButtonState?.Invoke(commandName, stateNameOrId) ?? false;
+
+    public void RefreshButtonStates(string commandName) => _refreshButtonStates?.Invoke(commandName);
 
     public bool OpenBrowser(string url)
     {
