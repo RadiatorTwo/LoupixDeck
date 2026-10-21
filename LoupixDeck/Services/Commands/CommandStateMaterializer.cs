@@ -59,8 +59,7 @@ public interface ICommandStateMaterializer
 public sealed class CommandStateMaterializer(
     ICommandRegistry commandRegistry,
     IAssetService assetService = null,
-    DeviceGeometry geometry = null,
-    IButtonStateService buttonStates = null) : ICommandStateMaterializer
+    DeviceGeometry geometry = null) : ICommandStateMaterializer
 {
     public StateSyncResult Reconcile(StatefulButton button)
     {
@@ -77,9 +76,6 @@ public sealed class CommandStateMaterializer(
 
             Materialize(button, command, ownerKey);
             AddStateLayouts(button, command);
-            // The fresh states start on the first one; a command that reports per-button states
-            // knows which one is right.
-            buttonStates?.RefreshState(button);
             return StateSyncResult.Materialized;
         }
 

@@ -52,7 +52,8 @@ public sealed class PanelAssignmentService(
     IAppIconExtractor appIcons,
     IDeviceService deviceService,
     DeviceGeometry geometry,
-    Folders.ICustomFolderService folders) : IPanelAssignmentService
+    Folders.ICustomFolderService folders,
+    IButtonStateService buttonStates = null) : IPanelAssignmentService
 {
     private readonly DeviceGeometry _geometry = geometry ?? DeviceGeometry.Default;
 
@@ -255,18 +256,22 @@ public sealed class PanelAssignmentService(
     /// </remarks>
     private void ReconcileStates(StatefulButton button)
     {
-        if (stateMaterializer.Reconcile(button) != StateSyncResult.ReleaseRequested)
-            return;
-
-        bool replacedByStates = DeclaresStates(button.Command);
-        if (replacedByStates && button.ActiveState is { } active)
+        if (stateMaterializer.Reconcile(button) == StateSyncResult.ReleaseRequested)
         {
-            // Release keeps the first state, so move the freshly written one there.
-            button.States.Move(button.States.IndexOf(active), 0);
+            bool replacedByStates = DeclaresStates(button.Command);
+            if (replacedByStates && button.ActiveState is { } active)
+            {
+                // Release keeps the first state, so move the freshly written one there.
+                button.States.Move(button.States.IndexOf(active), 0);
+            }
+
+            stateMaterializer.Release(button, keepStates: !replacedByStates);
+            stateMaterializer.Reconcile(button);
         }
 
-        stateMaterializer.Release(button, keepStates: !replacedByStates);
-        stateMaterializer.Reconcile(button);
+        // Fresh states start on the first one; a command that reports per-button states knows
+        // which one is right. (The button editor asks when it closes instead.)
+        buttonStates?.RefreshState(button);
     }
 
     private bool DeclaresStates(string boundCommand)
