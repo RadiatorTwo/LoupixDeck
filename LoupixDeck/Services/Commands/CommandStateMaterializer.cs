@@ -1,3 +1,4 @@
+using LoupixDeck.Commands.Base;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Layers;
 using LoupixDeck.Registry;
@@ -194,11 +195,15 @@ public sealed class CommandStateMaterializer(
             ? definition.Id
             : null;
 
+        // Only the states filled now get their placeholders resolved; the others hold the user's text.
+        List<ButtonState> filled = touch.States.Where(state => state.Layers.Count == 0).ToList();
+
         touch.IgnoreRefresh = true;
         try
         {
             ActionAssignment.AddStateLayouts(touch, command.States, command.Info?.DisplayName, symbolId,
                 keySize, keySize, assetService);
+            ResolveParameterPlaceholders(filled, command, button.Command);
         }
         finally
         {
@@ -206,6 +211,35 @@ public sealed class CommandStateMaterializer(
         }
 
         touch.Refresh();
+    }
+
+    /// <summary>
+    /// Replaces <c>{ParameterName}</c> in the text layers of <paramref name="states"/> with the
+    /// button's value for that parameter, so a declared caption can name the scene or source the
+    /// button is for. Resolved once, here: afterwards it is plain text the user can edit.
+    /// </summary>
+    private static void ResolveParameterPlaceholders(List<ButtonState> states, RegisteredCommand command,
+        string boundCommand)
+    {
+        IReadOnlyList<ParameterDescriptor> declared = command.Info?.Parameters;
+        if (declared is not { Count: > 0 })
+            return;
+
+        string[] values = CommandStringParser.GetParameters(FirstSegment(boundCommand));
+        foreach (TextLayer layer in states.SelectMany(state => state.Layers).OfType<TextLayer>())
+        {
+            if (string.IsNullOrEmpty(layer.Text) || !layer.Text.Contains('{'))
+                continue;
+
+            string text = layer.Text;
+            for (int index = 0; index < declared.Count; index++)
+            {
+                string value = index < values.Length ? values[index] : declared[index].DefaultValue?.ToString();
+                text = text.Replace("{" + declared[index].Name + "}", value ?? string.Empty, StringComparison.Ordinal);
+            }
+
+            layer.Text = text;
+        }
     }
 
     /// <summary>Keeps every generated state on the button's current command string.</summary>

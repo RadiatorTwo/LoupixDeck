@@ -891,6 +891,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     // The active state at open time; restored on close so the runtime starts on the right state
     // (the editor drives ButtonData's active state to edit each selected state in place).
     private Guid _originalActiveStateId;
+    private readonly IButtonStateService _buttonStates;
 
     /// <summary>The button's states, shown in the left-panel States list.</summary>
     public ObservableCollection<ButtonState> States => ButtonData?.States;
@@ -1157,8 +1158,10 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         LoupedeckConfig config,
         DeviceGeometry geometry,
         Services.Companion.ICommandLockService commandLock,
-        IButtonTemplateService buttonTemplates)
+        IButtonTemplateService buttonTemplates,
+        IButtonStateService buttonStates = null)
     {
+        _buttonStates = buttonStates;
         _commandLock = commandLock;
         _buttonTemplates = buttonTemplates;
         _commandBuilder = commandBuilder;
@@ -1809,6 +1812,10 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
                 ButtonData.SetActiveState(_originalActiveStateId);
             else
                 ButtonData.ResetToDefaultState();
+
+            // The live state may have moved on while the editor was open (or the command changed),
+            // so a command that reports per-button states is asked again.
+            _buttonStates?.RefreshState(ButtonData);
 
             ButtonData.ItemChanged -= ButtonData_ItemChanged;
             ButtonData.PropertyChanged -= ButtonData_PropertyChanged;

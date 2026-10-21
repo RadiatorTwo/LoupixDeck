@@ -886,6 +886,23 @@ public class PluginManager : IPluginManager
             return changed;
         }
 
+        // Off the caller's thread: a plugin typically calls this from its event callback, and the
+        // host calls straight back into the plugin for every bound button.
+        void RefreshButtonStates(string commandName) => _ = Task.Run(() =>
+        {
+            foreach (IServiceProvider target in ButtonTargetDevices())
+            {
+                try
+                {
+                    target.GetRequiredService<IButtonStateService>().RefreshStates(commandName);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"PluginHost[{manifest.Id}]: RefreshButtonStates failed: {ex.Message}");
+                }
+            }
+        });
+
         return new PluginHost(manifest.Id, logger, settings, device, ExecuteCommand, RequestButtonRefresh,
             OpenFolder, OverlayTouchText, GetTouchSlotForRotary,
             RequestExclusiveMode, ReleaseExclusiveMode, IsInExclusiveMode,
@@ -893,7 +910,8 @@ public class PluginManager : IPluginManager
             GetButtonStates, GetActiveButtonState, SetActiveButtonState,
             GetFolderGrid,
             // Fire and forget: the refresh runs off the caller's thread and never throws.
-            () => _ = RefreshRequirementsAsync());
+            () => _ = RefreshRequirementsAsync(),
+            RefreshButtonStates);
     }
 
     /// <summary>Remembers a full-display session handed to a plugin, pruning released ones.</summary>

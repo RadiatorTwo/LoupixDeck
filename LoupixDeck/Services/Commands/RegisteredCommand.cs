@@ -68,6 +68,14 @@ public sealed class RegisteredCommand
     public bool DeclaresStates => States.Count > 0;
 
     /// <summary>
+    /// For commands that report the state of each button (adapted from an
+    /// <c>IButtonStateCommand</c>): the state a button should show, or null to leave it. Arguments
+    /// are the button's parameters, its kind, its current state name and its runtime key. Null for
+    /// other commands. See <see cref="LoupixDeck.Services.IButtonStateService.RefreshStates"/>.
+    /// </summary>
+    public Func<string[], ButtonTargets, string, string, string> GetButtonState { get; init; }
+
+    /// <summary>
     /// True when the command reports a value its touch button draws with its own indicator and
     /// value text layers — adapted from an <c>IValueDisplayCommand</c>. Independent of
     /// <see cref="IsDisplayCommand"/> and <see cref="IsImageDisplayCommand"/>: a command may be both,
