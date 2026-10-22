@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LoupixDeck – open-source control deck software</title>
+<meta name="description" content="Open-source control deck software for Loupedeck and Razer Stream Controller devices on Windows, Linux and macOS.">
+<meta property="og:title" content="LoupixDeck">
+<meta property="og:description" content="Open-source control deck software for Loupedeck and Razer Stream Controller devices.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="assets/img/main.png">
+<link rel="icon" type="image/svg+xml" href="assets/img/logo.svg">
+<script>
+  try { const t = localStorage.getItem("theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap">
+<link rel="stylesheet" href="style.css">
+<script src="site.js" defer></script>
+</head>
+<body>
+
+<header class="site-header">
+  <nav class="nav wrap" aria-label="Main">
+    <a class="brand" href="#top">
+      <svg width="32" height="32" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="90" fill="#222831" stroke="#393E46" stroke-width="5"/><path fill="#00adb5" d="M 55.656824,152.77261 V 53.977492 h 13.392384 v 87.856838 h 49.923442 v 10.93828 z"/><path fill="#00adb5" d="m 152.27834,84.261135 q 0,12.478051 -4.8653,21.865205 -4.86529,9.32992 -13.79454,14.3097 -8.92925,4.97977 -20.60596,4.97977 H 82.847711 V 44.766384 h 26.673269 q 20.49148,0 31.5958,10.302979 11.16156,10.245739 11.16156,29.191772 z m -10.98985,0 q 0,-14.996558 -8.24238,-22.838269 -8.18514,-7.89895 -23.75409,-7.89895 H 93.780316 v 63.134364 h 17.972974 q 8.87201,0 15.56894,-3.89224 6.75418,-3.89223 10.36022,-11.2188 3.60604,-7.326559 3.60604,-17.286105 z"/></svg>
+      LoupixDeck
+    </a>
+    <div class="navlinks">
+      <a href="#features">Features</a>
+      <a href="#devices">Devices</a>
+      <a href="#plugins">Plugins</a>
+      <a href="#install">Install</a>
+      <a href="https://github.com/RadiatorTwo/LoupixDeck/blob/master/docs/USER_MANUAL.md">Manual</a>
+    </div>
+    <div class="nav-actions">
+      <button type="button" id="theme-toggle" class="ghost icon-btn" aria-label="Switch to light theme"><span class="mdi" aria-hidden="true">&#xF05A8;</span></button>
+      <a class="ghost" href="https://github.com/RadiatorTwo/LoupixDeck"><span class="mdi" aria-hidden="true">&#xF02A4;</span>GitHub</a>
+    </div>
+  </nav>
+</header>
+
+<main>
+
+<section id="top" class="hero" aria-labelledby="hero-title">
+  <div class="hero-inner wrap">
+    <div class="hero-text">
+      <div class="pills">
+        <span class="pill"><span class="dot"></span>Open source · MIT</span>
+        <span class="pill">.NET 10 · Avalonia</span>
+      </div>
+      <h1 id="hero-title" class="h1">Your control deck.<span>No vendor software.</span></h1>
+      <p class="lead">An open-source control deck application for Loupedeck and Razer Stream Controller devices. Build touch pages, rotary controls, folders, macros and app-aware layouts on Windows and Linux – with experimental builds for macOS.</p>
+      <div class="ctas">
+        <a class="btn btn-primary btn-lg" href="https://github.com/RadiatorTwo/LoupixDeck/releases/latest"><span class="mdi" aria-hidden="true">&#xF01DA;</span>Download latest release</a>
+        <a class="btn btn-outline btn-lg" href="#install">Installation guide<span class="mdi" aria-hidden="true">&#xF0142;</span></a>
+      </div>
+      <div class="oslist">
+        <span><span class="mdi ok" aria-hidden="true">&#xF05E0;</span>Windows x64 &amp; ARM64</span>
+        <span><span class="mdi ok" aria-hidden="true">&#xF05E0;</span>Linux &amp; SteamOS</span>
+        <span><span class="mdi warn" aria-hidden="true">&#xF0026;</span>macOS (alpha)</span>
+      </div>
+    </div>
+    <figure>
+      <img src="assets/img/main.png" width="965" height="771" alt="LoupixDeck main window showing a Razer Stream Controller with a colourful touch page">
+    </figure>
+  </div>
+</section>
+
+<section class="works" aria-label="Supported hardware">
+  <div class="wrap">
+    <span class="eyebrow">Works with</span>
+    <span>Loupedeck Live</span>
+    <span>Loupedeck Live S</span>
+    <span>Loupedeck CT</span>
+    <span>Razer Stream Controller</span>
+    <span>Razer Stream Controller X</span>
+  </div>
+</section>
+
+<section id="features" aria-labelledby="features-title">
+  <div class="sec wrap">
+    <div class="sec-head">
+      <span class="eyebrow acc">Why LoupixDeck</span>
+      <h2 id="features-title" class="h2">Everything the hardware can do – on every desktop you use.</h2>
+      <p>Profiles, layered buttons, rotary actions, macros and plugins in one native app. Release builds are self-contained; the .NET runtime is included.</p>
+    </div>
+    <div class="feature-grid">
+      <div class="card feature"><span class="feature-icon"><span class="mdi" aria-hidden="true">&#xF0379;</span></span><h3>Cross-platform</h3><p>Native on Windows and Linux, including SteamOS, plus experimental macOS builds.</p></div>
+      <div class="card feature"><span class="feature-icon"><span class="mdi" aria-hidden="true">&#xF0328;</span></span><h3>Your layout, your way</h3><p>Profiles, workspaces, pages, nested folders and per-page wallpapers.</p></div>
+      <div class="card feature"><span class="feature-icon"><span class="mdi" aria-hidden="true">&#xF1B96;</span></span><h3>Powerful controls</h3><p>Layered buttons, multiple states, rotary actions, macros and app-focus switching.</p></div>
+      <div class="card feature"><span class="feature-icon"><span class="mdi" aria-hidden="true">&#xF037A;</span></span><h3>Multiple devices</h3><p>Run several controllers at once – even identical models.</p></div>
+      <div class="card feature"><span class="feature-icon"><span class="mdi" aria-hidden="true">&#xF0431;</span></span><h3>Extensible</h3><p>Install integrations from the built-in Plugin Store or write your own.</p></div>
+      <div class="card feature"><span class="feature-icon"><span class="mdi" aria-hidden="true">&#xF03D6;</span></span><h3>Portable</h3><p>Share profiles, workspaces or single pages as .loupixprofile packages.</p></div>
+      <div class="card feature"><span class="feature-icon"><span class="mdi" aria-hidden="true">&#xF0570;</span></span><h3>Ready-made profiles</h3><p>Device-sized templates for everyday controls, media, OBS, Resolve or Home Assistant.</p></div>
+      <div class="card feature"><span class="feature-icon"><span class="mdi" aria-hidden="true">&#xF05CA;</span></span><h3>Multilingual</h3><p>English, German and Spanish interfaces; plugins follow the app language.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="band" aria-labelledby="tour-title">
+  <div class="sec tour wrap">
+    <div class="sec-head">
+      <span class="eyebrow acc">A closer look</span>
+      <h2 id="tour-title" class="h2">Design every key, dial and page.</h2>
+    </div>
+
+    <div class="tour-row">
+      <div class="tour-text">
+        <span class="eyebrow">01 · Touch button editor</span>
+        <h3>Layered buttons with live preview</h3>
+        <p>Combine image, animated image, text and symbol layers. Move and edit them directly, add outlines, gradients and shadows, and give one button several named states with their own visuals and actions.</p>
+        <ul class="checks">
+          <li><span class="mdi" aria-hidden="true">&#xF012C;</span>Full Material Design Icons and Light sets, plus your own SVG icon folders</li>
+          <li><span class="mdi" aria-hidden="true">&#xF012C;</span>Installed fonts per text layer and live value indicators</li>
+          <li><span class="mdi" aria-hidden="true">&#xF012C;</span>Icon/text layout templates for a key, a page or an import</li>
+        </ul>
+      </div>
+      <figure>
+        <img src="assets/img/touch_editor.png" loading="lazy" alt="Layer-based touch button editor with states, gradients and shadows">
+      </figure>
+    </div>
+
+    <div class="tour-row rev">
+      <figure class="narrow">
+        <img src="assets/img/command.png" loading="lazy" alt="Action panel with apps, commands and dial presets">
+      </figure>
+      <div class="tour-text">
+        <span class="eyebrow">02 · Commands and rotary controls</span>
+        <h3>Drag a command onto a key. Done.</h3>
+        <p>Open the Apps and Commands panel and drop an application or command onto any control. Dials get separate actions for rotate left, rotate right, click and press – or a whole multi-command sequence.</p>
+        <ul class="checks">
+          <li><span class="mdi" aria-hidden="true">&#xF012C;</span>Built-in, plugin-provided and user-created dial presets</li>
+          <li><span class="mdi" aria-hidden="true">&#xF012C;</span>Independent rotary pages and the Loupedeck CT centre wheel</li>
+          <li><span class="mdi" aria-hidden="true">&#xF012C;</span>Pages switch automatically when the focused app changes</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="tour-row">
+      <div class="tour-text">
+        <span class="eyebrow">03 · Macro editor</span>
+        <h3>Visual macros with logic</h3>
+        <p>Keyboard and mouse input, delays, commands, variables, conditions, loops, wait conditions and prompts – built visually, no scripting required.</p>
+        <div class="card table-box">
+          <table>
+            <caption class="eyebrow">Input backends</caption>
+            <tbody>
+              <tr><th scope="row">Windows</th><td><code>SendInput</code> · optional Interception driver</td></tr>
+              <tr><th scope="row">Linux</th><td><code>uinput</code></td></tr>
+              <tr><th scope="row">macOS</th><td><code>CGEventPost</code> · needs Accessibility permission</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <figure>
+        <img src="assets/img/macro.png" loading="lazy" alt="Visual macro editor with conditions, loops and variables">
+      </figure>
+    </div>
+
+    <div class="tour-row rev">
+      <figure>
+        <img src="assets/img/animation.webp" loading="lazy" alt="Animated keys over a looping video wallpaper on a Razer Stream Controller">
+      </figure>
+      <div class="tour-text">
+        <span class="eyebrow">04 · Animation and wallpapers</span>
+        <h3>Keys that move</h3>
+        <p>Keys play animated GIF and WebP images or short video clips, and a page can use a looping video wallpaper. Every animation runs at the same time, and on the Razer Stream Controller the wallpaper continues across the side strips.</p>
+        <p class="muted">Video playback needs ffmpeg.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="devices" aria-labelledby="devices-title">
+  <div class="sec wrap" style="gap: 40px">
+    <div class="sec-head">
+      <span class="eyebrow acc">Supported devices</span>
+      <h2 id="devices-title" class="h2">Five controllers. Several at once.</h2>
+      <p>Devices are told apart by USB serial number, so even two identical decks keep their own configuration. Companion devices can mirror a master's profiles while keeping their own pages.</p>
+    </div>
+    <div class="card table-box devices">
+      <table>
+        <thead>
+          <tr><th scope="col">Device</th><th scope="col">Status</th><th scope="col">Controls</th><th scope="col">USB VID:PID</th></tr>
+        </thead>
+        <tbody>
+          <tr><th scope="row">Loupedeck Live</th><td><span class="badge badge-ok">Supported</span></td><td>4×3 touch grid, 2 touch strips, 6 dials, 8 round buttons</td><td class="vid">2ec2:0004</td></tr>
+          <tr><th scope="row">Loupedeck Live S</th><td><span class="badge badge-ok">Supported</span></td><td>5×3 touch grid, 2 dials, 8 physical buttons</td><td class="vid">2ec2:0006</td></tr>
+          <tr><th scope="row">Loupedeck CT</th><td><span class="badge badge-ok">Supported</span></td><td>4×3 touch grid, wheel display, 6 dials and additional buttons</td><td class="vid">2ec2:0003 / 0007</td></tr>
+          <tr><th scope="row">Razer Stream Controller</th><td><span class="badge badge-ok">Supported</span></td><td>4×3 touch grid, 2 side panels, 6 dials, 8 LED buttons</td><td class="vid">1532:0d06</td></tr>
+          <tr><th scope="row">Razer Stream Controller X</th><td><span class="badge badge-ok">Supported</span></td><td>5×3 physical key grid with press-and-hold</td><td class="vid">1532:0d09</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="muted">No hardware yet? Every model also runs as a virtual device with a simulator window: <code>--virtual-device loupedeck-ct</code></p>
+  </div>
+</section>
+
+<section id="plugins" class="band" aria-labelledby="plugins-title">
+  <div class="sec wrap" style="gap: 32px">
+    <div class="row-head">
+      <div class="sec-head">
+        <span class="eyebrow acc">Plugin Store</span>
+        <h2 id="plugins-title" class="h2"><span id="plugin-count">Dozens of</span> integrations, one click away.</h2>
+        <p>Install, update and remove plugins from the built-in store. Downloads are checked against their published checksums, and settings survive updates.</p>
+      </div>
+      <a class="ghost" href="https://github.com/RadiatorTwo/LoupixDeck.PluginSdk"><span class="mdi" aria-hidden="true">&#xF0431;</span>Build a plugin with the SDK</a>
+    </div>
+    <div id="plugin-filter" class="seg" role="group" aria-label="Filter plugins by platform" hidden></div>
+    <div id="plugin-grid" class="plugin-grid" aria-live="polite">
+      <p class="plugin-status">Loading plugins…</p>
+    </div>
+  </div>
+</section>
+
+<section id="install" aria-labelledby="install-title">
+  <div class="sec wrap" style="gap: 32px">
+    <div class="sec-head">
+      <span class="eyebrow acc">Install</span>
+      <h2 id="install-title" class="h2">Up and running in a minute.</h2>
+      <p>Release builds are self-contained. The in-app updater keeps you current afterwards.</p>
+    </div>
+
+    <div class="card install">
+      <div class="seg" role="tablist" aria-label="Operating system">
+        <button type="button" role="tab" id="tab-win" aria-controls="panel-win" aria-selected="true"><span class="mdi" aria-hidden="true">&#xF0379;</span>Windows</button>
+        <button type="button" role="tab" id="tab-linux" aria-controls="panel-linux" aria-selected="false" tabindex="-1"><span class="mdi" aria-hidden="true">&#xF0EC0;</span>Linux / SteamOS</button>
+        <button type="button" role="tab" id="tab-mac" aria-controls="panel-mac" aria-selected="false" tabindex="-1"><span class="mdi" aria-hidden="true">&#xF0322;</span>macOS</button>
+      </div>
+
+      <div class="panel" role="tabpanel" id="panel-win" aria-labelledby="tab-win">
+        <div class="panel-text">
+          <h3>Windows 10 / 11</h3>
+          <p>Download the setup for a normal installation, or the zip archive for portable use and run <code>LoupixDeck.exe</code>.</p>
+          <p class="note">On Windows on ARM (Surface Pro X, Snapdragon laptops) use the arm64 packages – the x64 build shows blank windows under emulation.</p>
+          <a class="btn btn-primary" href="https://github.com/RadiatorTwo/LoupixDeck/releases/latest"><span class="mdi" aria-hidden="true">&#xF01DA;</span>Download for Windows</a>
+        </div>
+        <div class="panel-side">
+          <div class="table-box">
+            <table>
+              <thead><tr><th scope="col">Package</th><th scope="col">For</th></tr></thead>
+              <tbody>
+                <tr><td class="mono">LoupixDeck-Setup-win-x64.exe</td><td>Normal installation</td></tr>
+                <tr><td class="mono">LoupixDeck-win-x64.zip</td><td>Portable use</td></tr>
+                <tr><td class="mono">LoupixDeck-Setup-win-arm64.exe</td><td>Windows on ARM</td></tr>
+                <tr><td class="mono">LoupixDeck-win-arm64.zip</td><td>Portable, Windows on ARM</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" role="tabpanel" id="panel-linux" aria-labelledby="tab-linux" hidden>
+        <div class="panel-text">
+          <h3>Linux and SteamOS</h3>
+          <p>Run the installer as your normal user – do not prefix it with sudo. It installs LoupixDeck, sets up device permissions and adds an application-menu entry.</p>
+          <p>On SteamOS, use the same command in Konsole while in Desktop Mode.</p>
+          <p class="muted">Trouble with hardware access? Open Settings → Diagnostics for the Device Doctor.</p>
+        </div>
+        <div class="panel-side">
+          <div class="terminal">
+            <div class="terminal-bar">
+              <span class="eyebrow">Terminal</span>
+              <button type="button" id="copy-install" class="ghost"><span class="mdi" aria-hidden="true">&#xF018F;</span><span class="label">Copy</span></button>
+            </div>
+            <pre id="install-cmd">curl -fsSL https://github.com/RadiatorTwo/LoupixDeck/releases/latest/download/install-loupixdeck.sh | bash</pre>
+          </div>
+          <pre class="block small"><span class="c"># then start it from the app menu, or</span>
+loupixdeck</pre>
+        </div>
+      </div>
+
+      <div class="panel" role="tabpanel" id="panel-mac" aria-labelledby="tab-mac" hidden>
+        <div class="panel-text">
+          <h3>macOS <span class="badge badge-alpha">Experimental alpha</span></h3>
+          <p>Open the disk image and drag LoupixDeck into Applications. Expect missing features and rough edges – bug reports and hardware test results are very welcome.</p>
+          <p class="note">Macros and direct input need the Accessibility permission (System Settings → Privacy &amp; Security → Accessibility).</p>
+          <a class="btn btn-primary" href="https://github.com/RadiatorTwo/LoupixDeck/releases/latest"><span class="mdi" aria-hidden="true">&#xF01DA;</span>Download for macOS</a>
+        </div>
+        <div class="panel-side">
+          <div class="table-box">
+            <table>
+              <thead><tr><th scope="col">Package</th><th scope="col">For</th></tr></thead>
+              <tbody>
+                <tr><td class="mono">LoupixDeck-osx-arm64.dmg</td><td>Apple Silicon (M1 and later)</td></tr>
+                <tr><td class="mono">LoupixDeck-osx-x64.dmg</td><td>Intel Macs</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="muted">macOS builds are sponsored by <a href="https://www.web-engineer.co.uk/">Web Engineer</a>.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="steps">
+      <div class="card step"><span class="eyebrow">Step 1</span><h3>Connect your deck</h3><p>Start LoupixDeck and plug in a supported device. A template picker offers ready-made profiles for everyday controls, media, OBS, Resolve or Home Assistant.</p></div>
+      <div class="card step"><span class="eyebrow">Step 2</span><h3>Assign commands</h3><p>Open Apps and Commands in the top-left corner and drag an application or command onto a button – or select a control and double-click the item.</p></div>
+      <div class="card step"><span class="eyebrow">Step 3</span><h3>Grow your setup</h3><p>Add profiles, workspaces, pages and folders, and install integrations from Plugins → Plugin Store.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="band" aria-labelledby="power-title">
+  <div class="sec wrap" style="gap: 40px">
+    <div class="sec-head">
+      <span class="eyebrow acc">For power users</span>
+      <h2 id="power-title" class="h2">Scriptable, portable, migratable.</h2>
+    </div>
+    <div class="power">
+      <div class="card power-main">
+        <div class="card-title"><span class="mdi" aria-hidden="true">&#xF018D;</span><h3>CLI and automation</h3></div>
+        <p>Start the executable again while the app is running to send it a command – or write straight to its socket or named pipe.</p>
+        <pre class="block">./LoupixDeck nextpage
+./LoupixDeck page 3
+./LoupixDeck updatebutton 6 text=Build_OK backColor=LimeGreen
+./LoupixDeck System.ObsStartRecord
+<span class="c"># target one device by serial or name</span>
+./LoupixDeck -d "Loupedeck Live S" nextpage</pre>
+      </div>
+      <div class="power-side">
+        <div class="card">
+          <div class="card-title"><span class="mdi" aria-hidden="true">&#xF03D6;</span><h3>Portable profiles</h3></div>
+          <p>Export a profile, workspace or single page as a <code>.loupixprofile</code> package. Before importing, LoupixDeck shows missing plugins, compatibility warnings and macro conflicts.</p>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="mdi" aria-hidden="true">&#xF04E1;</span><h3>Coming from Loupedeck?</h3></div>
+          <p>Import Loupedeck profile… converts a <code>.lp5</code> export – workspaces, touch and dial pages, icons, shortcuts, media and OBS actions.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="contrib-title">
+  <div class="sec wrap">
+    <div class="contrib">
+      <div class="contrib-text">
+        <h2 id="contrib-title" class="h2">Built in the open. <span>Join in.</span></h2>
+        <p>Bug reports, hardware testing, translations, documentation and pull requests are welcome. LoupixDeck speaks English, German and Spanish – help add more.</p>
+      </div>
+      <div class="ctas">
+        <a class="btn btn-primary" href="https://github.com/RadiatorTwo/LoupixDeck"><span class="mdi" aria-hidden="true">&#xF04D2;</span>Star on GitHub</a>
+        <a class="btn btn-outline" href="https://github.com/RadiatorTwo/LoupixDeck/issues/new"><span class="mdi" aria-hidden="true">&#xF00E4;</span>Report a bug</a>
+        <a class="btn btn-outline" href="https://github.com/RadiatorTwo/LoupixDeck/blob/master/CONTRIBUTING.md"><span class="mdi" aria-hidden="true">&#xF062C;</span>Contributing guide</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="footer-inner wrap">
+    <div class="footer-cols">
+      <div class="footer-about">
+        <span class="brand">
+          <svg width="28" height="28" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="90" fill="#222831" stroke="#393E46" stroke-width="5"/><path fill="#00adb5" d="M 55.656824,152.77261 V 53.977492 h 13.392384 v 87.856838 h 49.923442 v 10.93828 z"/><path fill="#00adb5" d="m 152.27834,84.261135 q 0,12.478051 -4.8653,21.865205 -4.86529,9.32992 -13.79454,14.3097 -8.92925,4.97977 -20.60596,4.97977 H 82.847711 V 44.766384 h 26.673269 q 20.49148,0 31.5958,10.302979 11.16156,10.245739 11.16156,29.191772 z m -10.98985,0 q 0,-14.996558 -8.24238,-22.838269 -8.18514,-7.89895 -23.75409,-7.89895 H 93.780316 v 63.134364 h 17.972974 q 8.87201,0 15.56894,-3.89224 6.75418,-3.89223 10.36022,-11.2188 3.60604,-7.326559 3.60604,-17.286105 z"/></svg>
+          LoupixDeck
+        </span>
+        <p>Open-source control deck software for Loupedeck and Razer Stream Controller devices.</p>
+      </div>
+      <nav aria-label="Project">
+        <span class="eyebrow">Project</span>
+        <a href="https://github.com/RadiatorTwo/LoupixDeck/releases/latest">Releases</a>
+        <a href="https://github.com/RadiatorTwo/LoupixDeck">Source code</a>
+        <a href="https://github.com/RadiatorTwo/LoupixDeck/issues">Issues</a>
+        <a href="https://github.com/RadiatorTwo/LoupixDeck/blob/master/CONTRIBUTING.md">Contributing</a>
+      </nav>
+      <nav aria-label="Documentation">
+        <span class="eyebrow">Docs</span>
+        <a href="https://github.com/RadiatorTwo/LoupixDeck/blob/master/docs/USER_MANUAL.md">User manual</a>
+        <a href="https://github.com/RadiatorTwo/LoupixDeck/blob/master/docs/USER_MANUAL.md#troubleshooting">Troubleshooting</a>
+        <a href="https://github.com/RadiatorTwo/LoupixDeck/blob/master/docs/USER_MANUAL.md#automation-and-cli">Automation and CLI</a>
+      </nav>
+      <nav aria-label="Plugins">
+        <span class="eyebrow">Plugins</span>
+        <a href="https://github.com/RadiatorTwo/LoupixDeck.PluginSdk">Plugin SDK</a>
+        <a href="https://www.nuget.org/packages/LoupixDeck.PluginSdk">NuGet package</a>
+        <a href="https://github.com/RadiatorTwo/LoupixDeck.PluginSdk/wiki">SDK documentation</a>
+      </nav>
+    </div>
+    <div class="legal">
+      <span>Released under the <a href="https://github.com/RadiatorTwo/LoupixDeck/blob/master/LICENSE">MIT License</a>. Icons by Pictogrammers (Material Design Icons).</span>
+      <span>Loupedeck and Razer are trademarks of their respective owners. LoupixDeck is not affiliated with them.</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
