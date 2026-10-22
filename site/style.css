@@ -17,15 +17,6 @@
   color-scheme: dark;
 }
 
-:root[data-theme="light"] {
-  --win: #e8e8e8; --low: #dcdcdc; --bar: #e2e2e2; --surf: #ffffff; --alt: #f2f2f2;
-  --ctl: #ffffff; --ctl-h: #00000014; --bd: #c4c4c4; --bf: #d8d8d8;
-  --t1: #111111; --t2: #3d3d3d; --t3: #585858;
-  --acc: #155fa8; --acc-sub: #d6e8fb; --ok: #196b3c; --warn: #7a5200;
-  --note-bg: #fbf3de; --note-bd: #d9be79; --code: #f2f2f2;
-  color-scheme: light;
-}
-
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 
@@ -109,7 +100,6 @@ h1, h2, h3, p, figure { margin: 0; }
 .navlinks a { padding: 6px 12px; font-size: 14px; font-weight: 600; color: var(--t2); text-decoration: none; border-radius: 4px; }
 .navlinks a:hover { color: var(--t1); }
 .nav-actions { display: flex; gap: 8px; align-items: center; margin-left: auto; }
-.icon-btn { width: 44px; padding: 0; color: var(--t2); font-size: 20px; }
 
 /* Hero */
 .hero { background: var(--brand-bg); color: #f5f5f5; border-bottom: 1px solid var(--brand-bd); }

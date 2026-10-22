@@ -3,8 +3,6 @@
 // The store index is read live from master, so the list stays current without redeploying the site.
 const PLUGIN_STORE_URL = "https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck/master/plugin-store.json";
 const PLATFORMS = ["Windows", "Linux", "macOS"];
-const ICON_SUN = "\u{F05A8}";
-const ICON_MOON = "\u{F0594}";
 const ICON_PUZZLE = "\u{F0431}";
 
 function el(tag, className, text) {
@@ -12,26 +10,6 @@ function el(tag, className, text) {
     if (className) node.className = className;
     if (text !== undefined) node.textContent = text;
     return node;
-}
-
-// Theme toggle
-
-function initTheme() {
-    const button = document.getElementById("theme-toggle");
-    const root = document.documentElement;
-
-    const sync = () => {
-        const dark = root.dataset.theme !== "light";
-        button.querySelector(".mdi").textContent = dark ? ICON_SUN : ICON_MOON;
-        button.setAttribute("aria-label", dark ? "Switch to light theme" : "Switch to dark theme");
-    };
-
-    button.addEventListener("click", () => {
-        root.dataset.theme = root.dataset.theme === "light" ? "dark" : "light";
-        try { localStorage.setItem("theme", root.dataset.theme); } catch (e) { /* storage unavailable */ }
-        sync();
-    });
-    sync();
 }
 
 // Install tabs
@@ -180,7 +158,6 @@ async function initPlugins() {
     }
 }
 
-initTheme();
 initInstallTabs();
 initCopyButton();
 initPlugins();
