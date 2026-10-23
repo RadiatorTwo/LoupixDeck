@@ -74,6 +74,12 @@ public sealed class PluginInstaller : IPluginInstaller
     /// </summary>
     private static readonly string[] PreservedFileNames = ["settings.json", StoreMarkerFileName];
 
+    /// <summary>
+    /// Folder in the user plugins root that holds a plugin's old folder while an update replaces
+    /// it. Nested one level deeper than a plugin folder, so discovery never loads a backup.
+    /// </summary>
+    public const string InstallBackupDirName = ".install-backup";
+
     private readonly Models.LoupedeckConfig _config;
     private readonly string _userRoot;
     private readonly string _bundledRoot;
@@ -255,37 +261,24 @@ public sealed class PluginInstaller : IPluginInstaller
             : $"{previousVersion} → {manifest.Version}";
 
         // Files the host or the plugin writes at runtime survive the update.
-        Dictionary<string, byte[]> preserved = ReadPreservedFiles(targetDir);
-
         try
         {
-            Directory.Delete(targetDir, recursive: true);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            // The old version is loaded (Windows locks its assemblies). Stage the new
-            // files; PluginManager swaps them into place at the next startup, before
-            // anything is loaded. The coordinator unloads the old version live so its
-            // commands stop now — only the on-disk swap waits for the restart. The
-            // preserved files are carried over from the old folder during that swap.
-            // The failed delete has already removed every file that was not locked, the
-            // preserved ones included, so they are put back first.
-            RestorePreservedFiles(targetDir, preserved);
-
-            if (StageForInstall(manifest.Id, contentRoot))
+            if (!TryReplaceFolder(targetDir, dir => CopyDirectory(contentRoot, dir), out Exception inUse))
             {
-                return PluginActionResult.Ok(
-                    Loc.Tr("Plugin_UpdatedNeedsRestart", name, arrow),
-                    requiresRestart: true, pluginId: manifest.Id);
+                // The old version is loaded (Windows locks its assemblies). Stage the new
+                // files; PluginManager swaps them into place at the next startup, before
+                // anything is loaded. The coordinator unloads the old version live so its
+                // commands stop now — only the on-disk swap waits for the restart. The
+                // preserved files are carried over from the old folder during that swap.
+                if (StageForInstall(manifest.Id, contentRoot))
+                {
+                    return PluginActionResult.Ok(
+                        Loc.Tr("Plugin_UpdatedNeedsRestart", name, arrow),
+                        requiresRestart: true, pluginId: manifest.Id);
+                }
+
+                return PluginActionResult.Fail(Loc.Tr("Plugin_CouldNotStageUpdate", name, inUse.Message));
             }
-
-            return PluginActionResult.Fail(Loc.Tr("Plugin_CouldNotStageUpdate", name, ex.Message));
-        }
-
-        try
-        {
-            CopyDirectory(contentRoot, targetDir);
-            WritePreservedFiles(targetDir, preserved);
         }
         catch (Exception ex)
         {
@@ -423,11 +416,8 @@ public sealed class PluginInstaller : IPluginInstaller
                 var target = Path.Combine(userRoot, id);
                 try
                 {
-                    Dictionary<string, byte[]> preserved = ReadPreservedFiles(target);
-                    if (Directory.Exists(target))
-                        Directory.Delete(target, recursive: true);
-                    Directory.Move(staged, target);
-                    WritePreservedFiles(target, preserved);
+                    if (!TryReplaceFolder(target, dir => Directory.Move(staged, dir), out Exception inUse))
+                        Console.WriteLine($"PluginInstaller: pending install of '{id}' skipped, the installed version is in use: {inUse.Message}");
                 }
                 catch (Exception ex)
                 {
@@ -525,58 +515,88 @@ public sealed class PluginInstaller : IPluginInstaller
     }
 
     /// <summary>
-    /// Reads the files in a plugin folder that are written at runtime rather than shipped in a
-    /// package, so an update can put them back. Missing files are simply left out.
+    /// Replaces <paramref name="targetDir"/> with what <paramref name="fill"/> writes into it,
+    /// keeping the preserved files. The old folder is moved aside in one step first: a move fails
+    /// as a whole while a file in it is locked, whereas a recursive delete removes the unlocked
+    /// files, the settings among them, before it reports the locked one. The old folder is deleted
+    /// only once the new one is complete, and moved back when anything fails.
     /// </summary>
-    private static Dictionary<string, byte[]> ReadPreservedFiles(string pluginDir)
+    /// <returns>False, with nothing changed, when the old folder is in use.</returns>
+    /// <exception cref="Exception">Whatever <paramref name="fill"/> threw, after the rollback.</exception>
+    private static bool TryReplaceFolder(string targetDir, Action<string> fill, out Exception inUse)
     {
-        Dictionary<string, byte[]> preserved = new(StringComparer.OrdinalIgnoreCase);
-        foreach (string fileName in PreservedFileNames)
+        inUse = null;
+        string backupDir = null;
+
+        if (Directory.Exists(targetDir))
         {
-            string path = Path.Combine(pluginDir, fileName);
+            string backupRoot = Path.Combine(Path.GetDirectoryName(targetDir)!, InstallBackupDirName);
+            backupDir = Path.Combine(backupRoot, $"{Path.GetFileName(targetDir)}-{Guid.NewGuid():N}");
             try
             {
-                if (File.Exists(path))
-                    preserved[fileName] = File.ReadAllBytes(path);
+                Directory.CreateDirectory(backupRoot);
+                Directory.Move(targetDir, backupDir);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                Console.WriteLine($"PluginInstaller: could not keep '{path}': {ex.Message}");
+                inUse = ex;
+                return false;
             }
         }
 
-        return preserved;
+        try
+        {
+            fill(targetDir);
+            if (backupDir != null)
+                CopyPreservedFiles(backupDir, targetDir);
+        }
+        catch
+        {
+            if (backupDir != null)
+                RollBack(targetDir, backupDir);
+            throw;
+        }
+
+        if (backupDir != null)
+            TryDeleteDirectory(backupDir);
+        return true;
     }
 
-    private static void WritePreservedFiles(string pluginDir, Dictionary<string, byte[]> preserved)
+    /// <summary>Puts the old folder back after a failed replace.</summary>
+    private static void RollBack(string targetDir, string backupDir)
     {
-        foreach ((string fileName, byte[] content) in preserved)
+        try
         {
-            string path = Path.Combine(pluginDir, fileName);
-
-            // The store writes a fresh marker into a staged update; the old folder's marker must not
-            // replace it when the staged folder is swapped in.
-            if (fileName == StoreMarkerFileName && File.Exists(path))
-                continue;
-
-            File.WriteAllBytes(path, content);
+            if (Directory.Exists(targetDir))
+                Directory.Delete(targetDir, recursive: true);
+            Directory.Move(backupDir, targetDir);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Console.WriteLine(
+                $"PluginInstaller: could not restore '{targetDir}'; the previous version and its settings are kept in '{backupDir}': {ex.Message}");
         }
     }
 
     /// <summary>
-    /// Puts the preserved files back into a plugin folder whose delete failed halfway (a recursive
-    /// delete removes the unlocked files before it reports the locked one).
+    /// Copies the files written at runtime rather than shipped in a package from the old folder
+    /// into the new one. Missing files are simply left out.
     /// </summary>
-    private static void RestorePreservedFiles(string pluginDir, Dictionary<string, byte[]> preserved)
+    private static void CopyPreservedFiles(string fromDir, string toDir)
     {
-        try
+        foreach (string fileName in PreservedFileNames)
         {
-            Directory.CreateDirectory(pluginDir);
-            WritePreservedFiles(pluginDir, preserved);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            Console.WriteLine($"PluginInstaller: could not keep the settings of '{pluginDir}': {ex.Message}");
+            string source = Path.Combine(fromDir, fileName);
+            string target = Path.Combine(toDir, fileName);
+            if (!File.Exists(source))
+                continue;
+
+            // The store writes a fresh marker into a staged update; the old folder's marker must not
+            // replace it when the staged folder is swapped in.
+            if (fileName == StoreMarkerFileName && File.Exists(target))
+                continue;
+
+            File.Copy(source, target, overwrite: true);
         }
     }
 
