@@ -167,8 +167,7 @@ public partial class ActionPanelViewModel : ViewModelBase
 
     /// <summary>
     /// The dial presets, as rows that can be dragged onto a dial or assigned to a selected one.
-    /// Their own section rather than part of the command list above, because a preset is offered on
-    /// rotary encoders alone and that list is built for touch buttons.
+    /// Their own section rather than part of the command list above, which leaves them out.
     /// </summary>
     public ObservableCollection<PanelItemViewModel> DialPresets { get; } = [];
 
@@ -405,7 +404,9 @@ public partial class ActionPanelViewModel : ViewModelBase
                 // populated collection would leave every entry twice over. The picker follows the
                 // collection and reprojects itself.
                 _catalogue.Clear();
-                await _menuTreeBuilder.BuildInto(_catalogue, ButtonTargets.TouchButton);
+                // Every button type at once: a row is offered if it fits anything it can be
+                // dropped on. Whether it fits a particular button is checked at the drop.
+                await _menuTreeBuilder.BuildInto(_catalogue, ButtonTargets.All);
             }
             while (_catalogueRefreshPending);
         }

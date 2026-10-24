@@ -31,7 +31,9 @@ public class DialPresetMenuContributor : IMenuContributor
 
     public Task<IReadOnlyList<MenuEntry>> Contribute(ButtonTargets target)
     {
-        if (!target.HasFlag(ButtonTargets.RotaryEncoder))
+        // A dial's own picker only. The action panel asks for every target at once and lists the
+        // presets in a section of their own, so it must not get them twice.
+        if (target != ButtonTargets.RotaryEncoder)
             return Task.FromResult<IReadOnlyList<MenuEntry>>([]);
 
         IReadOnlyList<DialPreset> presets = _catalog.Presets;

@@ -55,16 +55,22 @@ public class PluginMenuContributor : IPluginMenuSource
 
             sources.Add(new DeferredMenuSource(pluginId, pluginName, groupNames, async () =>
             {
-                var nodes = await contributor.GetMenuNodes(target);
                 var result = new List<MenuEntry>();
 
-                if (nodes != null)
+                // Plugins have only ever been asked for one button type, and some compare it
+                // with ==. A combined target (the action panel's) is therefore asked one type at
+                // a time and the answers merged.
+                foreach (var single in SingleTargets(target))
                 {
+                    var nodes = await contributor.GetMenuNodes(single);
+                    if (nodes == null)
+                        continue;
+
                     foreach (var node in nodes)
                     {
-                        var entry = Convert(node, target, pluginId);
+                        var entry = Convert(node, single, pluginId);
                         if (entry != null)
-                            result.Add(entry);
+                            MergeInto(result, entry);
                     }
                 }
 
@@ -102,6 +108,41 @@ public class PluginMenuContributor : IPluginMenuSource
             return [];
         }
     }
+
+    private static readonly ButtonTargets[] SingleTargetOrder =
+        [ButtonTargets.TouchButton, ButtonTargets.SimpleButton, ButtonTargets.RotaryEncoder];
+
+    /// <summary>The individual button types <paramref name="target"/> covers; a single type or
+    /// <see cref="ButtonTargets.None"/> is passed through unchanged.</summary>
+    private static IReadOnlyList<ButtonTargets> SingleTargets(ButtonTargets target)
+    {
+        var singles = SingleTargetOrder.Where(t => target.HasFlag(t)).ToList();
+        return singles.Count > 1 ? singles : [target];
+    }
+
+    /// <summary>
+    /// Adds <paramref name="entry"/> to <paramref name="siblings"/>, folding it into an entry that
+    /// is the same command or submenu, so a node offered for several button types appears once.
+    /// </summary>
+    private static void MergeInto(IList<MenuEntry> siblings, MenuEntry entry)
+    {
+        var existing = siblings.FirstOrDefault(e => SameEntry(e, entry));
+        if (existing == null)
+        {
+            siblings.Add(entry);
+            return;
+        }
+
+        foreach (var child in entry.Children)
+            MergeInto(existing.Children, child);
+    }
+
+    private static bool SameEntry(MenuEntry a, MenuEntry b) =>
+        a.Name == b.Name
+        && a.Command == b.Command
+        && a.IsCommandGroup == b.IsCommandGroup
+        && a.Parameters.Count == b.Parameters.Count
+        && !a.Parameters.Except(b.Parameters).Any();
 
     private MenuEntry Convert(MenuNode node, ButtonTargets target, string pluginId)
     {
