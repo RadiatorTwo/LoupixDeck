@@ -50,7 +50,9 @@ public class CommandGroupMenuContributor : IMenuContributor
             .Where(c => !c.HiddenFromMenu)
             .Where(c => !c.RequiresSideStrips || hasSideStrips)
             .Where(c => !CompanionCommandPolicy.IsBlocked(_companions, _device.ScopeKey, c.CommandName))
-            .Where(c => c.SupportedTargets.HasFlag(target))
+            // Any overlap, so a combined target (the action panel's) lists every command that
+            // fits at least one of its button types.
+            .Where(c => (c.SupportedTargets & target) != 0)
             .GroupBy(c => c.Info.Group);
 
         foreach (var group in groups)
