@@ -6,7 +6,9 @@ on:
     paths:
       - "site/**"
       - ".github/workflows/pages.yml"
-      - ".github/scripts/build-changes.mjs"
+      - ".github/scripts/**"
+      - "docs/USER_MANUAL.md"
+      - "docs/CT_WHEEL_APPEARANCE.md"
   # The changes page is rendered from the releases, so any release change redeploys the site.
   release:
     types: [published, edited, deleted]
@@ -53,6 +55,11 @@ jobs:
 
       - name: Render release notes
         run: node .github/scripts/build-changes.mjs site/changes/index.html
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Render user manual
+        run: node .github/scripts/build-manual.mjs docs/USER_MANUAL.md site/manual/index.html
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
