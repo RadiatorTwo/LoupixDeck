@@ -8,7 +8,31 @@
 <meta property="og:title" content="LoupixDeck">
 <meta property="og:description" content="Open-source control deck software for Loupedeck and Razer Stream Controller devices.">
 <meta property="og:type" content="website">
-<meta property="og:image" content="assets/img/main.png">
+<meta property="og:image" content="https://loupixdeck.com/assets/img/main.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "LoupixDeck",
+  "description": "Open-source control deck software for Loupedeck and Razer Stream Controller devices on Windows, Linux and macOS.",
+  "url": "https://loupixdeck.com/",
+  "image": "https://loupixdeck.com/assets/img/logo.svg",
+  "screenshot": "https://loupixdeck.com/assets/img/main.png",
+  "applicationCategory": "UtilitiesApplication",
+  "operatingSystem": "Windows 10, Windows 11, Linux, SteamOS, macOS",
+  "processorRequirements": "x64 or ARM64",
+  "downloadUrl": "https://loupixdeck.com/#install",
+  "installUrl": "https://loupixdeck.com/#install",
+  "softwareHelp": "https://loupixdeck.com/manual/",
+  "license": "https://opensource.org/licenses/MIT",
+  "isAccessibleForFree": true,
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  }
+}
+</script>
 <link rel="icon" type="image/svg+xml" href="assets/img/logo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -29,7 +53,8 @@
       <a href="#devices">Devices</a>
       <a href="#plugins">Plugins</a>
       <a href="#install">Install</a>
-      <a href="https://github.com/RadiatorTwo/LoupixDeck/blob/master/docs/USER_MANUAL.md">Manual</a>
+      <a href="changes/">Changes</a>
+      <a href="manual/">Manual</a>
     </div>
     <div class="nav-actions">
       <a class="ghost" href="https://github.com/RadiatorTwo/LoupixDeck"><span class="mdi" aria-hidden="true">&#xF02A4;</span>GitHub</a>
@@ -49,9 +74,10 @@
       <h1 id="hero-title" class="h1">Your control deck.<span>No vendor software.</span></h1>
       <p class="lead">An open-source control deck application for Loupedeck and Razer Stream Controller devices. Build touch pages, rotary controls, folders, macros and app-aware layouts on Windows and Linux – with experimental builds for macOS.</p>
       <div class="ctas">
-        <a class="btn btn-primary btn-lg" href="https://github.com/RadiatorTwo/LoupixDeck/releases/latest"><span class="mdi" aria-hidden="true">&#xF01DA;</span>Download latest release</a>
+        <a class="btn btn-primary btn-lg" id="hero-download" href="#install"><span class="mdi" aria-hidden="true">&#xF01DA;</span><span class="label">Download latest release</span></a>
         <a class="btn btn-outline btn-lg" href="#install">Installation guide<span class="mdi" aria-hidden="true">&#xF0142;</span></a>
       </div>
+      <p class="download-note" id="hero-download-note" hidden><span class="detail"></span> · <a href="#install">Other packages</a></p>
       <div class="oslist">
         <span><span class="mdi ok" aria-hidden="true">&#xF05E0;</span>Windows x64 &amp; ARM64</span>
         <span><span class="mdi ok" aria-hidden="true">&#xF05E0;</span>Linux &amp; SteamOS</span>
@@ -231,17 +257,17 @@
           <h3>Windows 10 / 11</h3>
           <p>Download the setup for a normal installation, or the zip archive for portable use and run <code>LoupixDeck.exe</code>.</p>
           <p class="note">On Windows on ARM (Surface Pro X, Snapdragon laptops) use the arm64 packages – the x64 build shows blank windows under emulation.</p>
-          <a class="btn btn-primary" href="https://github.com/RadiatorTwo/LoupixDeck/releases/latest"><span class="mdi" aria-hidden="true">&#xF01DA;</span>Download for Windows</a>
+          <a class="btn btn-primary" id="download-win" href="https://github.com/RadiatorTwo/LoupixDeck/releases/latest/download/LoupixDeck-Setup-win-x64.exe"><span class="mdi" aria-hidden="true">&#xF01DA;</span>Download for Windows</a>
         </div>
         <div class="panel-side">
           <div class="table-box">
             <table>
               <thead><tr><th scope="col">Package</th><th scope="col">For</th></tr></thead>
               <tbody>
-                <tr><td class="mono">LoupixDeck-Setup-win-x64.exe</td><td>Normal installation</td></tr>
-                <tr><td class="mono">LoupixDeck-win-x64.zip</td><td>Portable use</td></tr>
-                <tr><td class="mono">LoupixDeck-Setup-win-arm64.exe</td><td>Windows on ARM</td></tr>
-                <tr><td class="mono">LoupixDeck-win-arm64.zip</td><td>Portable, Windows on ARM</td></tr>
+                <tr><td class="mono"><a href="https://github.com/RadiatorTwo/LoupixDeck/releases/latest/download/LoupixDeck-Setup-win-x64.exe">LoupixDeck-Setup-win-x64.exe</a></td><td>Normal installation</td></tr>
+                <tr><td class="mono"><a href="https://github.com/RadiatorTwo/LoupixDeck/releases/latest/download/LoupixDeck-win-x64.zip">LoupixDeck-win-x64.zip</a></td><td>Portable use</td></tr>
+                <tr><td class="mono"><a href="https://github.com/RadiatorTwo/LoupixDeck/releases/latest/download/LoupixDeck-Setup-win-arm64.exe">LoupixDeck-Setup-win-arm64.exe</a></td><td>Windows on ARM</td></tr>
+                <tr><td class="mono"><a href="https://github.com/RadiatorTwo/LoupixDeck/releases/latest/download/LoupixDeck-win-arm64.zip">LoupixDeck-win-arm64.zip</a></td><td>Portable, Windows on ARM</td></tr>
               </tbody>
             </table>
           </div>
@@ -273,15 +299,15 @@ loupixdeck</pre>
           <h3>macOS <span class="badge badge-alpha">Experimental alpha</span></h3>
           <p>Open the disk image and drag LoupixDeck into Applications. Expect missing features and rough edges – bug reports and hardware test results are very welcome.</p>
           <p class="note">Macros and direct input need the Accessibility permission (System Settings → Privacy &amp; Security → Accessibility).</p>
-          <a class="btn btn-primary" href="https://github.com/RadiatorTwo/LoupixDeck/releases/latest"><span class="mdi" aria-hidden="true">&#xF01DA;</span>Download for macOS</a>
+          <a class="btn btn-primary" id="download-mac" href="https://github.com/RadiatorTwo/LoupixDeck/releases/latest/download/LoupixDeck-osx-arm64.dmg"><span class="mdi" aria-hidden="true">&#xF01DA;</span>Download for macOS</a>
         </div>
         <div class="panel-side">
           <div class="table-box">
             <table>
               <thead><tr><th scope="col">Package</th><th scope="col">For</th></tr></thead>
               <tbody>
-                <tr><td class="mono">LoupixDeck-osx-arm64.dmg</td><td>Apple Silicon (M1 and later)</td></tr>
-                <tr><td class="mono">LoupixDeck-osx-x64.dmg</td><td>Intel Macs</td></tr>
+                <tr><td class="mono"><a href="https://github.com/RadiatorTwo/LoupixDeck/releases/latest/download/LoupixDeck-osx-arm64.dmg">LoupixDeck-osx-arm64.dmg</a></td><td>Apple Silicon (M1 and later)</td></tr>
+                <tr><td class="mono"><a href="https://github.com/RadiatorTwo/LoupixDeck/releases/latest/download/LoupixDeck-osx-x64.dmg">LoupixDeck-osx-x64.dmg</a></td><td>Intel Macs</td></tr>
               </tbody>
             </table>
           </div>
@@ -360,15 +386,16 @@ loupixdeck</pre>
       <nav aria-label="Project">
         <span class="eyebrow">Project</span>
         <a href="https://github.com/RadiatorTwo/LoupixDeck/releases/latest">Releases</a>
+        <a href="changes/">Release notes</a>
         <a href="https://github.com/RadiatorTwo/LoupixDeck">Source code</a>
         <a href="https://github.com/RadiatorTwo/LoupixDeck/issues">Issues</a>
         <a href="https://github.com/RadiatorTwo/LoupixDeck/blob/master/CONTRIBUTING.md">Contributing</a>
       </nav>
       <nav aria-label="Documentation">
         <span class="eyebrow">Docs</span>
-        <a href="https://github.com/RadiatorTwo/LoupixDeck/blob/master/docs/USER_MANUAL.md">User manual</a>
-        <a href="https://github.com/RadiatorTwo/LoupixDeck/blob/master/docs/USER_MANUAL.md#troubleshooting">Troubleshooting</a>
-        <a href="https://github.com/RadiatorTwo/LoupixDeck/blob/master/docs/USER_MANUAL.md#automation-and-cli">Automation and CLI</a>
+        <a href="manual/">User manual</a>
+        <a href="manual/#troubleshooting">Troubleshooting</a>
+        <a href="manual/#automation-and-cli">Automation and CLI</a>
       </nav>
       <nav aria-label="Plugins">
         <span class="eyebrow">Plugins</span>
