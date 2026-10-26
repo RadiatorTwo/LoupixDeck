@@ -1,7 +1,8 @@
 // Renders the GitHub releases into the changes section at deploy time, so visitors never hit the
 // rate-limited GitHub API: an overview at <dir>/index.html and one page per release at
 // <dir>/<slug>/index.html (v1.48.0 -> v1-48-0), built from <dir>/_release.html.
-// Usage: node build-changes.mjs <changes-dir>
+// With a home page, its SoftwareApplication JSON-LD also gets the latest version.
+// Usage: node build-changes.mjs <changes-dir> [home.html]
 // Needs GITHUB_REPOSITORY (owner/repo) and, in CI, GITHUB_TOKEN.
 
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -9,10 +10,11 @@ import path from "node:path";
 
 const LIST_MARKER = /<!-- releases:start -->[\s\S]*<!-- releases:end -->/;
 const PAGE_MARKER = /<!-- release:start -->[\s\S]*<!-- release:end -->/;
+const JSON_LD = /(<script type="application\/ld\+json">)([\s\S]*?)(<\/script>)/;
 const SUMMARY_LENGTH = 180;
 const repo = process.env.GITHUB_REPOSITORY || "RadiatorTwo/LoupixDeck";
 const token = process.env.GITHUB_TOKEN;
-const dir = process.argv[2];
+const [dir, home] = process.argv.slice(2);
 
 if (!dir) {
     console.error("usage: node build-changes.mjs <changes-dir>");
@@ -167,3 +169,18 @@ const items = releases.map((r) => renderListItem(r, latest)).join("\n");
 await writeFile(listPath, list.replace(LIST_MARKER, () => items), "utf8");
 await rm(templatePath);
 console.log(`Rendered ${releases.length} release pages into ${dir}`);
+
+if (home) {
+    const page = await readFile(home, "utf8");
+    const match = JSON_LD.exec(page);
+    if (!match) throw new Error(`JSON-LD block missing in ${home}`);
+
+    const data = JSON.parse(match[2]);
+    data.softwareVersion = latest.tag_name.replace(/^v/, "");
+    data.releaseNotes = new URL(`changes/${slugify(latest.tag_name)}/`, data.url).href;
+    data.dateModified = latest.published_at.slice(0, 10);
+    const json = JSON.stringify(data, null, 2).replaceAll("<", "\\u003c");
+
+    await writeFile(home, page.replace(JSON_LD, (_, open, __, close) => `${open}\n${json}\n${close}`), "utf8");
+    console.log(`Set ${home} JSON-LD to version ${data.softwareVersion}`);
+}

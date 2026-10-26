@@ -54,7 +54,7 @@ jobs:
           node-version: 20
 
       - name: Render release notes
-        run: node .github/scripts/build-changes.mjs site/changes
+        run: node .github/scripts/build-changes.mjs site/changes site/index.html
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
