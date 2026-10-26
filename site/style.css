@@ -117,6 +117,8 @@ h1, h2, h3, p, figure { margin: 0; }
 .lead { font-size: 19px; line-height: 30px; color: #d0d0d0; max-width: 560px; }
 .ctas { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
 .ctas .btn-outline .mdi { color: #ababab; }
+.download-note { margin-top: -12px; font-size: 14px; line-height: 21px; color: #ababab; }
+.download-note a { color: #d0d0d0; }
 .oslist { display: flex; gap: 20px; flex-wrap: wrap; font-size: 14px; color: #d0d0d0; }
 .oslist span { display: inline-flex; align-items: center; gap: 6px; }
 .oslist .mdi { font-size: 16px; }
@@ -164,6 +166,8 @@ td { color: var(--t2); }
 thead tr { background: var(--bar); }
 thead th { font-size: 11px; line-height: 14px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--t3); }
 td.mono { font-family: var(--mono); font-size: 13px; color: var(--t1); }
+td.mono a { text-decoration: none; }
+td.mono a:hover { text-decoration: underline; }
 
 .devices table { min-width: 640px; font-size: 15px; line-height: 22px; }
 .devices th, .devices td { padding: 16px 20px; }
@@ -267,6 +271,12 @@ pre .c { color: var(--t3); }
 .release-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding-bottom: 16px; border-bottom: 1px solid var(--bf); }
 .release-head h1 { font-size: 32px; line-height: 40px; font-weight: 700; letter-spacing: -0.02em; }
 .release-download { margin-left: auto; height: 40px; padding: 0 16px; font-size: 14px; }
+.release-downloads { padding-top: 16px; border-top: 1px solid var(--bf); display: flex; flex-direction: column; gap: 10px; scroll-margin-top: 24px; }
+.release-downloads ul { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); gap: 8px; }
+.release-downloads li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; background: var(--alt); border: 1px solid var(--bf); border-radius: 4px; }
+.release-downloads li a { display: inline-flex; align-items: center; gap: 8px; min-width: 0; font-family: var(--mono); font-size: 13px; text-decoration: none; overflow-wrap: anywhere; }
+.release-downloads li a .mdi { font-size: 16px; }
+.release-downloads li .muted { flex: none; font-size: 12px; }
 .release-steps { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .release-step { padding: 14px 18px; display: flex; flex-direction: column; gap: 2px; color: var(--t1); font-weight: 600; text-decoration: none; }
 .release-step:hover { border-color: #4da3ff; color: var(--t1); }

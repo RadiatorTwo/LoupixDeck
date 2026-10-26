@@ -113,8 +113,30 @@ function renderListItem(release, latest) {
 </a>`;
 }
 
+function formatSize(bytes) {
+    return bytes >= 1024 * 1024 ? `${(bytes / (1024 * 1024)).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+// Direct file links, so a download never detours through the GitHub release page.
+function renderDownloads(release) {
+    const assets = (release.assets || []).filter((a) => a.state === "uploaded");
+    if (assets.length === 0) return "";
+
+    const rows = assets
+        .sort((a, b) => a.name.localeCompare(b.name, "en"))
+        .map((a) => `<li><a href="${escapeHtml(a.browser_download_url)}"><span class="mdi" aria-hidden="true">&#xF01DA;</span>${escapeHtml(a.name)}</a><span class="muted">${formatSize(a.size)}</span></li>`)
+        .join("\n    ");
+    return `<section class="release-downloads" id="downloads" aria-labelledby="downloads-title">
+  <h2 id="downloads-title" class="eyebrow">Downloads</h2>
+  <ul>
+    ${rows}
+  </ul>
+</section>`;
+}
+
 function renderPage(release, latest, newer, older) {
     const date = formatDate(release);
+    const downloads = renderDownloads(release);
     const step = (other, label, cls) => other
         ? `<a class="card release-step ${cls}" href="../${slugify(other.tag_name)}/"><span class="eyebrow">${label}</span><span>${escapeHtml(other.name || other.tag_name)}</span></a>`
         : "<span></span>";
@@ -125,11 +147,12 @@ function renderPage(release, latest, newer, older) {
     <h1>${escapeHtml(release.name || release.tag_name)}</h1>
     ${badge(release, latest)}
     <time datetime="${date.iso}">${date.text}</time>
-    <a class="btn btn-primary release-download" href="${escapeHtml(release.html_url)}"><span class="mdi" aria-hidden="true">&#xF01DA;</span>Downloads</a>
+    ${downloads ? '<a class="btn btn-primary release-download" href="#downloads"><span class="mdi" aria-hidden="true">&#xF01DA;</span>Downloads</a>' : ""}
   </header>
   <div class="release-body">
 ${release.body_html || '<p class="muted">No release notes.</p>'}
   </div>
+  ${downloads}
 </article>
 <nav class="release-steps" aria-label="Other releases">
   ${step(older, "Older", "older")}

@@ -66,6 +66,62 @@ function initCopyButton() {
     });
 }
 
+// Downloads
+
+// Release assets keep their names across versions, so these always resolve to the latest release.
+const DOWNLOAD_BASE = "https://github.com/RadiatorTwo/LoupixDeck/releases/latest/download/";
+const DOWNLOADS = {
+    "win-x64": { file: "LoupixDeck-Setup-win-x64.exe", label: "Download for Windows", detail: "Windows x64 installer" },
+    "win-arm64": { file: "LoupixDeck-Setup-win-arm64.exe", label: "Download for Windows", detail: "Windows on ARM installer" },
+    "mac-arm64": { file: "LoupixDeck-osx-arm64.dmg", label: "Download for macOS", detail: "macOS disk image for Apple Silicon" },
+    "mac-x64": { file: "LoupixDeck-osx-x64.dmg", label: "Download for macOS", detail: "macOS disk image for Intel Macs" },
+};
+
+function detectPlatform() {
+    const ua = navigator.userAgent;
+    if (/iPhone|iPad|iPod|Android/.test(ua)) return null;
+    if (/Windows/.test(ua)) return "win";
+    if (/Mac OS X|Macintosh/.test(ua)) return "mac";
+    if (/Linux|X11|CrOS/.test(ua)) return "linux";
+    return null;
+}
+
+// Only Chromium exposes the CPU architecture; elsewhere x64 on Windows and Apple Silicon on macOS
+// are the likely picks, and the package tables list the alternatives.
+async function detectArm(platform) {
+    const fallback = platform === "mac";
+    if (!navigator.userAgentData || !navigator.userAgentData.getHighEntropyValues) return fallback;
+    try {
+        const { architecture } = await navigator.userAgentData.getHighEntropyValues(["architecture"]);
+        return architecture ? architecture === "arm" : fallback;
+    } catch (e) {
+        return fallback;
+    }
+}
+
+async function initDownloads() {
+    const hero = document.getElementById("hero-download");
+    const label = hero.querySelector(".label");
+    const note = document.getElementById("hero-download-note");
+    const platform = detectPlatform();
+
+    if (platform === "linux") {
+        label.textContent = "Install on Linux";
+        return;
+    }
+    if (platform === null) return;
+
+    const arm = await detectArm(platform);
+    const download = DOWNLOADS[`${platform}-${arm ? "arm64" : "x64"}`];
+    const href = DOWNLOAD_BASE + download.file;
+
+    hero.href = href;
+    label.textContent = download.label;
+    note.querySelector(".detail").textContent = download.detail;
+    note.hidden = false;
+    document.getElementById(`download-${platform}`).href = href;
+}
+
 // Plugin store
 
 function pluginTile(plugin) {
@@ -160,4 +216,5 @@ async function initPlugins() {
 
 initInstallTabs();
 initCopyButton();
+initDownloads();
 initPlugins();
