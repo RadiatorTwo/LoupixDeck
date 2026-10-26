@@ -250,6 +250,29 @@ pre .c { color: var(--t3); }
 .contrib p { font-size: 17px; line-height: 28px; color: #d0d0d0; }
 .contrib .ctas { margin-top: 0; }
 
+/* Release notes */
+.navlinks a[aria-current="page"] { color: var(--t1); background: var(--ctl); }
+.releases { display: flex; flex-direction: column; gap: 24px; }
+.release { padding: 28px; display: flex; flex-direction: column; gap: 16px; scroll-margin-top: 24px; }
+.release-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding-bottom: 16px; border-bottom: 1px solid var(--bf); }
+.release-head h2 { font-size: 24px; line-height: 32px; font-weight: 700; letter-spacing: -0.015em; }
+.release-head h2 a { color: var(--t1); text-decoration: none; }
+.release-head h2 a:hover { color: var(--acc); }
+.release-head time { font-size: 14px; color: var(--t3); }
+.release-link { margin-left: auto; font-size: 14px; font-weight: 600; text-decoration: none; }
+.release-body { display: flex; flex-direction: column; gap: 12px; min-width: 0; font-size: 15px; line-height: 24px; color: var(--t2); overflow-wrap: anywhere; }
+.release-body h2 { font-size: 13px; line-height: 18px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--t3); }
+.release-body h3 { font-size: 18px; line-height: 24px; font-weight: 600; color: var(--t1); margin: 8px 0 0; }
+.release-body h4 { font-size: 15px; line-height: 22px; font-weight: 600; color: var(--t1); margin: 0; }
+.release-body ul, .release-body ol { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 6px; }
+.release-body strong { color: var(--t1); font-weight: 600; }
+.release-body code { padding: 1px 5px; border-radius: 4px; background: var(--alt); color: var(--t1); }
+.release-body pre { background: var(--code); border: 1px solid var(--bf); border-radius: 8px; }
+.release-body pre code { padding: 0; background: none; }
+.release-body img { border-radius: 4px; }
+.release-body blockquote { margin: 0; padding: 4px 14px; border-left: 3px solid var(--bd); color: var(--t3); }
+.release-body table { border: 1px solid var(--bf); }
+
 /* Footer */
 .site-footer { background: var(--low); border-top: 1px solid var(--bf); }
 .footer-inner { padding-top: 56px; padding-bottom: 40px; display: flex; flex-direction: column; gap: 40px; }
@@ -271,6 +294,7 @@ pre .c { color: var(--t3); }
   .hero-inner { padding-top: 64px; padding-bottom: 64px; }
   .contrib { padding: 28px; }
   .panel { padding: 20px; }
+  .release { padding: 20px; }
 }
 
 @media (max-width: 480px) {
