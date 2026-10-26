@@ -1,16 +1,21 @@
-// Renders the GitHub releases into the changes page at deploy time, so visitors never hit the
-// rate-limited GitHub API. Usage: node build-changes.mjs <page.html>
+// Renders the GitHub releases into the changes section at deploy time, so visitors never hit the
+// rate-limited GitHub API: an overview at <dir>/index.html and one page per release at
+// <dir>/<slug>/index.html (v1.48.0 -> v1-48-0), built from <dir>/_release.html.
+// Usage: node build-changes.mjs <changes-dir>
 // Needs GITHUB_REPOSITORY (owner/repo) and, in CI, GITHUB_TOKEN.
 
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import path from "node:path";
 
-const MARKER = /<!-- releases:start -->[\s\S]*<!-- releases:end -->/;
+const LIST_MARKER = /<!-- releases:start -->[\s\S]*<!-- releases:end -->/;
+const PAGE_MARKER = /<!-- release:start -->[\s\S]*<!-- release:end -->/;
+const SUMMARY_LENGTH = 180;
 const repo = process.env.GITHUB_REPOSITORY || "RadiatorTwo/LoupixDeck";
 const token = process.env.GITHUB_TOKEN;
-const page = process.argv[2];
+const dir = process.argv[2];
 
-if (!page) {
-    console.error("usage: node build-changes.mjs <page.html>");
+if (!dir) {
+    console.error("usage: node build-changes.mjs <changes-dir>");
     process.exit(1);
 }
 
@@ -20,6 +25,24 @@ function escapeHtml(text) {
         .replaceAll("<", "&lt;")
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;");
+}
+
+function decodeEntities(text) {
+    return text
+        .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
+        .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(Number(dec)))
+        .replaceAll("&quot;", '"')
+        .replaceAll("&lt;", "<")
+        .replaceAll("&gt;", ">")
+        .replaceAll("&amp;", "&");
+}
+
+function plainText(html) {
+    return decodeEntities(html.replace(/<[^>]*>/g, " ")).replace(/\s+/g, " ").trim();
+}
+
+function slugify(tag) {
+    return tag.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
 // body_html is GitHub's own rendering of the release Markdown, already sanitized.
@@ -45,36 +68,102 @@ async function fetchReleases() {
         .sort((a, b) => Date.parse(b.published_at) - Date.parse(a.published_at));
 }
 
-function renderRelease(release, isLatest) {
-    const tag = escapeHtml(release.tag_name);
-    const title = escapeHtml(release.name || release.tag_name);
+// The section headings say what a release is about; releases without them get their first words.
+function summarize(release) {
+    const body = release.body_html || "";
+    const topics = [...body.matchAll(/<h3[^>]*>([\s\S]*?)<\/h3>/g)].map((m) => plainText(m[1])).filter(Boolean);
+    if (topics.length > 0) return { topics, text: topics.join(" · ") };
+
+    const text = body
+        .replace(/<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>/g, "")
+        .split(/<\/(?:li|p)>|<br\s*\/?>/)
+        .map(plainText)
+        .filter(Boolean)
+        .join(" · ");
+    if (text.length <= SUMMARY_LENGTH) return { topics, text };
+    return { topics, text: `${text.slice(0, SUMMARY_LENGTH).replace(/\s+\S*$/, "")}…` };
+}
+
+function formatDate(release) {
     const published = new Date(release.published_at);
-    const date = published.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" });
+    return {
+        iso: published.toISOString(),
+        text: published.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" }),
+    };
+}
 
-    let badge = "";
-    if (release.prerelease) badge = '<span class="badge badge-alpha">Pre-release</span>';
-    else if (isLatest) badge = '<span class="badge badge-ok">Latest</span>';
+function badge(release, latest) {
+    if (release.prerelease) return '<span class="badge badge-alpha">Pre-release</span>';
+    if (release === latest) return '<span class="badge badge-ok">Latest</span>';
+    return "";
+}
 
-    return `<article class="card release" id="${tag}">
+function renderListItem(release, latest) {
+    const date = formatDate(release);
+    const { text } = summarize(release);
+    return `<a class="card release-item" href="${slugify(release.tag_name)}/">
+  <span class="release-meta">
+    <span class="release-version">${escapeHtml(release.name || release.tag_name)}</span>
+    ${badge(release, latest)}
+    <time datetime="${date.iso}">${date.text}</time>
+  </span>
+  <span class="release-summary">${escapeHtml(text || "Maintenance release.")}</span>
+</a>`;
+}
+
+function renderPage(release, latest, newer, older) {
+    const date = formatDate(release);
+    const step = (other, label, cls) => other
+        ? `<a class="card release-step ${cls}" href="../${slugify(other.tag_name)}/"><span class="eyebrow">${label}</span><span>${escapeHtml(other.name || other.tag_name)}</span></a>`
+        : "<span></span>";
+
+    return `<a class="back-link" href="../"><span class="mdi" aria-hidden="true">&#xF004D;</span>All releases</a>
+<article class="card release">
   <header class="release-head">
-    <h2><a href="#${tag}">${title}</a></h2>
-    ${badge}
-    <time datetime="${published.toISOString()}">${date}</time>
-    <a class="release-link" href="${escapeHtml(release.html_url)}">View on GitHub</a>
+    <h1>${escapeHtml(release.name || release.tag_name)}</h1>
+    ${badge(release, latest)}
+    <time datetime="${date.iso}">${date.text}</time>
+    <a class="btn btn-primary release-download" href="${escapeHtml(release.html_url)}"><span class="mdi" aria-hidden="true">&#xF01DA;</span>Downloads</a>
   </header>
   <div class="release-body">
 ${release.body_html || '<p class="muted">No release notes.</p>'}
   </div>
-</article>`;
+</article>
+<nav class="release-steps" aria-label="Other releases">
+  ${step(older, "Older", "older")}
+  ${step(newer, "Newer", "newer")}
+</nav>`;
 }
 
 const releases = await fetchReleases();
 if (releases.length === 0) throw new Error("no published releases found");
-
 const latest = releases.find((r) => !r.prerelease);
-const html = releases.map((r) => renderRelease(r, r === latest)).join("\n");
 
-const template = await readFile(page, "utf8");
-if (!MARKER.test(template)) throw new Error(`release markers missing in ${page}`);
-await writeFile(page, template.replace(MARKER, () => html), "utf8");
-console.log(`Rendered ${releases.length} releases into ${page}`);
+const listPath = path.join(dir, "index.html");
+const templatePath = path.join(dir, "_release.html");
+const list = await readFile(listPath, "utf8");
+const template = await readFile(templatePath, "utf8");
+if (!LIST_MARKER.test(list)) throw new Error(`release markers missing in ${listPath}`);
+if (!PAGE_MARKER.test(template)) throw new Error(`release markers missing in ${templatePath}`);
+
+const seen = new Set();
+for (const [i, release] of releases.entries()) {
+    const slug = slugify(release.tag_name);
+    if (!slug || seen.has(slug)) throw new Error(`release ${release.tag_name} has no unique page name`);
+    seen.add(slug);
+
+    const name = release.name || release.tag_name;
+    const description = summarize(release).text || `Release notes for LoupixDeck ${name}.`;
+    const html = template
+        .replace(PAGE_MARKER, () => renderPage(release, latest, releases[i - 1], releases[i + 1]))
+        .replaceAll("{{title}}", () => escapeHtml(`${name} release notes`))
+        .replaceAll("{{description}}", () => escapeHtml(description));
+
+    await mkdir(path.join(dir, slug), { recursive: true });
+    await writeFile(path.join(dir, slug, "index.html"), html, "utf8");
+}
+
+const items = releases.map((r) => renderListItem(r, latest)).join("\n");
+await writeFile(listPath, list.replace(LIST_MARKER, () => items), "utf8");
+await rm(templatePath);
+console.log(`Rendered ${releases.length} release pages into ${dir}`);
