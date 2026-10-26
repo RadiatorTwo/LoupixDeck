@@ -319,6 +319,8 @@ pre .c { color: var(--t3); }
 .footer-about { flex: 1 1 280px; min-width: 0; max-width: 360px; display: flex; flex-direction: column; gap: 12px; }
 .footer-about .brand { font-size: 16px; }
 .footer-about p { font-size: 14px; line-height: 21px; color: var(--t2); }
+.alt-badge { align-self: flex-start; margin-top: 4px; }
+.alt-badge:hover { filter: brightness(1.12); }
 .footer-cols nav { display: flex; flex-direction: column; gap: 8px; font-size: 14px; line-height: 20px; }
 .footer-cols nav .eyebrow { margin-bottom: 4px; }
 .footer-cols nav a { text-decoration: none; }
