@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Wayland focus-tracking library (PR: wayland-active-window). Vendored from
+    the FocusWatcher POC; no external dependencies. Nullable is re-enabled
+    here because the library is written nullable-aware, unlike the main app.
+  -->
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <RootNamespace>LoupixDeck.WaylandFocus</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="LoupixDeck.WaylandFocus.Tests" />
+  </ItemGroup>
+
+</Project>

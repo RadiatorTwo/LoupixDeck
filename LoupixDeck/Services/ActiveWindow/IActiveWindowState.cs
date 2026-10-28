@@ -4,8 +4,9 @@ namespace LoupixDeck.Services.ActiveWindow;
 /// Caches the most recent foreground window reported by <see cref="IActiveWindowMonitor"/>
 /// so macro conditions can query it synchronously (the monitor itself is event-only).
 /// Until the first window-change event arrives — and on platforms where the monitor is a
-/// no-op (pure Wayland, macOS) — <see cref="Current"/> is an empty snapshot, which the
-/// condition evaluator treats as "no match".
+/// no-op (macOS, or Linux sessions on compositors without a focus IPC) —
+/// <see cref="Current"/> is an empty snapshot, which the condition evaluator treats as
+/// "no match".
 /// </summary>
 public interface IActiveWindowState
 {

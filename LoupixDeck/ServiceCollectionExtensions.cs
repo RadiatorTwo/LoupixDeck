@@ -188,10 +188,21 @@ public static class ServiceCollectionExtensions
         // Monitor power state, for turning the device off with the displays (issue #382).
         collection.AddSingleton(CreatePlatformDisplayStateService());
 
-        // Foreground-window monitor. The Linux monitor needs no #if guard (it only uses
+        // Foreground-window monitor. The Linux monitors need no #if guard (they only use
         // Process + /proc); only the Windows type lives behind #if WINDOWS.
+        // On Linux the session type decides: pure Wayland sessions need the native
+        // monitor (xprop only sees X11/XWayland windows and misses native Wayland
+        // apps entirely); X11 sessions keep the xprop spy. On hybrid sessions
+        // (XWayland under a Wayland compositor) the Wayland monitor also sees the
+        // X11 windows, so it wins there too. The session type is fixed for the
+        // process lifetime, so deciding at registration is safe.
         if (OperatingSystem.IsLinux())
-            collection.AddSingleton<IActiveWindowMonitor, LinuxActiveWindowMonitor>();
+        {
+            if (LinuxSystemFacts.SessionType() == "wayland")
+                collection.AddSingleton<IActiveWindowMonitor, WaylandActiveWindowMonitor>();
+            else
+                collection.AddSingleton<IActiveWindowMonitor, LinuxActiveWindowMonitor>();
+        }
 #if WINDOWS
         else if (OperatingSystem.IsWindows())
             collection.AddSingleton<IActiveWindowMonitor, WindowsActiveWindowMonitor>();
