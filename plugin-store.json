@@ -171,7 +171,8 @@
       "icon": "https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck.Plugin.Discord/master/icon.png",
       "platforms": [
         "Windows",
-        "Linux"
+        "Linux",
+        "macOS"
       ],
       "minSdkVersion": "1.28.0",
       "commandPrefixes": [
@@ -200,7 +201,7 @@
       "author": "RadiatorTwo",
       "repository": "RadiatorTwo/LoupixDeck.Plugin.Elgato",
       "icon": "https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck.Plugin.Elgato/master/icon.png",
-      "platforms": [ "Windows", "Linux" ],
+      "platforms": [ "Windows", "Linux", "macOS" ],
       "minSdkVersion": "1.17.0",
       "commandPrefixes": [ "System.ElgKl" ],
       "release": {
@@ -252,7 +253,7 @@
       "author": "Vencite",
       "repository": "Vencite/LoupixDeck.Plugin.HomeAssistant",
       "icon": "https://raw.githubusercontent.com/Vencite/LoupixDeck.Plugin.HomeAssistant/v0.1.0/icon.png",
-      "platforms": [ "Windows", "Linux" ],
+      "platforms": [ "Windows", "Linux", "macOS" ],
       "minSdkVersion": "1.26.0",
       "commandPrefixes": [ "HomeAssistant." ],
       "release": {
@@ -486,7 +487,7 @@
       "author": "RadiatorTwo",
       "repository": "RadiatorTwo/LoupixDeck.Plugin.Obs",
       "icon": "https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck.Plugin.Obs/master/icon.png",
-      "platforms": [ "Windows", "Linux" ],
+      "platforms": [ "Windows", "Linux", "macOS" ],
       "minSdkVersion": "1.34.0",
       "commandPrefixes": [ "System.Obs" ],
       "release": {
@@ -564,7 +565,7 @@
       "author": "RadiatorTwo",
       "repository": "RadiatorTwo/LoupixDeck.Plugin.Speedtest",
       "icon": "https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck.Plugin.Speedtest/master/icon.png",
-      "platforms": [ "Windows", "Linux" ],
+      "platforms": [ "Windows", "Linux", "macOS" ],
       "minSdkVersion": "1.31.0",
       "commandPrefixes": [ "Speedtest." ],
       "release": {
@@ -590,7 +591,7 @@
       "author": "RadiatorTwo",
       "repository": "RadiatorTwo/LoupixDeck.Plugin.SpotifyPremium",
       "icon": "https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck.Plugin.SpotifyPremium/master/icon.png",
-      "platforms": [ "Windows", "Linux" ],
+      "platforms": [ "Windows", "Linux", "macOS" ],
       "minSdkVersion": "1.30.0",
       "commandPrefixes": [ "SpotifyPremium." ],
       "release": {
@@ -805,7 +806,8 @@
       "icon": "https://raw.githubusercontent.com/vividflash/LoupixDeck.Plugin.VTubeStudio/main/icon.png",
       "platforms": [
         "Windows",
-        "Linux"
+        "Linux",
+        "macOS"
       ],
       "minSdkVersion": "1.28.0",
       "commandPrefixes": [
