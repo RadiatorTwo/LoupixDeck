@@ -22,6 +22,8 @@ public sealed record StarterProfileResult(
 /// </summary>
 public interface IStarterProfileService
 {
+    /// <summary>The templates that work on this OS; one that needs a plugin the Plugin Store does not
+    /// offer here is left out.</summary>
     IReadOnlyList<StarterProfileTemplate> Templates { get; }
 
     /// <summary>True on Windows; templates build their Linux variant otherwise.</summary>
@@ -61,7 +63,7 @@ public sealed class StarterProfileService(
     IStarterArt art,
     IProfileEditingService editing) : IStarterProfileService
 {
-    public IReadOnlyList<StarterProfileTemplate> Templates { get; } =
+    private static readonly StarterProfileTemplate[] AllTemplates =
     [
         new BasicStarterTemplate(),
         new FeatureTourTemplate(),
@@ -70,6 +72,9 @@ public sealed class StarterProfileService(
         new DaVinciResolveTemplate(),
         new HomeAssistantTemplate()
     ];
+
+    public IReadOnlyList<StarterProfileTemplate> Templates { get; } =
+        AllTemplates.Where(template => template.IsAvailable(OperatingSystem.IsWindows())).ToList();
 
     public bool IsWindows => OperatingSystem.IsWindows();
 
@@ -122,7 +127,7 @@ public sealed class StarterProfileService(
     {
         List<string> enabled = [];
 
-        foreach (StarterPluginRequirement plugin in template.GetRequiredPlugins(IsWindows))
+        foreach (StarterPluginRequirement plugin in RequiredPlugins(template))
         {
             if (!IsInstalled(plugin) || IsEnabledHere(plugin))
                 continue;
@@ -138,7 +143,14 @@ public sealed class StarterProfileService(
     }
 
     public IReadOnlyList<StarterPluginRequirement> FindMissingPlugins(StarterProfileTemplate template) =>
-        template.GetRequiredPlugins(IsWindows).Where(plugin => !IsInstalled(plugin)).ToList();
+        RequiredPlugins(template).Where(plugin => !IsInstalled(plugin)).ToList();
+
+    /// <summary>
+    /// The template's plugins that can be installed on this OS. A plugin the Plugin Store does not offer
+    /// here is never enabled ahead or asked for, since it could never be installed.
+    /// </summary>
+    private IEnumerable<StarterPluginRequirement> RequiredPlugins(StarterProfileTemplate template) =>
+        template.GetRequiredPlugins(IsWindows).Where(plugin => plugin.IsOfferedHere);
 
     private bool IsInstalled(StarterPluginRequirement plugin) =>
         pluginManager.Plugins.Any(p => string.Equals(p.Manifest?.Id, plugin.Id, StringComparison.OrdinalIgnoreCase));

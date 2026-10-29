@@ -1043,7 +1043,11 @@ public class PluginManager : IPluginManager
     public static bool SupportsCurrentPlatform(PluginManifest manifest) =>
         PlatformMatches(manifest?.Platform);
 
-    private static bool PlatformMatches(string platform)
+    /// <summary>
+    /// True when a <c>platform</c> value as in <c>plugin.json</c> ("All", "Windows", "Linux" or
+    /// "macOS") allows this OS.
+    /// </summary>
+    public static bool PlatformMatches(string platform)
     {
         if (string.IsNullOrWhiteSpace(platform) ||
             platform.Equals("All", StringComparison.OrdinalIgnoreCase))
