@@ -6,12 +6,13 @@ namespace LoupixDeck.Services.StarterProfiles.Templates;
 
 /// <summary>
 /// Media playback with the track on the keys. Windows reads it from the system media session
-/// (Media Session plugin), Linux from MPRIS (MPRIS Media plugin).
+/// (Media Session plugin), Linux from MPRIS (MPRIS Media plugin). There is no media plugin for
+/// macOS yet, so the template is not offered there.
 /// </summary>
 internal sealed class MediaTemplate : StarterProfileTemplate
 {
-    private static readonly StarterPluginRequirement MediaSession = new("mediasession", "Media Session");
-    private static readonly StarterPluginRequirement Mpris = new("mpris", "MPRIS Media");
+    private static readonly StarterPluginRequirement MediaSession = new("mediasession", "Media Session", "Windows");
+    private static readonly StarterPluginRequirement Mpris = new("mpris", "MPRIS Media", "Linux");
 
     public override string Id => "media";
     protected override string NameKey => "StarterProfile_Media_Name";

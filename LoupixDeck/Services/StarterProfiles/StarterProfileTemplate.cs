@@ -1,6 +1,7 @@
 using Avalonia.Media;
 using LoupixDeck.Localization;
 using LoupixDeck.Models;
+using LoupixDeck.Services.Plugins;
 using LoupixDeck.Utils;
 
 namespace LoupixDeck.Services.StarterProfiles;
@@ -8,7 +9,12 @@ namespace LoupixDeck.Services.StarterProfiles;
 /// <summary>A plugin whose commands a starter profile uses.</summary>
 /// <param name="Id">Plugin id as in <c>plugin.json</c> and the Plugin Store catalog.</param>
 /// <param name="Name">Name shown when offering to install it.</param>
-public sealed record StarterPluginRequirement(string Id, string Name);
+/// <param name="Platform">OS the Plugin Store offers it on, as in <c>plugin.json</c>.</param>
+public sealed record StarterPluginRequirement(string Id, string Name, string Platform = "All")
+{
+    /// <summary>False when the plugin cannot be installed on this OS, so it is never asked for.</summary>
+    public bool IsOfferedHere => PluginManager.PlatformMatches(Platform);
+}
 
 /// <summary>How a template styles its key icons: a top-to-bottom gradient that picks up the colours
 /// of its wallpaper, with a soft shadow that keeps the icons readable on it.</summary>
@@ -48,6 +54,10 @@ public abstract class StarterProfileTemplate
 
     /// <summary>Plugins the template uses on this platform.</summary>
     public virtual IReadOnlyList<StarterPluginRequirement> GetRequiredPlugins(bool isWindows) => [];
+
+    /// <summary>False when the template needs a plugin the Plugin Store does not offer on this OS,
+    /// e.g. a Linux-only plugin on macOS (issue #533).</summary>
+    public bool IsAvailable(bool isWindows) => GetRequiredPlugins(isWindows).All(plugin => plugin.IsOfferedHere);
 
     /// <summary>Plugin names for the picker, or an empty string when the template needs none.</summary>
     public string RequiredPluginsText(bool isWindows) =>
