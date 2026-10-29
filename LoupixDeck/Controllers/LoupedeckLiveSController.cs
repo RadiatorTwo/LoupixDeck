@@ -2349,13 +2349,14 @@ public partial class LoupedeckLiveSController(
         {
             foreach (var touch in e.Touches)
             {
+                // Only the live finger counts; see the note on the per-slot loop below (#531).
+                if (e.ChangedTouch != null && touch.Id != e.ChangedTouch.Id)
+                    continue;
+
                 // The strips are not folder slots: a touch there is tracked like on a plugin-override
                 // strip, and its release routes a tap to the folder's strip session (#378).
                 if (IsSideStripSlot(touch.Target.Key))
                 {
-                    if (e.ChangedTouch != null && touch.Id != e.ChangedTouch.Id)
-                        continue;
-
                     var folderStripSide = touch.Target.Key == LoupedeckDevice.Device.RazerStreamControllerDevice.RightSideIndex
                         ? RotarySide.Right
                         : RotarySide.Left;
@@ -2370,6 +2371,13 @@ public partial class LoupedeckLiveSController(
 
         foreach (var touch in e.Touches)
         {
+            // Act on the live (changed) touch only. The device's touch set can retain a stale
+            // contact whose TOUCH_END was lost to a framing resync; such an entry is never the
+            // changed touch. Handling it would fire its key on every later tap, and with sliding
+            // prevention on, its latch would then swallow the real finger (#531).
+            if (e.ChangedTouch != null && touch.Id != e.ChangedTouch.Id)
+                continue;
+
             var slot = touch.Target.Key;
 
             // A slot belongs to the exclusive provider only when its scope covers that
@@ -2391,13 +2399,8 @@ public partial class LoupedeckLiveSController(
             // not arm the sliding-prevention slot, which guards the centre grid.
             if (IsSideStripSlot(slot))
             {
-                // The finger-follow tracks the live finger only. The device's touch set can
-                // retain a stale contact whose TOUCH_END was lost to a framing resync; such
-                // an entry is never the changed touch, so skipping non-changed touches here
-                // keeps a leaked id from hijacking the drag (frozen strip / dead swipes).
-                if (e.ChangedTouch != null && touch.Id != e.ChangedTouch.Id)
-                    continue;
-
+                // The finger-follow tracks the live finger only (the stale-touch check above),
+                // which keeps a leaked id from hijacking the drag (frozen strip / dead swipes).
                 var stripSide = slot == LoupedeckDevice.Device.RazerStreamControllerDevice.RightSideIndex
                     ? RotarySide.Right
                     : RotarySide.Left;
