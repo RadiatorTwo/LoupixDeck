@@ -1391,5 +1391,8 @@
   "Settings_InheritWallpaper": "Heredar el fondo de las páginas anteriores",
   "FolderPanel_Copy": "Copiar",
   "FolderPanel_PasteAsSubfolder": "Pegar como subcarpeta",
-  "FolderPanel_Paste": "Pegar"
+  "FolderPanel_Paste": "Pegar",
+  "Confirm_EnablePastePluginTitle": "¿Activar plugin?",
+  "Confirm_EnablePastePluginMessage": "El contenido pegado necesita el plugin '{0}'. ¿Activarlo para este dispositivo?",
+  "Confirm_EnablePastePluginsMessage": "El contenido pegado necesita los plugins {0}. ¿Activarlos para este dispositivo?"
 }

@@ -44,6 +44,9 @@ public interface IButtonClipboardService
     /// <summary>The folder snapshot when <see cref="CurrentKind"/> is <see cref="ButtonKind.Folder"/>, otherwise null.</summary>
     string FolderJson { get; }
 
+    /// <summary>Everything a paste brings: the copied element and the <see cref="LinkedFolders"/>. Empty when nothing is copied.</summary>
+    IReadOnlyList<string> Snapshots { get; }
+
     /// <summary>Raised when the clipboard content changes (set/clear).</summary>
     event Action Changed;
 
@@ -90,6 +93,7 @@ public sealed class ButtonClipboardService : IButtonClipboardService
     public ButtonKind? CurrentKind => _json != null ? _kind : null;
     public IReadOnlyList<string> LinkedFolders => _json != null ? _linkedFolders : [];
     public string FolderJson => _json != null && _kind == ButtonKind.Folder ? _json : null;
+    public IReadOnlyList<string> Snapshots => _json != null ? [_json, .. _linkedFolders] : [];
 
     public event Action Changed;
 

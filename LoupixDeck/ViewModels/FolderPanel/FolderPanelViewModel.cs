@@ -30,6 +30,7 @@ public sealed partial class FolderPanelViewModel : ViewModelBase, IDisposable
     private readonly LoupedeckLiveSController _controller;
     private readonly Services.Companion.ICompanionCoordinator _companions;
     private readonly IButtonClipboardService _clipboard;
+    private readonly Services.Plugins.IPastePluginActivation _pastePlugins;
     private readonly string _scopeKey;
 
     // Folders are expanded unless the user collapsed them, so new folders show their children.
@@ -38,7 +39,8 @@ public sealed partial class FolderPanelViewModel : ViewModelBase, IDisposable
     public FolderPanelViewModel(LoupedeckConfig config, ICustomFolderService folders, IDialogService dialogService,
         LoupedeckLiveSController controller, Services.Companion.ICompanionCoordinator companions,
         Services.Companion.ICompanionContextSync companionSync, IButtonClipboardService clipboard,
-        Registry.DeviceRegistry.DeviceInfo deviceInfo, Registry.ResolvedDevice resolved)
+        Services.Plugins.IPastePluginActivation pastePlugins, Registry.DeviceRegistry.DeviceInfo deviceInfo,
+        Registry.ResolvedDevice resolved)
     {
         _config = config;
         _folders = folders;
@@ -46,6 +48,7 @@ public sealed partial class FolderPanelViewModel : ViewModelBase, IDisposable
         _controller = controller;
         _companions = companions;
         _clipboard = clipboard;
+        _pastePlugins = pastePlugins;
         _scopeKey = resolved?.ScopeKey ?? deviceInfo.Slug;
 
         _folders.StructureChanged += Rebuild;
@@ -365,7 +368,10 @@ public sealed partial class FolderPanelViewModel : ViewModelBase, IDisposable
 
         SearchQuery = string.Empty;
 
-        CustomFolder folder = _folders.Paste(parent?.Folder, _clipboard.FolderJson, out _);
+        string snapshot = _clipboard.FolderJson;
+        await _pastePlugins.EnableRequiredAsync([snapshot]);
+
+        CustomFolder folder = _folders.Paste(parent?.Folder, snapshot, out _);
         if (folder == null) return;
 
         _controller.SaveConfig();

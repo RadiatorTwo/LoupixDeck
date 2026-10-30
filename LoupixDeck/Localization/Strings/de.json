@@ -1391,5 +1391,8 @@
   "Settings_InheritWallpaper": "Wallpaper von vorherigen Seiten übernehmen",
   "FolderPanel_Copy": "Kopieren",
   "FolderPanel_PasteAsSubfolder": "Als Unterordner einfügen",
-  "FolderPanel_Paste": "Einfügen"
+  "FolderPanel_Paste": "Einfügen",
+  "Confirm_EnablePastePluginTitle": "Plugin aktivieren?",
+  "Confirm_EnablePastePluginMessage": "Der eingefügte Inhalt benötigt das Plugin '{0}'. Soll es für dieses Gerät aktiviert werden?",
+  "Confirm_EnablePastePluginsMessage": "Der eingefügte Inhalt benötigt die Plugins {0}. Sollen sie für dieses Gerät aktiviert werden?"
 }

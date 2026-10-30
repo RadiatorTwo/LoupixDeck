@@ -38,6 +38,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly LoupedeckConfig _config;
     private readonly Services.DialPresets.IDialPresetStore _dialPresetStore;
     private readonly Services.Folders.ICustomFolderService _folders;
+    private readonly IPastePluginActivation _pastePlugins;
 
     // Guards the profile/workspace ComboBox selection against feedback loops: set while we
     // push an external activation (context rules, commands, buttons) back into the bound
@@ -304,9 +305,11 @@ public partial class MainWindowViewModel : ViewModelBase
         IDeviceHostRegistry hostRegistry,
         Services.Folders.ICustomFolderService folders,
         ViewModels.FolderPanel.FolderPanelViewModel folderPanel,
-        IDeviceService deviceService)
+        IDeviceService deviceService,
+        IPastePluginActivation pastePlugins)
     {
         FolderPanel = folderPanel;
+        _pastePlugins = pastePlugins;
         LoupedeckController = loupedeck;
         _folders = folders;
         _companions = companions;
@@ -937,6 +940,7 @@ public partial class MainWindowViewModel : ViewModelBase
             TouchButton canvas = EnsureStripCanvas(SideOf((TouchButton)button), out RotaryButtonPage page);
             if (canvas == null) return;
             if (!_clipboard.IsEmpty(canvas) && !await ConfirmOverwrite()) return;
+            await _pastePlugins.EnableRequiredAsync(_clipboard.Snapshots);
 
             // Wired first, so the paste's own ItemChanged repaints the strip.
             LoupedeckController.RegisterStripCanvas(page);
@@ -946,6 +950,9 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         if (!_clipboard.IsEmpty(button) && !await ConfirmOverwrite()) return;
+
+        // Before the paste, so the pasted commands and plugin layers resolve right away.
+        await _pastePlugins.EnableRequiredAsync(_clipboard.Snapshots);
 
         _clipboard.PasteInto(button, button is TouchButton ? PasteLinkedFolders() : null);
 
