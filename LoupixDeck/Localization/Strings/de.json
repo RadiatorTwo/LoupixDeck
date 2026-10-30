@@ -1388,5 +1388,8 @@
   "TouchButton_ImageCommand": "Bildbefehl",
   "TouchButton_ImageCommandHint": "Ein Befehl, der sein Bild selbst zeichnet, z. B. DynamicText.AnalogClock(true). Der optionale Parameter blendet bei false den Sekundenzeiger aus.",
   "TouchButton_ClockLayerName": "Uhr",
-  "Settings_InheritWallpaper": "Wallpaper von vorherigen Seiten übernehmen"
+  "Settings_InheritWallpaper": "Wallpaper von vorherigen Seiten übernehmen",
+  "FolderPanel_Copy": "Kopieren",
+  "FolderPanel_PasteAsSubfolder": "Als Unterordner einfügen",
+  "FolderPanel_Paste": "Einfügen"
 }
