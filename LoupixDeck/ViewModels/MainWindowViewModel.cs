@@ -38,6 +38,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly LoupedeckConfig _config;
     private readonly Services.DialPresets.IDialPresetStore _dialPresetStore;
     private readonly Services.Folders.ICustomFolderService _folders;
+    private readonly IPastePluginActivation _pastePlugins;
 
     // Guards the profile/workspace ComboBox selection against feedback loops: set while we
     // push an external activation (context rules, commands, buttons) back into the bound
@@ -304,9 +305,11 @@ public partial class MainWindowViewModel : ViewModelBase
         IDeviceHostRegistry hostRegistry,
         Services.Folders.ICustomFolderService folders,
         ViewModels.FolderPanel.FolderPanelViewModel folderPanel,
-        IDeviceService deviceService)
+        IDeviceService deviceService,
+        IPastePluginActivation pastePlugins)
     {
         FolderPanel = folderPanel;
+        _pastePlugins = pastePlugins;
         LoupedeckController = loupedeck;
         _folders = folders;
         _companions = companions;
@@ -857,7 +860,66 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        _clipboard.Copy(button, kind.Value);
+        _clipboard.Copy(button, kind.Value, button is TouchButton touch ? CaptureLinkedFolders(touch) : null);
+    }
+
+    /// <summary>
+    /// Snapshots of the folders <paramref name="button"/> opens, so a paste on a workspace or device
+    /// without them can recreate them (issue #535). A folder below another linked one travels
+    /// inside that one's snapshot.
+    /// </summary>
+    private List<string> CaptureLinkedFolders(TouchButton button)
+    {
+        Workspace workspace = _config.ActiveWorkspace;
+        List<Models.CustomFolder> linked = [.. (button.States ?? [])
+            .SelectMany(static s => Services.Folders.FolderCommand.ReferencedFolders(s?.Command))
+            .Concat(Services.Folders.FolderCommand.ReferencedFolders(button.Command))
+            .Distinct()
+            .Select(id => Services.Folders.FolderTree.Find(workspace, id))
+            .Where(static f => f != null)];
+
+        return [.. linked
+            .Where(f => !linked.Any(other => !ReferenceEquals(other, f) && Services.Folders.FolderTree.IsSelfOrDescendant(other, f)))
+            .Select(Services.Folders.FolderSnapshot.Capture)];
+    }
+
+    /// <summary>
+    /// Recreates the copied button's folders this workspace does not have, and returns old → new
+    /// folder ids for the pasted button (issue #535). A folder the workspace already has stays
+    /// linked as it is. A companion's tree mirrors its master's, so nothing is created there.
+    /// </summary>
+    private Dictionary<Guid, Guid> PasteLinkedFolders()
+    {
+        Workspace workspace = _config.ActiveWorkspace;
+        Dictionary<Guid, Guid> map = [];
+        if (workspace == null || _clipboard.LinkedFolders.Count == 0) return map;
+
+        bool IsFolderHere(Guid id) => Services.Folders.FolderTree.Find(workspace, id) != null;
+
+        foreach (KeyValuePair<Guid, Guid> pasted in _clipboard.PastedFolders(workspace.Id))
+            if (IsFolderHere(pasted.Value))
+                map[pasted.Key] = pasted.Value;
+
+        if (_config.CompanionLink != null) return map;
+
+        bool created = false;
+        foreach (string snapshot in _clipboard.LinkedFolders)
+        {
+            Guid rootId = Services.Folders.FolderSnapshot.RootId(snapshot);
+            if (rootId == Guid.Empty || map.ContainsKey(rootId) || IsFolderHere(rootId)) continue;
+
+            if (_folders.Paste(null, snapshot, out IReadOnlyDictionary<Guid, Guid> ids) == null) continue;
+
+            foreach (KeyValuePair<Guid, Guid> id in ids)
+                if (IsFolderHere(id.Value))
+                    map[id.Key] = id.Value;
+            created = true;
+        }
+
+        if (created)
+            _clipboard.RememberPastedFolders(workspace.Id, map);
+
+        return map;
     }
 
     private void CutSelected()
@@ -878,6 +940,7 @@ public partial class MainWindowViewModel : ViewModelBase
             TouchButton canvas = EnsureStripCanvas(SideOf((TouchButton)button), out RotaryButtonPage page);
             if (canvas == null) return;
             if (!_clipboard.IsEmpty(canvas) && !await ConfirmOverwrite()) return;
+            await _pastePlugins.EnableRequiredAsync(_clipboard.Snapshots);
 
             // Wired first, so the paste's own ItemChanged repaints the strip.
             LoupedeckController.RegisterStripCanvas(page);
@@ -888,7 +951,10 @@ public partial class MainWindowViewModel : ViewModelBase
 
         if (!_clipboard.IsEmpty(button) && !await ConfirmOverwrite()) return;
 
-        _clipboard.PasteInto(button);
+        // Before the paste, so the pasted commands and plugin layers resolve right away.
+        await _pastePlugins.EnableRequiredAsync(_clipboard.Snapshots);
+
+        _clipboard.PasteInto(button, button is TouchButton ? PasteLinkedFolders() : null);
 
         // A pasted folder link can come from another layout: drop links this layout may not hold
         // (the open folder, one it was opened from, or a folder this workspace does not have).

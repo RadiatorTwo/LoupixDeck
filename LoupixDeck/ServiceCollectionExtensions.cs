@@ -437,6 +437,7 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<IScreensaverProviderRegistry, ScreensaverProviderRegistry>();
         collection.AddSingleton<IPluginInstaller, PluginInstaller>();
         collection.AddSingleton<IPluginReloadService, PluginReloadService>();
+        collection.AddSingleton<IPastePluginActivation, PastePluginActivation>();
 
         // One central animation loop per device (issue #119): every animated feature
         // registers here instead of owning its own timer, so the device has a single,

@@ -160,6 +160,13 @@
                                 Classes.current="{Binding IsRootCurrent}"
                                 ToolTip.Tip="{loc:Tr FolderPanel_ShowPage}"
                                 Tapped="OnRootTapped">
+                            <Border.ContextFlyout>
+                                <MenuFlyout>
+                                    <MenuItem Header="{loc:Tr FolderPanel_Paste}"
+                                              IsEnabled="{Binding CanPaste}"
+                                              Command="{Binding PasteCommand}" />
+                                </MenuFlyout>
+                            </Border.ContextFlyout>
                             <Grid ColumnDefinitions="6,18,Auto,*">
                                 <Border Grid.Column="0" Classes="nav-accent" />
                                 <!-- mdi-home-outline -->
@@ -182,6 +189,14 @@
                                                 <MenuItem Header="{loc:Tr FolderPanel_Rename}"
                                                           IsEnabled="{Binding Panel.CanEditStructure}"
                                                           Command="{Binding Panel.RenameCommand}"
+                                                          CommandParameter="{Binding}" />
+                                                <Separator />
+                                                <MenuItem Header="{loc:Tr FolderPanel_Copy}"
+                                                          Command="{Binding Panel.CopyCommand}"
+                                                          CommandParameter="{Binding}" />
+                                                <MenuItem Header="{loc:Tr FolderPanel_PasteAsSubfolder}"
+                                                          IsEnabled="{Binding Panel.CanPaste}"
+                                                          Command="{Binding Panel.PasteCommand}"
                                                           CommandParameter="{Binding}" />
                                                 <Separator />
                                                 <MenuItem Header="{loc:Tr FolderPanel_Delete}"

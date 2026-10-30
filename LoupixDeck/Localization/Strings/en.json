@@ -1388,5 +1388,11 @@
   "TouchButton_ImageCommand": "Image command",
   "TouchButton_ImageCommandHint": "A command that draws its own image, such as DynamicText.AnalogClock(true). The optional parameter hides the second hand when false.",
   "TouchButton_ClockLayerName": "Clock",
-  "Settings_InheritWallpaper": "Inherit wallpaper from previous pages"
+  "Settings_InheritWallpaper": "Inherit wallpaper from previous pages",
+  "FolderPanel_Copy": "Copy",
+  "FolderPanel_PasteAsSubfolder": "Paste as subfolder",
+  "FolderPanel_Paste": "Paste",
+  "Confirm_EnablePastePluginTitle": "Enable plugin?",
+  "Confirm_EnablePastePluginMessage": "The pasted content needs the plugin '{0}'. Enable it for this device?",
+  "Confirm_EnablePastePluginsMessage": "The pasted content needs the plugins {0}. Enable them for this device?"
 }

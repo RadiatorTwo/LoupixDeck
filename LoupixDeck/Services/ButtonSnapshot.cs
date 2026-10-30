@@ -17,9 +17,9 @@ public static class ButtonSnapshot
 {
     // Same converter set the config uses, so a snapshot round-trips identically (colors + the
     // polymorphic layer format). SKBitmap fields on the models are [JsonIgnore], so the bitmap
-    // converter is only here for parity/safety.
-    private static readonly JsonSerializerSettings Settings = CreateSettings();
-    private static readonly JsonSerializer Serializer = JsonSerializer.Create(Settings);
+    // converter is only here for parity/safety. Shared with FolderSnapshot.
+    internal static readonly JsonSerializerSettings Settings = CreateSettings();
+    internal static readonly JsonSerializer Serializer = JsonSerializer.Create(Settings);
 
     private static JsonSerializerSettings CreateSettings()
     {

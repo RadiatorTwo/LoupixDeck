@@ -1,4 +1,5 @@
 using LoupixDeck.Models;
+using LoupixDeck.Services.Portable;
 
 namespace LoupixDeck.Services.Folders;
 
@@ -20,6 +21,15 @@ public interface ICustomFolderService
     /// <summary>Adds a folder below <paramref name="parent"/>, or at the top level when it is null.</summary>
     CustomFolder Create(CustomFolder parent, string name);
 
+    /// <summary>
+    /// Adds a copy of a <see cref="FolderSnapshot"/> below <paramref name="parent"/>, or at the top
+    /// level when it is null (issue #535). The copy gets fresh ids, its layouts are fitted to this
+    /// device, and links to folders this workspace does not have are removed.
+    /// </summary>
+    /// <param name="map">Old → new id of the pasted folders, for re-pointing a pasted button.</param>
+    /// <returns>The new folder, or null when nothing was pasted.</returns>
+    CustomFolder Paste(CustomFolder parent, string folderJson, out IReadOnlyDictionary<Guid, Guid> map);
+
     void Rename(CustomFolder folder, string name);
 
     FolderDeleteImpact GetDeleteImpact(CustomFolder folder);
@@ -40,7 +50,7 @@ public interface ICustomFolderService
     bool CanLink(Guid folderId);
 }
 
-public sealed class CustomFolderService(LoupedeckConfig config, IPageManager pageManager) : ICustomFolderService
+public sealed class CustomFolderService(LoupedeckConfig config, IPageManager pageManager, IDeviceService deviceService) : ICustomFolderService
 {
     public event Action StructureChanged;
 
@@ -54,6 +64,40 @@ public sealed class CustomFolderService(LoupedeckConfig config, IPageManager pag
 
         CustomFolder folder = new() { Name = name?.Trim() ?? string.Empty };
         target.Add(folder);
+        StructureChanged?.Invoke();
+        return folder;
+    }
+
+    public CustomFolder Paste(CustomFolder parent, string folderJson, out IReadOnlyDictionary<Guid, Guid> map)
+    {
+        map = new Dictionary<Guid, Guid>();
+        Workspace workspace = config.ActiveWorkspace;
+        var target = parent == null ? workspace?.Folders : parent.Children;
+        if (target == null) return null;
+
+        CustomFolder folder;
+        try
+        {
+            folder = FolderSnapshot.Instantiate(folderJson, out map);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[CustomFolderService] Paste failed, the folder snapshot could not be read: {ex}");
+            return null;
+        }
+
+        if (folder == null) return null;
+
+        // Pad each layout to this device's grid. Keys beyond it stay in the model, so nothing the
+        // source device had is lost; the Back tile is placed when the folder opens.
+        foreach (CustomFolder copy in folder.SelfAndDescendants())
+            PortablePayloadNormalizer.Normalize(copy.Layout, deviceService.TouchButtonCount);
+
+        target.Add(folder);
+
+        // A link to a folder outside the copied tree only works when this workspace has that folder.
+        FolderReferenceCleaner.CleanDangling(workspace, config.SimpleButtons);
+
         StructureChanged?.Invoke();
         return folder;
     }

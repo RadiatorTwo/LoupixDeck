@@ -15,20 +15,22 @@ namespace LoupixDeck.ViewModels.FolderPanel;
 
 /// <summary>
 /// The folder panel on the right of the main window (issue #249): the custom folder tree of the
-/// active workspace, with create, rename, delete, move, search and open. One per device, like the
-/// apps and commands panel.
+/// active workspace, with create, rename, delete, move, copy, paste, search and open. One per
+/// device, like the apps and commands panel.
 /// </summary>
 /// <remarks>
 /// The tree is shown as a flat row list (<see cref="VisibleRows"/>): expansion and the search
 /// filter decide which nodes are in it, and the rows carry their depth.
 /// </remarks>
-public sealed partial class FolderPanelViewModel : ViewModelBase
+public sealed partial class FolderPanelViewModel : ViewModelBase, IDisposable
 {
     private readonly LoupedeckConfig _config;
     private readonly ICustomFolderService _folders;
     private readonly IDialogService _dialogService;
     private readonly LoupedeckLiveSController _controller;
     private readonly Services.Companion.ICompanionCoordinator _companions;
+    private readonly IButtonClipboardService _clipboard;
+    private readonly Services.Plugins.IPastePluginActivation _pastePlugins;
     private readonly string _scopeKey;
 
     // Folders are expanded unless the user collapsed them, so new folders show their children.
@@ -36,7 +38,8 @@ public sealed partial class FolderPanelViewModel : ViewModelBase
 
     public FolderPanelViewModel(LoupedeckConfig config, ICustomFolderService folders, IDialogService dialogService,
         LoupedeckLiveSController controller, Services.Companion.ICompanionCoordinator companions,
-        Services.Companion.ICompanionContextSync companionSync, Registry.DeviceRegistry.DeviceInfo deviceInfo,
+        Services.Companion.ICompanionContextSync companionSync, IButtonClipboardService clipboard,
+        Services.Plugins.IPastePluginActivation pastePlugins, Registry.DeviceRegistry.DeviceInfo deviceInfo,
         Registry.ResolvedDevice resolved)
     {
         _config = config;
@@ -44,10 +47,15 @@ public sealed partial class FolderPanelViewModel : ViewModelBase
         _dialogService = dialogService;
         _controller = controller;
         _companions = companions;
+        _clipboard = clipboard;
+        _pastePlugins = pastePlugins;
         _scopeKey = resolved?.ScopeKey ?? deviceInfo.Slug;
 
         _folders.StructureChanged += Rebuild;
         _config.PropertyChanged += OnConfigPropertyChanged;
+
+        // The clipboard is shared by all devices, so a folder copied on another device enables Paste here.
+        _clipboard.Changed += OnClipboardChanged;
 
         // A companion's tree is rewritten by the structure sync, which raises no model event of its own.
         companionSync.LinkedStructureChanged += key =>
@@ -64,7 +72,11 @@ public sealed partial class FolderPanelViewModel : ViewModelBase
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanDeleteCurrent))]
+    [NotifyPropertyChangedFor(nameof(CanPaste))]
     public partial bool CanEditStructure { get; private set; } = true;
+
+    /// <summary>True when the clipboard holds a folder and this device may add folders.</summary>
+    public bool CanPaste => CanEditStructure && _clipboard.CurrentKind == ButtonKind.Folder;
 
     /// <summary>Whether the panel is showing.</summary>
     [ObservableProperty]
@@ -336,6 +348,39 @@ public sealed partial class FolderPanelViewModel : ViewModelBase
         while (taken.Contains($"{baseName} {n}")) n++;
         return $"{baseName} {n}";
     }
+
+    /// <summary>Puts the folder with its layout and sub-folders on the clipboard (issue #535).</summary>
+    [RelayCommand]
+    private void Copy(FolderNodeViewModel node)
+    {
+        if (node != null)
+            _clipboard.CopyFolder(node.Folder);
+    }
+
+    /// <summary>Pastes the copied folder below <paramref name="parent"/> (null = top level) and opens it.</summary>
+    [RelayCommand]
+    private async Task Paste(FolderNodeViewModel parent)
+    {
+        if (!CanPaste) return;
+
+        if (parent != null)
+            _collapsed.Remove(parent.Folder.Id);
+
+        SearchQuery = string.Empty;
+
+        string snapshot = _clipboard.FolderJson;
+        await _pastePlugins.EnableRequiredAsync([snapshot]);
+
+        CustomFolder folder = _folders.Paste(parent?.Folder, snapshot, out _);
+        if (folder == null) return;
+
+        _controller.SaveConfig();
+        await _controller.PageManager.OpenFolder(folder.Id, FolderOpenMode.Tree);
+    }
+
+    private void OnClipboardChanged() => OnPropertyChanged(nameof(CanPaste));
+
+    public void Dispose() => _clipboard.Changed -= OnClipboardChanged;
 
     [RelayCommand]
     private void Rename(FolderNodeViewModel node) => StartRename(node);
