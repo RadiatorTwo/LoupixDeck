@@ -20,6 +20,23 @@ public static class FolderSnapshot
         return JObject.FromObject(folder, ButtonSnapshot.Serializer).ToString(Formatting.None);
     }
 
+    /// <summary>The id of the top folder in a snapshot, or <see cref="Guid.Empty"/> when it cannot be read.</summary>
+    public static Guid RootId(string json)
+    {
+        if (string.IsNullOrEmpty(json)) return Guid.Empty;
+
+        try
+        {
+            return JObject.Parse(json).Value<string>(nameof(CustomFolder.Id)) is { } text && Guid.TryParse(text, out Guid id)
+                ? id
+                : Guid.Empty;
+        }
+        catch (JsonException)
+        {
+            return Guid.Empty;
+        }
+    }
+
     /// <summary>
     /// Builds a new folder tree from a snapshot. Every folder, state and layer gets a fresh id, and
     /// every reference inside the tree (a nested folder button, a state switch) follows to the copy,

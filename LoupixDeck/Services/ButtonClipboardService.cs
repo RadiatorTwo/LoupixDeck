@@ -56,6 +56,15 @@ public interface IButtonClipboardService
     /// <summary>Take a deep snapshot of <paramref name="folder"/> and its sub-folders.</summary>
     void CopyFolder(CustomFolder folder);
 
+    /// <summary>
+    /// Old → new ids of the <see cref="LinkedFolders"/> already pasted into the workspace, so
+    /// pasting the same button there again links the copy made the first time instead of making
+    /// another one. Empty until <see cref="RememberPastedFolders"/>; forgotten on the next copy.
+    /// </summary>
+    IReadOnlyDictionary<Guid, Guid> PastedFolders(Guid workspaceId);
+
+    void RememberPastedFolders(Guid workspaceId, IReadOnlyDictionary<Guid, Guid> map);
+
     /// <summary>True when a snapshot exists and it can be pasted onto a target of this kind.</summary>
     bool CanPasteInto(ButtonKind targetKind);
 
@@ -75,6 +84,7 @@ public sealed class ButtonClipboardService : IButtonClipboardService
     private ButtonKind _kind;
     private string _json;
     private IReadOnlyList<string> _linkedFolders = [];
+    private readonly Dictionary<Guid, IReadOnlyDictionary<Guid, Guid>> _pastedFolders = [];
 
     public bool HasData => _json != null;
     public ButtonKind? CurrentKind => _json != null ? _kind : null;
@@ -89,6 +99,7 @@ public sealed class ButtonClipboardService : IButtonClipboardService
         _kind = kind;
         _json = ButtonSnapshot.Capture(source);
         _linkedFolders = linkedFolders?.Where(static f => f != null).ToList() ?? [];
+        _pastedFolders.Clear();
         Changed?.Invoke();
     }
 
@@ -98,7 +109,17 @@ public sealed class ButtonClipboardService : IButtonClipboardService
         _kind = ButtonKind.Folder;
         _json = FolderSnapshot.Capture(folder);
         _linkedFolders = [];
+        _pastedFolders.Clear();
         Changed?.Invoke();
+    }
+
+    public IReadOnlyDictionary<Guid, Guid> PastedFolders(Guid workspaceId)
+        => _pastedFolders.TryGetValue(workspaceId, out IReadOnlyDictionary<Guid, Guid> map) ? map : new Dictionary<Guid, Guid>();
+
+    public void RememberPastedFolders(Guid workspaceId, IReadOnlyDictionary<Guid, Guid> map)
+    {
+        if (map != null)
+            _pastedFolders[workspaceId] = map;
     }
 
     public bool CanPasteInto(ButtonKind targetKind) => _json != null && _kind == targetKind;
@@ -123,6 +144,7 @@ public sealed class ButtonClipboardService : IButtonClipboardService
         if (_json == null) return;
         _json = null;
         _linkedFolders = [];
+        _pastedFolders.Clear();
         Changed?.Invoke();
     }
 
