@@ -10,8 +10,9 @@ namespace LoupixDeck.Services.ActiveWindow;
 /// line by line, the whole loop wrapped in try/catch so a missing <c>xprop</c> or a
 /// vanished X11 connection degrades silently to a no-op instead of crashing.
 ///
-/// Pure Wayland sessions (no DISPLAY) are not covered — there is no portable
-/// foreground-window protocol across GNOME/KDE/wlroots, so we stay a no-op there.
+/// Pure Wayland sessions are handled by <see cref="WaylandActiveWindowMonitor"/>;
+/// this monitor activates only where an X11 display is present and silently
+/// no-ops otherwise (e.g. headless).
 /// </summary>
 [SupportedOSPlatform("linux")]
 public sealed class LinuxActiveWindowMonitor : IActiveWindowMonitor, IDisposable
