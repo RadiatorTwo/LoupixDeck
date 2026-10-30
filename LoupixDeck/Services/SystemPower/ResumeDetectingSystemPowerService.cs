@@ -48,7 +48,7 @@ public sealed class ResumeDetectingSystemPowerService(ISystemPowerService inner)
 
     private void OnInnerSuspending(object sender, EventArgs e) => Suspending?.Invoke(this, EventArgs.Empty);
 
-    private void OnInnerResuming(object sender, EventArgs e) => RaiseResume();
+    private void OnInnerResuming(object sender, EventArgs e) => RaiseResume("reported by the OS");
 
     private void Tick()
     {
@@ -61,11 +61,13 @@ public sealed class ResumeDetectingSystemPowerService(ISystemPowerService inner)
         // The platform service may have reported this very wake moments ago.
         if (now - _lastResumeUtc < DuplicateWindow) return;
 
-        RaiseResume();
+        RaiseResume($"clock jumped {gap.TotalSeconds:0} s");
     }
 
-    private void RaiseResume()
+    private void RaiseResume(string source)
     {
+        // Logged here, once per wake, so a log shows the wake even when no device reacts to it (#536).
+        Console.WriteLine($"[Power] Wake detected ({source}); {Resuming?.GetInvocationList().Length ?? 0} handler(s).");
         _lastResumeUtc = DateTime.UtcNow;
         _lastTickUtc = DateTime.UtcNow;
         Resuming?.Invoke(this, EventArgs.Empty);

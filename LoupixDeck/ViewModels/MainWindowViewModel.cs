@@ -150,6 +150,8 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly Services.Animation.IButtonAnimationManager _buttonAnimationManager;
     private readonly Services.Animation.IWheelAnimationManager _wheelAnimationManager;
     private readonly IExclusiveModeService _exclusiveMode;
+    private readonly ISystemPowerService _powerService;
+    private readonly IDisplayStateService _displayState;
 
     private bool _isExclusiveModeActive;
 
@@ -371,31 +373,21 @@ public partial class MainWindowViewModel : ViewModelBase
         _exclusiveMode.StateChanged += OnExclusiveModeStateChanged;
         OnExclusiveModeStateChanged();
 
-        // Auto-clear the device while the host is suspended, restore on wake.
-        // Both handlers must hop to the UI thread because they touch ObservableCollections
-        // (TouchButtons / SimpleButtons) that the UI binds to.
-        powerService.Suspending += (_, _) =>
-            // Not ClearDeviceState: the off state is tagged as host-initiated so the
-            // reconnect after wake switches the device back on even without a resume
-            // event (issue #195).
-            Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = LoupedeckController.HandleSystemSuspend());
-        powerService.Resuming += (_, _) =>
-            Avalonia.Threading.Dispatcher.UIThread.Post(async () =>
-                // Waits for the USB stack, re-establishes the serial link and re-pushes the
-                // full state — restoring state alone wrote to a dead handle (issue #195).
-                await LoupedeckController.HandleSystemResume());
+        // Auto-clear the device while the host is suspended, restore on wake. Named handlers so
+        // Detach() can drop them: both services are shared by every device, and a detached
+        // window still reacting to wake brought its closed device back (#536).
+        _powerService = powerService;
+        _displayState = displayState;
+        powerService.Suspending += OnSystemSuspending;
+        powerService.Resuming += OnSystemResuming;
         powerService.StartMonitoring();
 
         // Follow the monitors when the device is set to (issue #382); the controller checks the
-        // setting, so turning it on later needs no re-subscription. Same UI-thread hop as above.
-        displayState.DisplaysOff += (_, _) =>
-            Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = LoupedeckController.HandleDisplaysOff());
-        displayState.DisplaysOn += (_, _) =>
-            Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = LoupedeckController.HandleDisplaysOn());
-        displayState.ScreenSaverStarted += (_, _) =>
-            Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = LoupedeckController.HandleDesktopScreenSaver(true));
-        displayState.ScreenSaverStopped += (_, _) =>
-            Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = LoupedeckController.HandleDesktopScreenSaver(false));
+        // setting, so turning it on later needs no re-subscription.
+        displayState.DisplaysOff += OnDisplaysOff;
+        displayState.DisplaysOn += OnDisplaysOn;
+        displayState.ScreenSaverStarted += OnDesktopScreenSaverStarted;
+        displayState.ScreenSaverStopped += OnDesktopScreenSaverStopped;
         displayState.StartMonitoring();
 
         // Foreground-window → page switching. Started on the UI thread because the
@@ -484,7 +476,40 @@ public partial class MainWindowViewModel : ViewModelBase
         _hostRegistry.HostRemoved -= OnHostsChanged;
         _config.PropertyChanged -= OnConfigFolderPropertyChanged;
         _folders.StructureChanged -= RefreshFolderBreadcrumbs;
+        _powerService.Suspending -= OnSystemSuspending;
+        _powerService.Resuming -= OnSystemResuming;
+        _displayState.DisplaysOff -= OnDisplaysOff;
+        _displayState.DisplaysOn -= OnDisplaysOn;
+        _displayState.ScreenSaverStarted -= OnDesktopScreenSaverStarted;
+        _displayState.ScreenSaverStopped -= OnDesktopScreenSaverStopped;
     }
+
+    // The power and display handlers hop to the UI thread because they touch
+    // ObservableCollections (TouchButtons / SimpleButtons) that the UI binds to.
+
+    private void OnSystemSuspending(object sender, EventArgs e) =>
+        // Not ClearDeviceState: the off state is tagged as host-initiated so the
+        // reconnect after wake switches the device back on even without a resume
+        // event (issue #195).
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = LoupedeckController.HandleSystemSuspend());
+
+    private void OnSystemResuming(object sender, EventArgs e) =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(async () =>
+            // Waits for the USB stack, re-establishes the serial link and re-pushes the
+            // full state — restoring state alone wrote to a dead handle (issue #195).
+            await LoupedeckController.HandleSystemResume());
+
+    private void OnDisplaysOff(object sender, EventArgs e) =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = LoupedeckController.HandleDisplaysOff());
+
+    private void OnDisplaysOn(object sender, EventArgs e) =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = LoupedeckController.HandleDisplaysOn());
+
+    private void OnDesktopScreenSaverStarted(object sender, EventArgs e) =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = LoupedeckController.HandleDesktopScreenSaver(true));
+
+    private void OnDesktopScreenSaverStopped(object sender, EventArgs e) =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = LoupedeckController.HandleDesktopScreenSaver(false));
 
     // ─────────────────────────── Custom folder breadcrumbs (issue #249) ───────────────────────────
 

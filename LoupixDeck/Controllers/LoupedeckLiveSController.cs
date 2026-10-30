@@ -625,6 +625,10 @@ public partial class LoupedeckLiveSController(
         if (device == null)
             return;
 
+        // Start and end of the resume reconnect, so a log shows where a wake falls against
+        // hot-plug detaches and attaches (#536).
+        Console.WriteLine($"[Resume] Reconnecting '{resolved?.ScopeKey}' (device #{device.InstanceId}) after wake.");
+
         // The handle the device woke up with is dead even when the OS still lists the port
         // and the handle still reports itself as open — writes then go nowhere. So the link
         // is torn down and rebuilt unconditionally (its connect event does the re-push),
@@ -653,6 +657,10 @@ public partial class LoupedeckLiveSController(
             await Task.Delay(retryDelayMs);
             retryDelayMs = Math.Min(retryDelayMs * 2, 4000);
         }
+
+        Console.WriteLine(device.IsConnected
+            ? $"[Resume] '{resolved?.ScopeKey}' (device #{device.InstanceId}) connected after wake."
+            : $"[Resume] '{resolved?.ScopeKey}' (device #{device.InstanceId}) still not connected {ResumeReconnectWindow.TotalSeconds:0} s after wake.");
 
         // Re-push at the end instead of trusting the connect event to have done it: the resume
         // may land before or after the reconnect. Skipped when the connect event's push already
