@@ -435,10 +435,27 @@ public class LoupedeckDevice
             // from whichever instance replaces this one.
             if (_closed)
             {
+                Console.WriteLine($"[Device] '{Path}' was closed while connecting; releasing the port.");
                 try { _connection?.Close(); }
                 catch { /* best effort */ }
             }
         }
+    }
+
+    /// <summary>
+    /// Reports a reconnect turned away because the device is closed, with the calls that asked
+    /// for it. Before #536 such a call revived the device, and the log could not show who made
+    /// it; this line names the caller should another one turn up.
+    /// </summary>
+    private void LogIgnoredReconnect()
+    {
+        string callers = string.Join(" <- ",
+            new System.Diagnostics.StackTrace(2, false).GetFrames()
+                .Select(f => f.GetMethod())
+                .Where(m => m?.DeclaringType != null)
+                .Take(6)
+                .Select(m => $"{m.DeclaringType.Name}.{m.Name}"));
+        Console.WriteLine($"[Device] '{Path}' reconnect ignored: the device is closed. Called from: {callers}");
     }
 
     /// <summary>
@@ -699,6 +716,8 @@ public class LoupedeckDevice
     /// </summary>
     public void Close()
     {
+        // Marks the point in the log after which this instance must leave the port alone (#536).
+        Console.WriteLine($"[Device] '{Path}' closed.");
         _closed = true;
         _suppressAutoReconnect = true;
         _sendChannel.Writer.TryComplete();
@@ -721,7 +740,11 @@ public class LoupedeckDevice
         lock (_connectGate)
         {
             // A closed device stays closed (#536).
-            if (_closed) return;
+            if (_closed)
+            {
+                LogIgnoredReconnect();
+                return;
+            }
 
             _suppressAutoReconnect = true;
             try
@@ -748,7 +771,11 @@ public class LoupedeckDevice
             }
 
             // Close() does not take the gate, so it may have landed during the wait above.
-            if (_closed) return;
+            if (_closed)
+            {
+                LogIgnoredReconnect();
+                return;
+            }
 
             _suppressAutoReconnect = false;
             ConnectBlind();
