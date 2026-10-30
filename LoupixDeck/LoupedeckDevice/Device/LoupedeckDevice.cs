@@ -209,6 +209,15 @@ public class LoupedeckDevice
     // attached in its place (#536).
     private volatile bool _closed;
 
+    private static int _lastInstanceId;
+
+    /// <summary>
+    /// Numbers each instance in the log. A replacement attached by hot-plug has the same port
+    /// and device key as the instance it replaces, so without this their lines cannot be told
+    /// apart (#536).
+    /// </summary>
+    public int InstanceId { get; } = Interlocked.Increment(ref _lastInstanceId);
+
     // 0 = no reconnect pending, 1 = one scheduled. Guards against spawning
     // parallel reconnect chains: the Disconnected event can fire more than once
     // for a single failed connection (the Send() error path fires it, then the
@@ -404,6 +413,7 @@ public class LoupedeckDevice
         // device registry, so this fallback only covers a device constructed outside that
         // path. It used to be a literal 115200, which no entry in the registry states.
         Baudrate = baudrate > 0 ? baudrate : Constants.DefaultBaudrate;
+        Console.WriteLine($"[Device] #{InstanceId} created for '{Path}'.");
         if (autoConnect)
         {
             ConnectBlind();
@@ -435,28 +445,16 @@ public class LoupedeckDevice
             // from whichever instance replaces this one.
             if (_closed)
             {
-                Console.WriteLine($"[Device] '{Path}' was closed while connecting; releasing the port.");
+                Console.WriteLine($"[Device] #{InstanceId} '{Path}' was closed while connecting; releasing the port.");
                 try { _connection?.Close(); }
                 catch { /* best effort */ }
             }
         }
     }
 
-    /// <summary>
-    /// Reports a reconnect turned away because the device is closed, with the calls that asked
-    /// for it. Before #536 such a call revived the device, and the log could not show who made
-    /// it; this line names the caller should another one turn up.
-    /// </summary>
-    private void LogIgnoredReconnect()
-    {
-        string callers = string.Join(" <- ",
-            new System.Diagnostics.StackTrace(2, false).GetFrames()
-                .Select(f => f.GetMethod())
-                .Where(m => m?.DeclaringType != null)
-                .Take(6)
-                .Select(m => $"{m.DeclaringType.Name}.{m.Name}"));
-        Console.WriteLine($"[Device] '{Path}' reconnect ignored: the device is closed. Called from: {callers}");
-    }
+    /// <summary>Reports a reconnect turned away because the device is closed (#536).</summary>
+    private void LogIgnoredReconnect() =>
+        Console.WriteLine($"[Device] #{InstanceId} '{Path}' reconnect ignored: the device is closed.");
 
     /// <summary>
     /// Connects to the device, either via the specified path or by discovering available devices.
@@ -717,7 +715,7 @@ public class LoupedeckDevice
     public void Close()
     {
         // Marks the point in the log after which this instance must leave the port alone (#536).
-        Console.WriteLine($"[Device] '{Path}' closed.");
+        Console.WriteLine($"[Device] #{InstanceId} '{Path}' closed.");
         _closed = true;
         _suppressAutoReconnect = true;
         _sendChannel.Writer.TryComplete();
