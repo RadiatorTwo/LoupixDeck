@@ -92,14 +92,14 @@ public partial class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryB
         if (IsSplit)
         {
             var segments = ButtonData.ActiveSegments();
-            for (int i = 0; i < segments.Count; i++)
+            foreach (int i in WheelSegmentEditor.DisplayOrder(ButtonData.SplitMode, segments.Count))
             {
                 var segment = segments[i];
                 var slot = new CommandSequenceSlot(
                     Loc.Tr(WheelSplitGeometry.SegmentNameKey(ButtonData.SplitMode, i)),
                     _commandBuilder, _commandRegistry, _commandLock, _dialogService,
                     () => segment.Command, v => segment.Command = v);
-                editors.Add(new WheelSegmentEditor(slot));
+                editors.Add(new WheelSegmentEditor(slot, ButtonData.SplitMode, i));
             }
         }
 

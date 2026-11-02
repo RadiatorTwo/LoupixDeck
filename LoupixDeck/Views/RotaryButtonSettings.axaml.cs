@@ -50,24 +50,11 @@ public partial class RotaryButtonSettings : Window
         foreach (var (_, list) in _strips)
             WireConnectors(list);
 
-        // Segment strips are created by the items control; wire their chip lists once they
-        // exist, and give the segments more room than the single press strip had.
+        // Segment strips are created by the items control; wire their chip lists once they exist.
         SegmentList.LayoutUpdated += (_, _) =>
         {
             foreach (var (_, list) in SegmentStrips())
                 WireConnectors(list);
-        };
-        DataContextChanged += (_, _) =>
-        {
-            if (DataContext is RotaryButtonSettingsViewModel model)
-            {
-                model.PropertyChanged += (_, e) =>
-                {
-                    if (e.PropertyName == nameof(RotaryButtonSettingsViewModel.IsSplit))
-                        UpdateSlotRows(model);
-                };
-                UpdateSlotRows(model);
-            }
         };
 
         // Card-based command picker → sequence-strip assignment (issue #171).
@@ -413,13 +400,6 @@ public partial class RotaryButtonSettings : Window
     {
         if (_connectorLists.Add(list))
             list.LayoutUpdated += (_, _) => UpdateConnectorVisibility(list);
-    }
-
-    /// <summary>A split wheel's segment strips share the press row; give it more of the column.</summary>
-    private void UpdateSlotRows(RotaryButtonSettingsViewModel vm)
-    {
-        if (SlotColumn.RowDefinitions.Count < 3) return;
-        SlotColumn.RowDefinitions[2].Height = new GridLength(vm.IsSplit ? 2.5 : 1, GridUnitType.Star);
     }
 
     /// <summary>The strip whose drop zone currently contains the pointer, or null.</summary>

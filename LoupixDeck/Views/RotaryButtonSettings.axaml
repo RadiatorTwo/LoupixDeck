@@ -146,16 +146,22 @@
         <DataTemplate x:Key="SegmentStripTemplate" DataType="{x:Type vm:WheelSegmentEditor}">
             <Border Classes="sequence-strip segment-strip"
                     Classes.active="{Binding Slot.IsActive}"
-                    MinHeight="120"
-                    Margin="0,0,0,10">
+                    Margin="0,0,8,8">
                 <Grid RowDefinitions="Auto,*">
-                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
-                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding Slot.Title}" FontWeight="SemiBold" />
+                    <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,8">
+                        <Viewbox Grid.Column="0" Classes="queue-icon">
+                            <Canvas Width="24" Height="24">
+                                <Path Classes="zone-fill" Data="{Binding ZoneFill}" />
+                                <Path Classes="zone-lines" Data="{Binding ZoneLines}" />
+                            </Canvas>
+                        </Viewbox>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Slot.Title}" FontWeight="SemiBold"
+                                       TextTrimming="CharacterEllipsis" />
                             <TextBlock Classes="hint"
                                        Text="{loc:TrFormat Common_CommandCountFmt, Slot.Commands.Count}" />
                         </StackPanel>
-                        <Button Grid.Column="1" Content="{loc:Tr RotaryButton_Clear}"
+                        <Button Grid.Column="2" Content="{loc:Tr RotaryButton_Clear}"
                                 Command="{Binding Slot.ClearCommandCommand}"
                                 IsEnabled="{Binding Slot.HasCommand}"
                                 VerticalAlignment="Center"
@@ -194,6 +200,44 @@
         <Style Selector="Border.sequence-strip.active">
             <Setter Property="BorderBrush" Value="#FF66AAFF" />
             <Setter Property="Background" Value="{DynamicResource AppAccentSubtle}" />
+        </Style>
+
+        <!-- Strips sit two side by side here, so a chip is narrower than the shared default. -->
+        <Style Selector="Border.command-chip">
+            <Setter Property="Width" Value="200" />
+        </Style>
+
+        <!-- Strip icon: the rotation glyph, or the wheel zone the strip presses. In the
+             accent colour while the strip is the double-click target. -->
+        <Style Selector="TextBlock.queue-icon">
+            <Setter Property="FontFamily" Value="{StaticResource MdiFont}" />
+            <Setter Property="FontSize" Value="18" />
+            <Setter Property="Width" Value="18" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
+        </Style>
+        <Style Selector="Border.sequence-strip.active TextBlock.queue-icon">
+            <Setter Property="Foreground" Value="{DynamicResource PickerFocusBrush}" />
+        </Style>
+        <Style Selector="Viewbox.queue-icon">
+            <Setter Property="Width" Value="18" />
+            <Setter Property="Height" Value="18" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Path.zone-fill">
+            <Setter Property="Fill" Value="{DynamicResource AppTextSecondary}" />
+        </Style>
+        <Style Selector="Path.zone-lines">
+            <Setter Property="Stroke" Value="{DynamicResource AppTextMuted}" />
+            <Setter Property="StrokeThickness" Value="1.5" />
+        </Style>
+        <Style Selector="Border.sequence-strip.active Path.zone-fill">
+            <Setter Property="Fill" Value="{DynamicResource PickerFocusBrush}" />
+        </Style>
+        <Style Selector="Border.sequence-strip.active Path.zone-lines">
+            <Setter Property="Stroke" Value="{DynamicResource PickerFocusBrush}" />
         </Style>
     </Window.Styles>
 
@@ -234,35 +278,36 @@
                 </StackPanel>
             </Grid>
 
-            <!-- Two columns: left = the three command sequences, right = the
-                 command library to pick from. -->
-            <!-- The left column is sized to fit exactly two command chips per row
-                 with equal space either side: 2 chips = 2 x (22 gutter + 210 chip
-                 + 6 margin) = 476, minus the leading gutter and trailing margin
-                 absorbed by the negative margins above = 448 of strip content,
-                 + 24 strip padding + 2 strip border + 12 gap to the picker = 486.
-                 Everything left over goes to the picker. -->
+            <!-- Two columns: left = the command sequences, right = the command
+                 library to pick from. The left column (474 + 12 gap to the picker)
+                 holds the sequences two side by side, so each strip fits one
+                 200 px chip per row (22 gutter + 200 + 6 margin). -->
             <Grid Grid.Row="2" ColumnDefinitions="486,*">
 
-                <!-- Left: three sequence strips, equal share of the height. Click
-                     a strip to make it the double-click target. -->
-                <Grid Grid.Column="0" Name="SlotColumn" RowDefinitions="*,*,*" Margin="0,0,12,0">
+                <!-- Left: the sequence strips as a grid, all visible at once. Row 0:
+                     rotate left and right. Row 1 (twice the height): the press, or a
+                     split wheel's segments two per row. Click a strip to make it the
+                     double-click target. -->
+                <Grid Grid.Column="0" Name="SlotColumn" ColumnDefinitions="*,8,*" RowDefinitions="*,2*"
+                      Margin="0,0,12,0">
 
                     <!-- Rotate Left -->
-                    <Border Grid.Row="0" Name="CommandDropZoneLeft"
+                    <Border Grid.Row="0" Grid.Column="0" Name="CommandDropZoneLeft"
                             x:DataType="vm:CommandSequenceSlot"
                             DataContext="{Binding RotaryLeftSlot}"
                             Classes="sequence-strip"
                             Classes.active="{Binding IsActive}"
-                            Margin="0,0,0,10">
+                            Margin="0,0,0,8">
                         <Grid RowDefinitions="Auto,*">
-                            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
-                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                            <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,8">
+                                <TextBlock Grid.Column="0" Classes="queue-icon" Text="&#xF0465;" />
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold"
+                                               TextTrimming="CharacterEllipsis" />
                                     <TextBlock Classes="hint"
                                                Text="{loc:TrFormat Common_CommandCountFmt, Commands.Count}" />
                                 </StackPanel>
-                                <Button Grid.Column="1" Content="{loc:Tr RotaryButton_Clear}"
+                                <Button Grid.Column="2" Content="{loc:Tr RotaryButton_Clear}"
                                         Command="{Binding ClearCommandCommand}"
                                         IsEnabled="{Binding HasCommand}"
                                         VerticalAlignment="Center"
@@ -295,20 +340,22 @@
                     </Border>
 
                     <!-- Rotate Right -->
-                    <Border Grid.Row="1" Name="CommandDropZoneRight"
+                    <Border Grid.Row="0" Grid.Column="2" Name="CommandDropZoneRight"
                             x:DataType="vm:CommandSequenceSlot"
                             DataContext="{Binding RotaryRightSlot}"
                             Classes="sequence-strip"
                             Classes.active="{Binding IsActive}"
-                            Margin="0,0,0,10">
+                            Margin="0,0,0,8">
                         <Grid RowDefinitions="Auto,*">
-                            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
-                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                            <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,8">
+                                <TextBlock Grid.Column="0" Classes="queue-icon" Text="&#xF0467;" />
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold"
+                                               TextTrimming="CharacterEllipsis" />
                                     <TextBlock Classes="hint"
                                                Text="{loc:TrFormat Common_CommandCountFmt, Commands.Count}" />
                                 </StackPanel>
-                                <Button Grid.Column="1" Content="{loc:Tr RotaryButton_Clear}"
+                                <Button Grid.Column="2" Content="{loc:Tr RotaryButton_Clear}"
                                         Command="{Binding ClearCommandCommand}"
                                         IsEnabled="{Binding HasCommand}"
                                         VerticalAlignment="Center"
@@ -340,31 +387,43 @@
                         </Grid>
                     </Border>
 
-                    <!-- Split wheel: one press strip per segment instead of the single press. -->
-                    <ScrollViewer Grid.Row="2"
-                                  HorizontalScrollBarVisibility="Disabled"
-                                  VerticalScrollBarVisibility="Auto"
-                                  IsVisible="{Binding IsSplit}">
-                        <ItemsControl Name="SegmentList"
-                                      ItemsSource="{Binding SegmentEditors}"
-                                      ItemTemplate="{StaticResource SegmentStripTemplate}" />
-                    </ScrollViewer>
+                    <!-- Split wheel: one press strip per segment instead of the single press,
+                         two per row. The negative margin takes back the cards' right and
+                         bottom gap, so the outer edges line up with the strips above. -->
+                    <ItemsControl Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Name="SegmentList"
+                                  Margin="0,0,-8,-8"
+                                  IsVisible="{Binding IsSplit}"
+                                  ItemsSource="{Binding SegmentEditors}"
+                                  ItemTemplate="{StaticResource SegmentStripTemplate}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Columns="2" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
 
                     <!-- Button Press (hidden while the wheel is split) -->
-                    <Panel Grid.Row="2" IsVisible="{Binding !IsSplit}">
+                    <Panel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" IsVisible="{Binding !IsSplit}">
                         <Border Name="CommandDropZonePress"
                                 x:DataType="vm:CommandSequenceSlot"
                                 DataContext="{Binding ButtonPressSlot}"
                                 Classes="sequence-strip"
                                 Classes.active="{Binding IsActive}">
                             <Grid RowDefinitions="Auto,*">
-                                <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
-                                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,8">
+                                    <Viewbox Grid.Column="0" Classes="queue-icon">
+                                        <Canvas Width="24" Height="24">
+                                            <Path Classes="zone-fill" Data="M2,2 H22 V22 H2 Z" />
+                                            <Path Classes="zone-lines" Data="M2,2 H22 V22 H2 Z" />
+                                        </Canvas>
+                                    </Viewbox>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold"
+                                                   TextTrimming="CharacterEllipsis" />
                                         <TextBlock Classes="hint"
                                                    Text="{loc:TrFormat Common_CommandCountFmt, Commands.Count}" />
                                     </StackPanel>
-                                    <Button Grid.Column="1" Content="{loc:Tr RotaryButton_Clear}"
+                                    <Button Grid.Column="2" Content="{loc:Tr RotaryButton_Clear}"
                                             Command="{Binding ClearCommandCommand}"
                                             IsEnabled="{Binding HasCommand}"
                                             VerticalAlignment="Center"
