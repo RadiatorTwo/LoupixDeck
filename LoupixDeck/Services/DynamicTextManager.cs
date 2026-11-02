@@ -44,7 +44,8 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
         /// <summary>The canvas holding <see cref="WheelImageLayer"/>, told when its image changed.</summary>
         public TouchButton WheelCanvas;
 
-        /// <summary>The wheel canvas's runtime key, handed to the command in place of a button's.</summary>
+        /// <summary>The wheel canvas's runtime key, handed to the command in place of a button's. For a
+        /// segment of a split wheel it is the segment's key, the one its press carries too.</summary>
         public string WheelRuntimeKey;
 
         public RegisteredCommand Command;
@@ -115,13 +116,13 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
     /// </remarks>
     private void OnWheelCanvasItemChanged(object sender, EventArgs e)
     {
-        if (sender is TouchButton canvas && WheelBindingsOf(canvas).SequenceEqual(_wheelBindings))
+        if (sender is TouchButton && WheelBindingsOf(_subscribedCanvases).SequenceEqual(_wheelBindings))
             return;
 
         Rescan();
     }
 
-    /// <summary>The wheel canvas bindings the active entries were built from.</summary>
+    /// <summary>The wheel canvas bindings the active entries were built from, over all wheel canvases.</summary>
     private (object Layer, string Binding)[] _wheelBindings = [];
 
     /// <summary>
@@ -143,20 +144,27 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
             .ToArray();
     }
 
+    /// <summary><see cref="WheelBindingsOf(TouchButton)"/> of every canvas in <paramref name="canvases"/>, in order.</summary>
+    private static (object Layer, string Binding)[] WheelBindingsOf(IReadOnlyList<TouchButton> canvases) =>
+        canvases.SelectMany(WheelBindingsOf).ToArray();
+
     private IDeviceController _controller;
 
-    /// <summary>The wheel canvas whose edits this manager follows; one at a time, like the animation manager.</summary>
-    private TouchButton _subscribedCanvas;
+    /// <summary>
+    /// The wheel canvases whose edits this manager follows: those of the mode on the glass, which
+    /// is one canvas, or one per segment of a split wheel.
+    /// </summary>
+    private IReadOnlyList<TouchButton> _subscribedCanvases = [];
 
-    private void SubscribeWheelCanvas(TouchButton canvas)
+    private void SubscribeWheelCanvases(IReadOnlyList<TouchButton> canvases)
     {
-        if (ReferenceEquals(_subscribedCanvas, canvas))
+        if (_subscribedCanvases.SequenceEqual(canvases, ReferenceEqualityComparer.Instance))
             return;
 
-        if (_subscribedCanvas != null)
-            _subscribedCanvas.ItemChanged -= OnWheelCanvasItemChanged;
-        _subscribedCanvas = canvas;
-        if (canvas != null)
+        foreach (var old in _subscribedCanvases)
+            old.ItemChanged -= OnWheelCanvasItemChanged;
+        _subscribedCanvases = canvases;
+        foreach (var canvas in canvases)
             canvas.ItemChanged += OnWheelCanvasItemChanged;
     }
 
@@ -293,24 +301,44 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
     }
 
     /// <summary>
-    /// Adds an entry for every text layer of the active wheel mode's canvas that takes its text from
-    /// a dynamic-text command. Only the mode showing on the glass is scanned, so switching mode,
-    /// page, workspace or profile (each of which rescans) stops the polling of the canvas that went
-    /// inactive. A layer that no longer resolves to a command drops its stale live text and draws
-    /// its own text again.
+    /// Adds an entry for every text layer of the active wheel mode's canvases (its own, or one per
+    /// segment of a split wheel) that takes its text from a dynamic-text command. Only the mode
+    /// showing on the glass is scanned, so switching mode, page, workspace or profile (each of which
+    /// rescans) stops the polling of the canvas that went inactive. A layer that no longer resolves
+    /// to a command drops its stale live text and draws its own text again.
     /// </summary>
     private void AddWheelEntries(List<Entry> entries)
     {
-        TouchButton canvas = _controller is { WheelScreenSize: > 0 }
-            ? _pageManager.CurrentTouchButtonPage?.Wheel?.Canvas
+        RotaryButton wheel = _controller is { WheelScreenSize: > 0 }
+            ? _pageManager.CurrentTouchButtonPage?.Wheel
             : null;
-        SubscribeWheelCanvas(canvas);
-        _wheelBindings = WheelBindingsOf(canvas);
+        var visible = wheel?.VisibleCanvases() ?? [];
+        var canvases = visible.Select(v => v.Canvas).ToArray();
+        SubscribeWheelCanvases(canvases);
+        _wheelBindings = WheelBindingsOf(canvases);
 
+        foreach (var (canvas, segment, index) in visible)
+        {
+            // A segment's live layers carry the segment's key, so the plugin can tell them apart
+            // and match them to the segment's press.
+            string key = canvas.RuntimeKey;
+            if (segment != null)
+            {
+                key = segment.RuntimeKey;
+                WheelSegmentRegistry.Set(key, wheel.SegmentInfo(index));
+            }
+
+            AddWheelCanvasEntries(entries, canvas, key);
+        }
+    }
+
+    /// <summary>Adds the text and image entries of one wheel canvas, keyed by <paramref name="key"/>.</summary>
+    private void AddWheelCanvasEntries(List<Entry> entries, TouchButton canvas, string key)
+    {
         if (canvas?.Layers == null)
             return;
 
-        AddWheelImageEntries(entries, canvas);
+        AddWheelImageEntries(entries, canvas, key);
 
         foreach (TextLayer layer in canvas.Layers.OfType<TextLayer>().ToArray())
         {
@@ -335,7 +363,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
             entries.Add(new Entry
             {
                 WheelLayer = layer,
-                WheelRuntimeKey = canvas.RuntimeKey,
+                WheelRuntimeKey = key,
                 Command = command,
                 Parameters = CommandStringParser.GetParameters(layer.TextCommand),
                 SequenceCommands = CommandStringParser.BuildSequence(layer.TextCommand),
@@ -348,7 +376,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
     /// <summary>
     /// Adds an entry for every plugin layer of the wheel canvas the user bound to an image command.
     /// </summary>
-    private void AddWheelImageEntries(List<Entry> entries, TouchButton canvas)
+    private void AddWheelImageEntries(List<Entry> entries, TouchButton canvas, string key)
     {
         foreach (PluginLayer layer in canvas.Layers.OfType<PluginLayer>().ToArray())
         {
@@ -372,7 +400,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
             {
                 WheelImageLayer = layer,
                 WheelCanvas = canvas,
-                WheelRuntimeKey = canvas.RuntimeKey,
+                WheelRuntimeKey = key,
                 Command = command,
                 Parameters = CommandStringParser.GetParameters(layer.Command),
                 SequenceCommands = CommandStringParser.BuildSequence(layer.Command),
@@ -963,7 +991,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
         _pageManager.TouchLayoutDrawn -= OnTouchLayoutDrawn;
         if (_controller != null)
             _controller.WheelModeChanged -= OnTouchLayoutChanged;
-        SubscribeWheelCanvas(null);
+        SubscribeWheelCanvases([]);
         StopLoop();
     }
 

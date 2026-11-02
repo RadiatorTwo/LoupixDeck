@@ -29,9 +29,10 @@ public sealed class WheelAnimationManager : IWheelAnimationManager, IDisposable
     private volatile bool _screensaverActive;
     private IDeviceController _controller;
 
-    // The wheel canvas we currently listen to for live edits. Re-derived on every Rescan so a
-    // freshly imported animation starts immediately, not only on the next navigation.
-    private TouchButton _subscribedCanvas;
+    // The wheel canvases we currently listen to for live edits (one per segment of a split wheel).
+    // Re-derived on every Rescan so a freshly imported animation starts immediately, not only on
+    // the next navigation.
+    private TouchButton[] _subscribedCanvases = [];
 
     // Bumped by every rescan on the UI thread. A decode that finishes after a newer rescan started
     // (an uncached wheel clip takes a while) drops its result instead of replacing the newer one.
@@ -111,27 +112,31 @@ public sealed class WheelAnimationManager : IWheelAnimationManager, IDisposable
         });
     }
 
-    /// <summary>UI-thread pass: reads the active wheel mode's canvas and (re)subscribes to its change
-    /// events so a live edit restarts the animation immediately.</summary>
+    /// <summary>UI-thread pass: reads the active wheel mode's canvases (its own, or one per segment of
+    /// a split wheel) and (re)subscribes to their change events so a live edit restarts the animation
+    /// immediately.</summary>
     private List<Spec> BuildSpecs()
     {
         List<Spec> specs = [];
 
         // Only a device with a wheel screen has a canvas to animate.
-        TouchButton canvas = _controller is { WheelScreenSize: > 0 }
-            ? _pageManager.CurrentTouchButtonPage?.Wheel?.Canvas
-            : null;
+        TouchButton[] canvases = _controller is { WheelScreenSize: > 0 }
+            ? _pageManager.CurrentTouchButtonPage?.Wheel?.VisibleCanvases().Select(v => v.Canvas).ToArray() ?? []
+            : [];
 
-        SubscribeCanvas(canvas);
+        SubscribeCanvases(canvases);
 
-        if (canvas?.Layers == null) return specs;
-
-        foreach (LayerBase layer in canvas.Layers)
+        foreach (TouchButton canvas in canvases)
         {
-            if (layer is ImageLayer { IsAnimated: true } img &&
-                !string.IsNullOrWhiteSpace(img.AnimatedAssetPath))
+            if (canvas.Layers == null) continue;
+
+            foreach (LayerBase layer in canvas.Layers)
             {
-                specs.Add(new Spec { ImageLayer = img, AnimPath = img.AnimatedAssetPath });
+                if (layer is ImageLayer { IsAnimated: true } img &&
+                    !string.IsNullOrWhiteSpace(img.AnimatedAssetPath))
+                {
+                    specs.Add(new Spec { ImageLayer = img, AnimPath = img.AnimatedAssetPath });
+                }
             }
         }
 
@@ -172,13 +177,13 @@ public sealed class WheelAnimationManager : IWheelAnimationManager, IDisposable
         return Math.Clamp((int)Math.Ceiling(fps), 1, MaxImageFps);
     }
 
-    private void SubscribeCanvas(TouchButton canvas)
+    private void SubscribeCanvases(TouchButton[] canvases)
     {
-        if (ReferenceEquals(_subscribedCanvas, canvas)) return;
+        if (_subscribedCanvases.SequenceEqual(canvases, ReferenceEqualityComparer.Instance)) return;
 
-        if (_subscribedCanvas != null) _subscribedCanvas.ItemChanged -= OnCanvasItemChanged;
-        _subscribedCanvas = canvas;
-        if (canvas != null) canvas.ItemChanged += OnCanvasItemChanged;
+        foreach (TouchButton old in _subscribedCanvases) old.ItemChanged -= OnCanvasItemChanged;
+        _subscribedCanvases = canvases;
+        foreach (TouchButton canvas in canvases) canvas.ItemChanged += OnCanvasItemChanged;
     }
 
     // A layer edit (add/remove/retarget) rebuilds the entry set; the frame swap itself does not
@@ -217,7 +222,7 @@ public sealed class WheelAnimationManager : IWheelAnimationManager, IDisposable
         if (_controller != null)
             _controller.WheelModeChanged -= OnLayoutChanged;
 
-        SubscribeCanvas(null);
+        SubscribeCanvases([]);
 
         try { _scheduler.Unregister(_source); } catch { /* best effort */ }
         try { _source.Dispose(); } catch { /* best effort */ }
