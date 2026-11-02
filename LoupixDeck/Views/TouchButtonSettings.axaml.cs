@@ -569,8 +569,9 @@ public partial class TouchButtonSettings : Window
             return;
         }
 
-        // 3) Nothing hit → deselect
+        // 3) Nothing hit → deselect; on a split wheel, edit the segment that was clicked
         vm.SelectedLayer = null;
+        vm.TrySelectWheelSegmentAt(pos.X, pos.Y);
     }
 
     private void Editor_PointerMoved(object sender, PointerEventArgs e)

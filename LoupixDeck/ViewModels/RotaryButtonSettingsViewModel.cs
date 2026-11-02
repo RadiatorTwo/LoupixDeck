@@ -28,7 +28,7 @@ public partial class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryB
         Slots = [RotaryLeftSlot, RotaryRightSlot, ButtonPressSlot];
 
         // Only the CT's centre wheel has a screen to split.
-        SplitOptions = IsWheel ? BuildSplitOptions() : [];
+        SplitOptions = IsWheel ? WheelSplitOption.All() : [];
         SelectedSplitOption = SplitOptions.FirstOrDefault(o => o.Mode == ButtonData.SplitMode) ?? SplitOptions.FirstOrDefault();
         RebuildSegmentEditors();
 
@@ -78,15 +78,6 @@ public partial class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryB
 
     /// <summary>One press strip and label per segment of the split wheel, in segment order.</summary>
     public IReadOnlyList<WheelSegmentEditor> SegmentEditors { get; private set; } = [];
-
-    private static IReadOnlyList<WheelSplitOption> BuildSplitOptions() =>
-    [
-        new(WheelSplitMode.None, Loc.Tr("Wheel_SplitNone")),
-        new(WheelSplitMode.Horizontal, Loc.Tr("Wheel_SplitHorizontal")),
-        new(WheelSplitMode.Vertical, Loc.Tr("Wheel_SplitVertical")),
-        new(WheelSplitMode.Diagonal, Loc.Tr("Wheel_SplitDiagonal")),
-        new(WheelSplitMode.Cross, Loc.Tr("Wheel_SplitCross"))
-    ];
 
     /// <summary>
     /// Recreates the segment strips for the wheel's current split mode and folds them into

@@ -50,34 +50,6 @@ public partial class LoupedeckCtLayout : UserControl
         _ = vm.LoupedeckController.RefreshWheel();
     }
 
-    // "Edit appearance" edits the whole wheel screen, or, on a split wheel, the segment picked
-    // from a menu listing the segments of the active mode.
-    private void OnEditWheelAppearanceClick(object sender, RoutedEventArgs e)
-    {
-        if (DataContext is not MainWindowViewModel vm || sender is not Control anchor) return;
-
-        RotaryButton wheel = vm.LoupedeckController.Config.CurrentTouchButtonPage?.Wheel;
-        if (wheel is not { IsSplit: true })
-        {
-            vm.EditWheelCanvasCommand.Execute(null);
-            return;
-        }
-
-        var menu = new MenuFlyout();
-        int count = wheel.ActiveSegments().Count;
-        for (int i = 0; i < count; i++)
-        {
-            menu.Items.Add(new MenuItem
-            {
-                Header = Localization.Loc.Tr(WheelSplitGeometry.SegmentNameKey(wheel.SplitMode, i)),
-                Command = vm.EditWheelSegmentCanvasCommand,
-                CommandParameter = i
-            });
-        }
-
-        menu.ShowAt(anchor);
-    }
-
     // Single click selects a button (touch tile, side strip, rotary dial, or LED),
     // shown as a hover/selection frame; a double click opens the matching editor. Every
     // interactive button carries its LoupedeckButton as CommandParameter, so selection is

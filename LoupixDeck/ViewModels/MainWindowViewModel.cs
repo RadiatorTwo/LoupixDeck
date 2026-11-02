@@ -94,10 +94,6 @@ public partial class MainWindowViewModel : ViewModelBase
     /// screen can be styled like a touch button. No-op on devices without a wheel.</summary>
     public IAsyncRelayCommand EditWheelCanvasCommand { get; }
 
-    /// <summary>Opens the layer editor on one segment (the parameter, 0-based) of the active wheel
-    /// mode when its screen is split.</summary>
-    public IAsyncRelayCommand<int> EditWheelSegmentCanvasCommand { get; }
-
     public IRelayCommand AddTouchPageCommand { get; }
     public IRelayCommand DeleteTouchPageCommand { get; }
     public IRelayCommand TouchPageButtonCommand { get; }
@@ -437,7 +433,6 @@ public partial class MainWindowViewModel : ViewModelBase
 
         EditStripCanvasCommand = new AsyncRelayCommand<RotarySide>(EditStripCanvas_Click);
         EditWheelCanvasCommand = new AsyncRelayCommand(EditWheelCanvas_Click);
-        EditWheelSegmentCanvasCommand = new AsyncRelayCommand<int>(EditWheelSegmentCanvas);
 
         AddTouchPageCommand = new RelayCommand(AddTouchPageButton_Click);
         DeleteTouchPageCommand = new RelayCommand(DeleteTouchPageButton_Click);
@@ -1504,10 +1499,11 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Opens the layer editor on the active wheel mode's canvas (the CT's 240×240 wheel screen).
-    /// A mode without a canvas gets one that reproduces the automatic layout first, so the
-    /// editor opens on what the wheel already shows; "Use automatic layout" in the editor drops
-    /// it again.
+    /// Opens the layer editor on the active wheel mode's screen (the CT's 240×240 wheel). An
+    /// unsplit mode without a canvas gets one that reproduces the automatic layout first, so the
+    /// editor opens on what the wheel already shows; "Use automatic layout" in the editor drops it
+    /// again. A split mode opens on its first segment, every segment having a canvas of its own;
+    /// the editor switches segments and can change the split itself.
     /// </summary>
     private async Task EditWheelCanvas_Click()
     {
@@ -1515,13 +1511,33 @@ public partial class MainWindowViewModel : ViewModelBase
         int size = LoupedeckController.WheelScreenSize;
         if (wheel == null || size <= 0) return;
 
-        bool created = wheel.Canvas == null;
-        wheel.Canvas ??= WheelCanvasDefaults.Create(size);
+        bool createdWheelCanvas = false;
+        TouchButton EnsureWheelCanvas()
+        {
+            if (wheel.Canvas == null)
+            {
+                wheel.Canvas = WheelCanvasDefaults.Create(size);
+                createdWheelCanvas = true;
+            }
+
+            return wheel.Canvas;
+        }
+
+        TouchButton start;
+        if (wheel.IsSplit)
+        {
+            TouchButtonSettingsViewModel.EnsureSegmentCanvases(wheel);
+            start = wheel.ActiveSegments()[0].Canvas;
+        }
+        else
+        {
+            start = EnsureWheelCanvas();
+        }
+
+        // The managers follow the canvases they saw at their last scan; canvases created just now
+        // are new to them, so their layer edits would not reach them until an unrelated rescan.
         LoupedeckController.RegisterWheelCanvas(wheel);
-        // The managers follow the canvas they saw at their last scan; a canvas created just now is
-        // new to them, so its layer edits would not reach them until an unrelated rescan.
-        if (created)
-            RescanWheelContent();
+        RescanWheelContent();
 
         TouchButtonSettingsViewModel editor = null;
         await _dialogService.ShowDialogAsync<TouchButtonSettingsViewModel, DialogResult>(vm =>
@@ -1529,56 +1545,27 @@ public partial class MainWindowViewModel : ViewModelBase
             editor = vm;
             vm.SetCanvasSize(size, size);
             vm.ConfigureWheel(wheel);
-            vm.Initialize(wheel.Canvas);
+            vm.EnsureWheelCanvas = EnsureWheelCanvas;
+            vm.WheelCanvasesChanged = () =>
+            {
+                LoupedeckController.RegisterWheelCanvas(wheel);
+                RescanWheelContent();
+                _ = LoupedeckController.RefreshWheel();
+            };
+            vm.Initialize(start);
         });
 
-        // Opening and closing the editor is not a customisation: a canvas created just for this
-        // visit is dropped again unless something was edited, so the automatic layout (which
+        // Opening and closing the editor is not a customisation: a wheel canvas created just for
+        // this visit is dropped again unless something was edited, so the automatic layout (which
         // adapts to whether the command reports a value) stays in charge until the user changes
-        // something. "Use automatic layout" drops a canvas of any age.
-        if (editor?.RevertToAutoLayout == true || (created && editor?.HasEdits != true))
+        // something. "Use automatic layout" drops a canvas of any age. A split wheel keeps its
+        // segment canvases: it has no automatic layout.
+        if (!wheel.IsSplit &&
+            (editor?.RevertToAutoLayout == true || (createdWheelCanvas && editor?.HasEdits != true)))
             wheel.Canvas = null;
 
         LoupedeckController.SaveConfig();
         // A dropped canvas must stop polling and animating, which only a rescan ends.
-        RescanWheelContent();
-        await LoupedeckController.RefreshWheel();
-    }
-
-    /// <summary>
-    /// Opens the layer editor on segment <paramref name="index"/> of the active wheel mode's split
-    /// screen. Like <see cref="EditWheelCanvas_Click"/>: a segment without a canvas gets its default
-    /// look first, which is dropped again when the editor closes without an edit.
-    /// </summary>
-    private async Task EditWheelSegmentCanvas(int index)
-    {
-        var wheel = LoupedeckController.Config.CurrentTouchButtonPage?.Wheel;
-        int size = LoupedeckController.WheelScreenSize;
-        if (wheel is not { IsSplit: true } || size <= 0) return;
-
-        var segments = wheel.ActiveSegments();
-        if (index < 0 || index >= segments.Count) return;
-        var segment = segments[index];
-
-        bool created = segment.Canvas == null;
-        segment.Canvas ??= WheelCanvasDefaults.CreateSegment(index);
-        LoupedeckController.RegisterWheelCanvas(wheel);
-        if (created)
-            RescanWheelContent();
-
-        TouchButtonSettingsViewModel editor = null;
-        await _dialogService.ShowDialogAsync<TouchButtonSettingsViewModel, DialogResult>(vm =>
-        {
-            editor = vm;
-            vm.SetCanvasSize(size, size);
-            vm.ConfigureWheelSegment(wheel, index);
-            vm.Initialize(segment.Canvas);
-        });
-
-        if (editor?.RevertToAutoLayout == true || (created && editor?.HasEdits != true))
-            segment.Canvas = null;
-
-        LoupedeckController.SaveConfig();
         RescanWheelContent();
         await LoupedeckController.RefreshWheel();
     }

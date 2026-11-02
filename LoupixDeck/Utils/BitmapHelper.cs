@@ -1813,14 +1813,15 @@ public static class BitmapHelper
         DialRenderContext? dial = null,
         bool roundMask = false,
         WheelSplitMode wheelSplit = WheelSplitMode.None,
-        int wheelSegment = -1)
+        int wheelSegment = -1,
+        IReadOnlyList<TouchButton> wheelSegments = null)
     {
         ArgumentNullException.ThrowIfNull(touchButton);
 
         var bmp = new SKBitmap(canvasWidth, canvasHeight);
         using var canvas = new SKCanvas(bmp);
         DrawEditorCanvas(canvas, touchButton, canvasWidth, canvasHeight, deviceWidth, deviceHeight,
-            drawGrid, gridStepDevice, segmentCount, dial, roundMask, wheelSplit, wheelSegment);
+            drawGrid, gridStepDevice, segmentCount, dial, roundMask, wheelSplit, wheelSegment, wheelSegments);
         return bmp;
     }
 
@@ -1828,8 +1829,10 @@ public static class BitmapHelper
     /// Draws what <see cref="RenderEditorCanvas"/> renders onto a caller-owned canvas of
     /// <paramref name="canvasWidth"/>×<paramref name="canvasHeight"/>, so a caller that redraws
     /// often can reuse its pixel buffer instead of allocating one per frame. For a segment of a
-    /// split wheel (<paramref name="wheelSplit"/>, <paramref name="wheelSegment"/>) everything
-    /// outside the segment is dimmed, since the wheel clips it away.
+    /// split wheel (<paramref name="wheelSplit"/>, <paramref name="wheelSegment"/>) the preview is
+    /// the whole wheel as the device shows it: each segment clipped to its area, the other
+    /// segments (<paramref name="wheelSegments"/>, all canvases in segment order) dimmed, the
+    /// edited one at full brightness and outlined.
     /// </summary>
     public static void DrawEditorCanvas(
         SKCanvas canvas,
@@ -1844,7 +1847,8 @@ public static class BitmapHelper
         DialRenderContext? dial = null,
         bool roundMask = false,
         WheelSplitMode wheelSplit = WheelSplitMode.None,
-        int wheelSegment = -1)
+        int wheelSegment = -1,
+        IReadOnlyList<TouchButton> wheelSegments = null)
     {
         ArgumentNullException.ThrowIfNull(canvas);
         ArgumentNullException.ThrowIfNull(touchButton);
@@ -1860,50 +1864,26 @@ public static class BitmapHelper
         var frameRect = new SKRect(frameOffsetX, frameOffsetY,
             frameOffsetX + frameW, frameOffsetY + frameH);
 
-        // Fill the frame (the device-pixel area) with the state's background color when it draws
-        // one, otherwise with black — what the bare key looks like on a page without a wallpaper.
-        using (var bgPaint = new SKPaint
-               {
-                   Color = touchButton.BackgroundEnabled ? touchButton.BackColor.ToSKColor() : SKColors.Black
-               })
-        {
-            canvas.DrawRect(frameRect, bgPaint);
-        }
+        var frame = new EditorFrame(frameOffsetX, frameOffsetY, scale, frameRect, deviceWidth, deviceHeight);
+        bool split = wheelSplit != WheelSplitMode.None && wheelSegment >= 0 && wheelSegments != null;
 
-        // Switch to device-pixel space inside the frame so layer positions/scale match
-        // exactly what the device render produces.
-        canvas.Save();
-        canvas.Translate(frameOffsetX, frameOffsetY);
-        canvas.Scale(scale);
-
-        if (touchButton.Layers != null)
+        if (split)
         {
-            foreach (var layer in touchButton.Layers)
+            // The other segments first, dimmed, so the edited one reads as the active surface.
+            for (int i = 0; i < wheelSegments.Count; i++)
             {
-                if (layer == null || !layer.Visible) continue;
-
-                switch (layer)
-                {
-                    case ImageLayer image:
-                        DrawImageLayerExtended(canvas, image, deviceWidth, deviceHeight);
-                        break;
-                    case TextLayer text:
-                        DrawTextLayer(canvas, text, deviceWidth, deviceHeight, dial);
-                        break;
-                    case SymbolLayer symbol:
-                        DrawSymbolLayer(canvas, symbol, deviceWidth, deviceHeight);
-                        break;
-                    case PluginLayer plugin:
-                        DrawPluginLayerExtended(canvas, plugin, deviceWidth, deviceHeight);
-                        break;
-                    case DialIndicatorLayer indicator:
-                        DrawDialIndicatorLayer(canvas, indicator, deviceWidth, deviceHeight, dial?.Normalized);
-                        break;
-                }
+                if (i == wheelSegment) continue;
+                using var area = WheelSplitGeometry.SegmentPath(wheelSplit, i, deviceWidth);
+                DrawEditorSurface(canvas, wheelSegments[i], frame, dial, area, dim: true);
             }
-        }
 
-        canvas.Restore();
+            using var edited = WheelSplitGeometry.SegmentPath(wheelSplit, wheelSegment, deviceWidth);
+            DrawEditorSurface(canvas, touchButton, frame, dial, edited, dim: false);
+        }
+        else
+        {
+            DrawEditorSurface(canvas, touchButton, frame, dial, area: null, dim: false);
+        }
 
         // A round screen (the CT wheel) only shows the inscribed circle: dim the corners the
         // glass hides and outline the visible edge, so the user places content where it shows.
@@ -1927,9 +1907,8 @@ public static class BitmapHelper
             canvas.DrawOval(frameRect, edge);
         }
 
-        if (wheelSplit != WheelSplitMode.None && wheelSegment >= 0)
-            DrawWheelSegmentMask(canvas, frameOffsetX, frameOffsetY, scale, deviceWidth, frameRect,
-                wheelSplit, wheelSegment);
+        if (split)
+            DrawWheelSegmentOutline(canvas, frame, wheelSplit, wheelSegment);
 
         // Optional alignment grid, drawn on top of the layers but kept subtle so it
         // never competes with the content. Lines are spaced in device pixels and
@@ -3252,30 +3231,113 @@ public static class BitmapHelper
         }
     }
 
-    /// <summary>
-    /// Editor overlay for one segment of a split wheel: dims the rest of the screen, which the
-    /// wheel clips away, and draws the dividers so the user sees the segment's edges.
-    /// </summary>
-    private static void DrawWheelSegmentMask(SKCanvas canvas, float offsetX, float offsetY, float scale,
-        int size, SKRect frameRect, WheelSplitMode mode, int index)
+    /// <summary>Where the device frame sits on the editor canvas and how it is scaled.</summary>
+    private readonly record struct EditorFrame(float OffsetX, float OffsetY, float Scale, SKRect Rect,
+        int DeviceWidth, int DeviceHeight)
     {
-        using var area = WheelSplitGeometry.SegmentPath(mode, index, size);
-        area.Transform(SKMatrix.CreateScaleTranslation(scale, scale, offsetX, offsetY));
-
-        canvas.Save();
-        canvas.ClipRect(frameRect);
-        canvas.ClipPath(area, SKClipOperation.Difference, antialias: true);
-        using (var dim = new SKPaint { Color = new SKColor(0, 0, 0, 0xB0) })
+        /// <summary>Maps a path in device pixels onto the editor canvas. The caller disposes it.</summary>
+        public SKPath ToEditor(SKPath devicePath)
         {
-            canvas.DrawRect(frameRect, dim);
+            var path = new SKPath(devicePath);
+            path.Transform(SKMatrix.CreateScaleTranslation(Scale, Scale, OffsetX, OffsetY));
+            return path;
         }
+    }
+
+    /// <summary>
+    /// Draws one editable surface into the device frame: its background colour (black when it has
+    /// none or is null), then its layers in device-pixel space, all clipped to <paramref name="area"/>
+    /// (device pixels; null for the whole frame) and dimmed when <paramref name="dim"/> is set.
+    /// </summary>
+    private static void DrawEditorSurface(SKCanvas canvas, TouchButton surface, EditorFrame frame,
+        DialRenderContext? dial, SKPath area, bool dim)
+    {
+        canvas.Save();
+        canvas.ClipRect(frame.Rect);
+        if (area != null)
+        {
+            using var clip = frame.ToEditor(area);
+            canvas.ClipPath(clip, antialias: true);
+        }
+
+        // The state's background colour when it draws one, otherwise black: what the bare key
+        // looks like on a page without a wallpaper.
+        using (var bgPaint = new SKPaint
+               {
+                   Color = surface is { BackgroundEnabled: true } ? surface.BackColor.ToSKColor() : SKColors.Black
+               })
+        {
+            canvas.DrawRect(frame.Rect, bgPaint);
+        }
+
+        // Device-pixel space inside the frame, so layer positions and scale match exactly what the
+        // device render produces.
+        canvas.Save();
+        canvas.Translate(frame.OffsetX, frame.OffsetY);
+        canvas.Scale(frame.Scale);
+
+        foreach (var layer in surface?.Layers ?? [])
+        {
+            if (layer == null || !layer.Visible) continue;
+
+            switch (layer)
+            {
+                case ImageLayer image:
+                    DrawImageLayerExtended(canvas, image, frame.DeviceWidth, frame.DeviceHeight);
+                    break;
+                case TextLayer text:
+                    DrawTextLayer(canvas, text, frame.DeviceWidth, frame.DeviceHeight, dial);
+                    break;
+                case SymbolLayer symbol:
+                    DrawSymbolLayer(canvas, symbol, frame.DeviceWidth, frame.DeviceHeight);
+                    break;
+                case PluginLayer plugin:
+                    DrawPluginLayerExtended(canvas, plugin, frame.DeviceWidth, frame.DeviceHeight);
+                    break;
+                case DialIndicatorLayer indicator:
+                    DrawDialIndicatorLayer(canvas, indicator, frame.DeviceWidth, frame.DeviceHeight, dial?.Normalized);
+                    break;
+            }
+        }
+
         canvas.Restore();
 
-        canvas.Save();
-        canvas.Translate(offsetX, offsetY);
-        canvas.Scale(scale);
-        WheelSplitGeometry.DrawDividers(canvas, mode, size, new SKColor(255, 255, 255, 0x80), 1f / scale);
+        if (dim)
+        {
+            using var shade = new SKPaint { Color = new SKColor(0, 0, 0, 0xA0) };
+            canvas.DrawRect(frame.Rect, shade);
+        }
+
         canvas.Restore();
+    }
+
+    /// <summary>
+    /// Editor overlay for the edited segment of a split wheel: the divider lines, and an accent
+    /// outline around the segment so it is clear which one the layers belong to.
+    /// </summary>
+    private static void DrawWheelSegmentOutline(SKCanvas canvas, EditorFrame frame, WheelSplitMode mode, int index)
+    {
+        canvas.Save();
+        canvas.ClipRect(frame.Rect);
+        canvas.Translate(frame.OffsetX, frame.OffsetY);
+        canvas.Scale(frame.Scale);
+        WheelSplitGeometry.DrawDividers(canvas, mode, frame.DeviceWidth, new SKColor(255, 255, 255, 0x80),
+            1f / frame.Scale);
+        canvas.Restore();
+
+        // The visible part of the segment: its area cut to the round glass, so the outline follows
+        // the rim as well as the dividers.
+        using var area = WheelSplitGeometry.SegmentPath(mode, index, frame.DeviceWidth);
+        using var segment = frame.ToEditor(area);
+        using var circle = new SKPath();
+        circle.AddOval(frame.Rect);
+        using var outline = segment.Op(circle, SKPathOp.Intersect) ?? new SKPath(segment);
+
+        using var accent = new SKPaint
+        {
+            Color = new SKColor(0x4D, 0xA3, 0xFF), StrokeWidth = 2, IsAntialias = true, Style = SKPaintStyle.Stroke
+        };
+        canvas.DrawPath(outline, accent);
     }
 
     // Divider between the segments of a split wheel: thin and dim, so it separates without

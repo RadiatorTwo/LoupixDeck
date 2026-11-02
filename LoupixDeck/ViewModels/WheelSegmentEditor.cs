@@ -12,8 +12,18 @@ public sealed class WheelSegmentEditor(CommandSequenceSlot slot)
     public CommandSequenceSlot Slot { get; } = slot;
 }
 
-/// <summary>One entry of the split-mode choice in the rotary editor.</summary>
+/// <summary>One entry of the split-mode choice in the rotary editor and the wheel appearance editor.</summary>
 public sealed record WheelSplitOption(WheelSplitMode Mode, string Label)
 {
     public override string ToString() => Label;
+
+    /// <summary>Every split mode, labelled in the UI language.</summary>
+    public static IReadOnlyList<WheelSplitOption> All() =>
+    [
+        new(WheelSplitMode.None, Localization.Loc.Tr("Wheel_SplitNone")),
+        new(WheelSplitMode.Horizontal, Localization.Loc.Tr("Wheel_SplitHorizontal")),
+        new(WheelSplitMode.Vertical, Localization.Loc.Tr("Wheel_SplitVertical")),
+        new(WheelSplitMode.Diagonal, Localization.Loc.Tr("Wheel_SplitDiagonal")),
+        new(WheelSplitMode.Cross, Localization.Loc.Tr("Wheel_SplitCross"))
+    ];
 }

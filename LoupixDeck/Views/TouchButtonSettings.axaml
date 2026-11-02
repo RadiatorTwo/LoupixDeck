@@ -747,6 +747,26 @@
                                     <TextBlock Classes="panel-title"
                                                IsVisible="{Binding IsWheelCanvas}"
                                                Text="{loc:Tr TouchButton_CentreWheelTitle}" />
+                                    <!-- CT wheel: split the screen into segments and pick the one
+                                         whose layers are edited (a click on empty canvas picks too). -->
+                                    <StackPanel IsVisible="{Binding IsWheelCanvas}" Spacing="6" Margin="0,0,0,10">
+                                        <Grid ColumnDefinitions="Auto,*">
+                                            <TextBlock Grid.Column="0" Text="{loc:Tr Wheel_SplitMode}"
+                                                       VerticalAlignment="Center" Margin="0,0,10,0" />
+                                            <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
+                                                      ItemsSource="{Binding WheelSplitOptions}"
+                                                      SelectedItem="{Binding SelectedWheelSplit, Mode=TwoWay}"
+                                                      ToolTip.Tip="{loc:Tr Wheel_SplitModeHint}" />
+                                        </Grid>
+                                        <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding IsWheelSplit}">
+                                            <TextBlock Grid.Column="0" Text="{loc:Tr Wheel_Segment}"
+                                                       VerticalAlignment="Center" Margin="0,0,10,0" />
+                                            <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
+                                                      ItemsSource="{Binding WheelSegmentChoices}"
+                                                      SelectedIndex="{Binding SelectedWheelSegment, Mode=TwoWay}"
+                                                      ToolTip.Tip="{loc:Tr Wheel_SegmentHint}" />
+                                        </Grid>
+                                    </StackPanel>
                                     <Grid ColumnDefinitions="Auto,*,Auto">
                                         <CheckBox Grid.Column="0" Content="{loc:Tr TouchButton_Background}" Margin="0,0,10,0"
                                                   VerticalAlignment="Center"
@@ -764,7 +784,7 @@
                                     </Grid>
                                     <Button Classes="toolbar" Margin="0,8,0,0"
                                             HorizontalAlignment="Stretch"
-                                            IsVisible="{Binding IsWheelCanvas}"
+                                            IsVisible="{Binding ShowUseAutomaticLayout}"
                                             Content="{loc:Tr TouchButton_UseAutomaticLayout}"
                                             Command="{Binding UseAutomaticLayoutCommand}"
                                             ToolTip.Tip="{loc:Tr TouchButton_UseAutomaticLayoutHint}" />
