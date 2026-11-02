@@ -1815,7 +1815,8 @@ public static class BitmapHelper
         WheelSplitMode wheelSplit = WheelSplitMode.None,
         int wheelSegment = -1,
         IReadOnlyList<TouchButton> wheelSegments = null,
-        TouchButton wheelShared = null)
+        TouchButton wheelShared = null,
+        int wheelHover = -1)
     {
         ArgumentNullException.ThrowIfNull(touchButton);
 
@@ -1823,7 +1824,7 @@ public static class BitmapHelper
         using var canvas = new SKCanvas(bmp);
         DrawEditorCanvas(canvas, touchButton, canvasWidth, canvasHeight, deviceWidth, deviceHeight,
             drawGrid, gridStepDevice, segmentCount, dial, roundMask, wheelSplit, wheelSegment, wheelSegments,
-            wheelShared);
+            wheelShared, wheelHover);
         return bmp;
     }
 
@@ -1853,7 +1854,8 @@ public static class BitmapHelper
         WheelSplitMode wheelSplit = WheelSplitMode.None,
         int wheelSegment = -1,
         IReadOnlyList<TouchButton> wheelSegments = null,
-        TouchButton wheelShared = null)
+        TouchButton wheelShared = null,
+        int wheelHover = -1)
     {
         ArgumentNullException.ThrowIfNull(canvas);
         ArgumentNullException.ThrowIfNull(touchButton);
@@ -1930,6 +1932,8 @@ public static class BitmapHelper
             canvas.DrawOval(frameRect, edge);
         }
 
+        if (split && wheelHover >= 0 && wheelHover != wheelSegment)
+            DrawWheelSegmentHover(canvas, frame, wheelSplit, wheelHover);
         if (split && wheelSegment >= 0)
             DrawWheelSegmentOutline(canvas, frame, wheelSplit, wheelSegment);
 
@@ -3355,18 +3359,39 @@ public static class BitmapHelper
     }
 
     /// <summary>
+    /// Editor overlay for the segment under the pointer: a light accent tint and a thin outline,
+    /// so the user sees which segment a click selects.
+    /// </summary>
+    private static void DrawWheelSegmentHover(SKCanvas canvas, EditorFrame frame, WheelSplitMode mode, int index)
+    {
+        using var visible = VisibleSegmentPath(frame, mode, index);
+        using var tint = new SKPaint { Color = new SKColor(0x4D, 0xA3, 0xFF, 0x30), IsAntialias = true };
+        canvas.DrawPath(visible, tint);
+        using var edge = new SKPaint
+        {
+            Color = new SKColor(0x4D, 0xA3, 0xFF, 0x90), StrokeWidth = 1, IsAntialias = true, Style = SKPaintStyle.Stroke
+        };
+        canvas.DrawPath(visible, edge);
+    }
+
+    /// <summary>The part of a segment the round glass shows, in editor pixels. The caller disposes it.</summary>
+    private static SKPath VisibleSegmentPath(EditorFrame frame, WheelSplitMode mode, int index)
+    {
+        using var area = WheelSplitGeometry.SegmentPath(mode, index, frame.DeviceWidth);
+        using var segment = frame.ToEditor(area);
+        using var circle = new SKPath();
+        circle.AddOval(frame.Rect);
+        return segment.Op(circle, SKPathOp.Intersect) ?? new SKPath(segment);
+    }
+
+    /// <summary>
     /// Editor overlay for the edited segment of a split wheel: an accent outline around the
     /// segment so it is clear which one the layers belong to.
     /// </summary>
     private static void DrawWheelSegmentOutline(SKCanvas canvas, EditorFrame frame, WheelSplitMode mode, int index)
     {
-        // The visible part of the segment: its area cut to the round glass, so the outline follows
-        // the rim as well as the dividers.
-        using var area = WheelSplitGeometry.SegmentPath(mode, index, frame.DeviceWidth);
-        using var segment = frame.ToEditor(area);
-        using var circle = new SKPath();
-        circle.AddOval(frame.Rect);
-        using var outline = segment.Op(circle, SKPathOp.Intersect) ?? new SKPath(segment);
+        // The visible part of the segment, so the outline follows the rim as well as the dividers.
+        using var outline = VisibleSegmentPath(frame, mode, index);
 
         using var accent = new SKPaint
         {

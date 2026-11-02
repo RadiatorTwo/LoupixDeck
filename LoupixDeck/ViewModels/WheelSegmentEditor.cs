@@ -13,42 +13,10 @@ public sealed class WheelSegmentEditor(CommandSequenceSlot slot, WheelSplitMode 
     public CommandSequenceSlot Slot { get; } = slot;
 
     /// <summary>The segment's zone of the icon square, filled.</summary>
-    public Geometry ZoneFill { get; } = StreamGeometry.Parse(ZoneFillPath(mode, index));
+    public Geometry ZoneFill { get; } = WheelZoneIcons.Fill(mode, index);
 
     /// <summary>The icon square's outline and the mode's dividers.</summary>
-    public Geometry ZoneLines { get; } = StreamGeometry.Parse(ZoneLinesPath(mode));
-
-    // The icon is a 24 x 24 view box with the square from (2,2) to (22,22); segment order as in
-    // Utils.WheelSplitGeometry.
-    private static string ZoneFillPath(WheelSplitMode mode, int index) => mode switch
-    {
-        WheelSplitMode.Horizontal => index == 0 ? "M2,2 H22 V12 H2 Z" : "M2,12 H22 V22 H2 Z",
-        WheelSplitMode.Vertical => index == 0 ? "M2,2 H12 V22 H2 Z" : "M12,2 H22 V22 H12 Z",
-        WheelSplitMode.Diagonal => index switch
-        {
-            0 => "M2,2 L22,2 L12,12 Z",
-            1 => "M22,2 L22,22 L12,12 Z",
-            2 => "M2,22 L22,22 L12,12 Z",
-            _ => "M2,2 L2,22 L12,12 Z"
-        },
-        WheelSplitMode.Cross => index switch
-        {
-            0 => "M2,2 H12 V12 H2 Z",
-            1 => "M12,2 H22 V12 H12 Z",
-            2 => "M2,12 H12 V22 H2 Z",
-            _ => "M12,12 H22 V22 H12 Z"
-        },
-        _ => "M2,2 H22 V22 H2 Z"
-    };
-
-    private static string ZoneLinesPath(WheelSplitMode mode) => "M2,2 H22 V22 H2 Z " + mode switch
-    {
-        WheelSplitMode.Horizontal => "M2,12 H22",
-        WheelSplitMode.Vertical => "M12,2 V22",
-        WheelSplitMode.Diagonal => "M2,2 L22,22 M22,2 L2,22",
-        WheelSplitMode.Cross => "M2,12 H22 M12,2 V22",
-        _ => string.Empty
-    };
+    public Geometry ZoneLines { get; } = WheelZoneIcons.Lines(mode);
 
     /// <summary>
     /// The order the segment strips are laid out in, two per row: the diagonal split shows top and
@@ -62,6 +30,9 @@ public sealed class WheelSegmentEditor(CommandSequenceSlot slot, WheelSplitMode 
 public sealed record WheelSplitOption(WheelSplitMode Mode, string Label)
 {
     public override string ToString() => Label;
+
+    /// <summary>The split drawn as a small icon: the wheel square and its dividers.</summary>
+    public Geometry Icon { get; } = WheelZoneIcons.Lines(Mode);
 
     /// <summary>Every split mode, labelled in the UI language.</summary>
     public static IReadOnlyList<WheelSplitOption> All() =>

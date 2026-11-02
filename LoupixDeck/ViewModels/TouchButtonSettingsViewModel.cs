@@ -589,11 +589,41 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// <summary>"Use automatic layout" only applies to an unsplit wheel; a split one has no automatic look.</summary>
     public bool ShowUseAutomaticLayout => IsWheelCanvas && !_wheel.IsSplit;
 
-    /// <summary>
-    /// The behind/in-front choice of the selected layer, offered only on the all-segments surface,
-    /// whose layers are drawn either behind the segments or over them.
-    /// </summary>
-    public bool ShowSharedLayerPlacement => IsEditingSharedSurface && SelectedLayer != null;
+    /// <summary>Stands for the segments in the all-segments surface's layer list (see <see cref="SharedSurfaceLayerView"/>).</summary>
+    private readonly WheelSegmentsMarker _segmentsMarker = new() { Name = Loc.Tr("Wheel_SegmentsMarker") };
+
+    /// <summary>Segment under the pointer in the preview, highlighted so a click's target shows; -1 for none.</summary>
+    private int _hoverSegment = -1;
+
+    /// <summary>Highlights the segment under a point of the editor canvas (editor pixels) in the preview.</summary>
+    public void UpdateWheelHover(double editorX, double editorY) => SetWheelHover(WheelSegmentAt(editorX, editorY));
+
+    /// <summary>Removes the hover highlight, e.g. when the pointer leaves the preview.</summary>
+    public void ClearWheelHover() => SetWheelHover(-1);
+
+    private void SetWheelHover(int segment)
+    {
+        if (segment == _hoverSegment) return;
+        _hoverSegment = segment;
+        UpdateEditorPreview();
+    }
+
+    /// <summary>The segment of a split wheel under a point of the editor canvas, or -1.</summary>
+    private int WheelSegmentAt(double editorX, double editorY)
+    {
+        if (!IsWheelSplit) return -1;
+
+        var (scale, frameW, frameH) = BitmapHelper.ComputeEditorFrame(DeviceWidth, DeviceHeight);
+        double x = (editorX - ((EditorCanvasWidth - frameW) / 2.0)) / scale;
+        double y = (editorY - ((EditorCanvasHeight - frameH) / 2.0)) / scale;
+        if (x < 0 || y < 0 || x > DeviceWidth || y > DeviceHeight) return -1;
+
+        // Only the round glass counts: the corners of the square show nothing.
+        double r = DeviceWidth / 2.0;
+        if (((x - r) * (x - r)) + ((y - r) * (y - r)) > r * r) return -1;
+
+        return WheelSplitGeometry.HitTest(_wheel.SplitMode, (int)x, (int)y, DeviceWidth);
+    }
 
     // Set while ConfigureWheel picks the current option, so that does not count as a change.
     private bool _suppressWheelSplitChange;
@@ -639,7 +669,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// The surfaces of a split wheel the editor can work on: first "All segments", then the
     /// segments in segment order.
     /// </summary>
-    public IReadOnlyList<string> WheelSurfaceChoices { get; private set; } = [];
+    public IReadOnlyList<WheelSurfaceChoice> WheelSurfaceChoices { get; private set; } = [];
 
     /// <summary>The selected entry of <see cref="WheelSurfaceChoices"/>: 0 = all segments, n = segment n - 1.</summary>
     [ObservableProperty]
@@ -666,14 +696,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// </summary>
     public bool TrySelectWheelSegmentAt(double editorX, double editorY)
     {
-        if (!IsWheelSplit) return false;
-
-        var (scale, frameW, frameH) = BitmapHelper.ComputeEditorFrame(DeviceWidth, DeviceHeight);
-        double x = (editorX - ((EditorCanvasWidth - frameW) / 2.0)) / scale;
-        double y = (editorY - ((EditorCanvasHeight - frameH) / 2.0)) / scale;
-        if (x < 0 || y < 0 || x > DeviceWidth || y > DeviceHeight) return false;
-
-        int index = WheelSplitGeometry.HitTest(_wheel.SplitMode, (int)x, (int)y, DeviceWidth);
+        int index = WheelSegmentAt(editorX, editorY);
         if (index < 0) return false;
 
         SelectedWheelSurface = index + 1;
@@ -682,9 +705,12 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
     private void RebuildWheelSurfaceChoices()
     {
+        var mode = _wheel?.SplitMode ?? Models.WheelSplitMode.None;
         WheelSurfaceChoices = IsWheelSplit
-            ? [Loc.Tr("Wheel_AllSegments"), .. Enumerable.Range(0, WheelSplitGeometry.SegmentCount(_wheel.SplitMode))
-                .Select(i => Loc.Tr(WheelSplitGeometry.SegmentNameKey(_wheel.SplitMode, i)))]
+            ? [new WheelSurfaceChoice(Loc.Tr("Wheel_AllSegments"), WheelZoneIcons.Whole(), WheelZoneIcons.Lines(mode)),
+                .. Enumerable.Range(0, WheelSplitGeometry.SegmentCount(mode))
+                    .Select(i => new WheelSurfaceChoice(Loc.Tr(WheelSplitGeometry.SegmentNameKey(mode, i)),
+                        WheelZoneIcons.Fill(mode, i), WheelZoneIcons.Lines(mode)))]
             : [];
         OnPropertyChanged(nameof(WheelSurfaceChoices));
         SelectedWheelSurface = SurfaceChoiceOf(_wheelSegmentIndex);
@@ -704,11 +730,11 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     private void SwitchEditedCanvas(TouchButton canvas, int segmentIndex)
     {
         _wheelSegmentIndex = segmentIndex;
+        _hoverSegment = -1;
         SelectedLayer = null;
         Initialize(canvas);
         SelectedWheelSurface = SurfaceChoiceOf(segmentIndex);
         OnPropertyChanged(nameof(ButtonLabel));
-        OnPropertyChanged(nameof(ShowSharedLayerPlacement));
     }
 
     /// <summary>Sample value the wheel preview is rendered with, so the arc and value text are visible.</summary>
@@ -836,9 +862,17 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         set
         {
             if (ReferenceEquals(_selectedLayer, value)) return;
+
+            // The segments row of the all-segments list is not a layer: keep the selection and
+            // tell the list again, so it shows the real one.
+            if (value is WheelSegmentsMarker)
+            {
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => OnPropertyChanged(nameof(SelectedLayer)));
+                return;
+            }
+
             _selectedLayer = value;
             OnPropertyChanged(nameof(SelectedLayer));
-            OnPropertyChanged(nameof(ShowSharedLayerPlacement));
             OnPropertyChanged(nameof(SelectedImageLayer));
             OnPropertyChanged(nameof(SelectedTextLayer));
             OnPropertyChanged(nameof(SelectedImageCommandChoice));
@@ -1716,9 +1750,11 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
     /// <summary>
     /// The layers as the list shows them: topmost first. A reversed mirror of
-    /// <see cref="TouchButton.Layers"/>, whose order is the paint order (first at the bottom).
+    /// <see cref="TouchButton.Layers"/>, whose order is the paint order (first at the bottom); on a
+    /// split wheel's all-segments surface grouped around a row for the segments
+    /// (<see cref="SharedSurfaceLayerView"/>).
     /// </summary>
-    public ReversedLayerView LayerListItems
+    public ObservableCollection<LayerBase> LayerListItems
     {
         get;
         private set
@@ -1731,14 +1767,64 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
     private void RebuildLayerListItems()
     {
-        LayerListItems?.Dispose();
-        LayerListItems = ButtonData?.Layers != null ? new ReversedLayerView(ButtonData.Layers) : null;
+        (LayerListItems as IDisposable)?.Dispose();
+        if (ButtonData?.Layers == null)
+            LayerListItems = null;
+        else if (IsEditingSharedSurface)
+            LayerListItems = new SharedSurfaceLayerView(ButtonData.Layers, _segmentsMarker);
+        else
+            LayerListItems = new ReversedLayerView(ButtonData.Layers);
+    }
+
+    /// <summary>
+    /// ▲ / ▼ on the all-segments surface: a step within the layer's side, or across the segments
+    /// row onto the other side when the layer is the one next to it. The canvas keeps the order
+    /// the list shows: the layers behind the segments first, those in front after them.
+    /// </summary>
+    private void MoveSharedLayer(LayerBase layer, bool up)
+    {
+        var layers = ButtonData.Layers;
+
+        // Behind layers first, each side in its paint order; changes nothing that is drawn.
+        var ordered = layers.Where(l => l.BehindSegments).Concat(layers.Where(l => !l.BehindSegments)).ToList();
+        for (int k = 0; k < ordered.Count; k++)
+        {
+            int at = layers.IndexOf(ordered[k]);
+            if (at != k) layers.Move(at, k);
+        }
+
+        int i = layers.IndexOf(layer);
+        int boundary = layers.Count(l => l.BehindSegments);
+        if (i < 0) return;
+
+        if (up)
+        {
+            if (layer.BehindSegments && i == boundary - 1)
+                layer.BehindSegments = false;
+            else if (i < layers.Count - 1)
+                layers.Move(i, i + 1);
+        }
+        else
+        {
+            if (!layer.BehindSegments && i == boundary)
+                layer.BehindSegments = true;
+            else if (i > 0)
+                layers.Move(i, i - 1);
+        }
+
+        ReselectAfterMove(layer);
     }
 
     /// <summary>Moves the selected layer one step up the list, i.e. one step closer to the top of the stack.</summary>
     private void MoveSelectedLayerUp()
     {
         if (_selectedLayer == null) return;
+        if (IsEditingSharedSurface)
+        {
+            MoveSharedLayer(_selectedLayer, up: true);
+            return;
+        }
+
         var layer = _selectedLayer;
         var idx = ButtonData.Layers.IndexOf(layer);
         if (idx < 0 || idx >= ButtonData.Layers.Count - 1) return;
@@ -1750,6 +1836,12 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     private void MoveSelectedLayerDown()
     {
         if (_selectedLayer == null) return;
+        if (IsEditingSharedSurface)
+        {
+            MoveSharedLayer(_selectedLayer, up: false);
+            return;
+        }
+
         var layer = _selectedLayer;
         var idx = ButtonData.Layers.IndexOf(layer);
         if (idx <= 0) return;
@@ -1987,7 +2079,8 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
                 wheelSplit: IsWheelSplit ? _wheel.SplitMode : Models.WheelSplitMode.None,
                 wheelSegment: IsEditingSharedSurface ? -1 : _wheelSegmentIndex,
                 wheelSegments: IsWheelSplit ? _wheel.ActiveSegments().Select(s => s.Canvas).ToArray() : null,
-                wheelShared: IsWheelSplit ? _wheel.SplitCanvas : null);
+                wheelShared: IsWheelSplit ? _wheel.SplitCanvas : null,
+                wheelHover: _hoverSegment);
         }
 
         EditorPreview = target;
@@ -2050,7 +2143,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             ButtonData.LiveContentChanged -= ButtonData_LiveContentChanged;
         }
 
-        LayerListItems?.Dispose();
+        (LayerListItems as IDisposable)?.Dispose();
         LayerListItems = null;
 
         DisposePreviewBuffers();
