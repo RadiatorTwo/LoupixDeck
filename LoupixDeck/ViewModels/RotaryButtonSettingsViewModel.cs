@@ -49,7 +49,7 @@ public partial class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryB
     /// System.UpdateButton / GotoRotaryPage index space. The CT's centre wheel is named
     /// as such rather than as a seventh rotary.</summary>
     public string KnobLabel => ButtonData?.Index == LoupedeckDevice.Device.LoupedeckDevice.WheelRotaryIndex
-        ? "Centre Wheel"
+        ? Loc.Tr("TouchButton_CentreWheelTitle")
         : $"Rotary Button {(ButtonData?.Index ?? 0) + 1}";
 
     /// <summary>True when editing the Loupedeck CT's centre wheel, whose screen can be split.</summary>
