@@ -26,47 +26,25 @@ public static class WheelCanvasDefaults
     }
 
     /// <summary>
-    /// A new canvas for segment <paramref name="index"/> of a split wheel (<paramref name="mode"/>):
-    /// the whole <paramref name="size"/>-pixel screen, black, with the segment's label centred in
-    /// the visible part of the segment. The renderer clips it to the segment.
+    /// A new canvas for segment <paramref name="index"/> of a split wheel: the whole wheel screen
+    /// with a black background and no layers. The user adds text and images in the appearance
+    /// editor; the renderer clips the canvas to the segment.
     /// </summary>
-    public static TouchButton CreateSegment(int size, WheelSplitMode mode, int index)
+    public static TouchButton CreateSegment(int index)
     {
-        if (size <= 0) size = 240;
-
         var canvas = new TouchButton(RotaryButton.WheelSegmentCanvasIndex + index);
-        PopulateSegment(canvas, size, mode, index);
+        PopulateSegment(canvas);
         return canvas;
     }
 
-    /// <summary>
-    /// Replaces <paramref name="canvas"/>'s background and layers with the default look of segment
-    /// <paramref name="index"/> (see <see cref="CreateSegment"/>).
-    /// </summary>
-    public static void PopulateSegment(TouchButton canvas, int size, WheelSplitMode mode, int index)
+    /// <summary>Resets <paramref name="canvas"/> to a segment's default look (see <see cref="CreateSegment"/>).</summary>
+    public static void PopulateSegment(TouchButton canvas)
     {
         ArgumentNullException.ThrowIfNull(canvas);
-        if (size <= 0) size = 240;
 
         canvas.BackgroundEnabled = true;
         canvas.BackColor = Colors.Black;
         canvas.Layers.Clear();
-
-        var centre = WheelSplitGeometry.Centroid(mode, index, size);
-        var box = WheelSplitGeometry.LabelBox(mode, size);
-        canvas.Layers.Add(new TextLayer
-        {
-            FontFamily = TextFontSettings.DefaultFamily,
-            Name = LabelLayerName,
-            TextSource = TextSource.DialLabel,
-            TextSize = WheelSplitGeometry.SegmentCount(mode) > 2 ? 16 : 20,
-            Centered = true,
-            BoxWidth = box.Width,
-            BoxHeight = box.Height,
-            // Centred boxes are positioned by their offset from the screen centre.
-            PositionX = (int)Math.Round(centre.X - size / 2f),
-            PositionY = (int)Math.Round(centre.Y - size / 2f)
-        });
     }
 
     /// <summary>

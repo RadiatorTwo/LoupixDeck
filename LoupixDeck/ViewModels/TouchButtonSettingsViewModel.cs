@@ -536,7 +536,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// </summary>
     private DialRenderContext? PreviewDial => IsWheelCanvas
         ? new DialRenderContext(
-            WheelPreviewLabel(EditedSegment?.DisplayText ?? _wheel.DisplayText),
+            WheelPreviewLabel(_wheel.DisplayText),
             WheelPreviewValue)
         : IsStripCanvas
             ? null
@@ -1618,7 +1618,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             // A wheel canvas resets to the automatic layout's layers rather than to nothing, so
             // "Reset" means "back to the stock look", not a blank disc.
             if (IsWheelCanvas && EditedSegment != null)
-                WheelCanvasDefaults.PopulateSegment(b, DeviceWidth, _wheel.SplitMode, _wheelSegmentIndex);
+                WheelCanvasDefaults.PopulateSegment(b);
             else if (IsWheelCanvas)
                 WheelCanvasDefaults.Populate(b, DeviceWidth);
         }

@@ -1561,7 +1561,7 @@ public partial class MainWindowViewModel : ViewModelBase
         var segment = segments[index];
 
         bool created = segment.Canvas == null;
-        segment.Canvas ??= WheelCanvasDefaults.CreateSegment(size, wheel.SplitMode, index);
+        segment.Canvas ??= WheelCanvasDefaults.CreateSegment(index);
         LoupedeckController.RegisterWheelCanvas(wheel);
         if (created)
             RescanWheelContent();

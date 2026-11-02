@@ -108,7 +108,7 @@ public partial class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryB
                     Loc.Tr(WheelSplitGeometry.SegmentNameKey(ButtonData.SplitMode, i)),
                     _commandBuilder, _commandRegistry, _commandLock, _dialogService,
                     () => segment.Command, v => segment.Command = v);
-                editors.Add(new WheelSegmentEditor(segment, slot));
+                editors.Add(new WheelSegmentEditor(slot));
             }
         }
 

@@ -3284,10 +3284,9 @@ public static class BitmapHelper
 
     /// <summary>
     /// Renders a split wheel screen (<see cref="RotaryButton.SplitMode"/>): each segment clipped
-    /// to its area, drawn from its own layer canvas (background colour, then layers, with the
-    /// segment's label and the wheel's live <paramref name="value"/> available to dial layers) or,
-    /// without one, its label centred in the segment; then the divider lines on top. The caller owns
-    /// the bitmap.
+    /// to its area and drawn from its own layer canvas (background colour, then layers, with the
+    /// wheel mode's label and live <paramref name="value"/> available to dial layers); a segment
+    /// without a canvas stays black. The divider lines go on top. The caller owns the bitmap.
     /// </summary>
     public static SKBitmap RenderWheelSegments(RotaryButton wheel, LoupixDeck.PluginSdk.AdjustmentValue? value,
         int size)
@@ -3318,15 +3317,7 @@ public static class BitmapHelper
                     if (segmentCanvas.BackgroundEnabled)
                         canvas.DrawColor(segmentCanvas.BackColor.ToSKColor());
                     DrawLayers(canvas, segmentCanvas.Layers, size, size,
-                        new DialRenderContext(segment.DisplayText, value));
-                }
-                else if (!string.IsNullOrWhiteSpace(segment.DisplayText))
-                {
-                    var centre = WheelSplitGeometry.Centroid(mode, i, size);
-                    var box = WheelSplitGeometry.LabelBox(mode, size);
-                    DrawTextAt(canvas, segment.DisplayText, SKColors.White, segments.Count > 2 ? 16 : 22,
-                        centered: true, posX: centre.X - box.Width / 2f, posY: centre.Y - box.Height / 2f,
-                        imageWidth: box.Width, imageHeight: box.Height, bold: false);
+                        new DialRenderContext(wheel.DisplayText, value));
                 }
 
                 canvas.Restore();

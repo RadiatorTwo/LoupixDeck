@@ -127,18 +127,6 @@ public static class WheelSplitGeometry
         };
     }
 
-    /// <summary>
-    /// The width and height a label box of a <paramref name="mode"/> segment can take around its
-    /// <see cref="Centroid"/> without leaving the segment's visible slice.
-    /// </summary>
-    public static SKSizeI LabelBox(WheelSplitMode mode, int size) => mode switch
-    {
-        WheelSplitMode.Horizontal => new SKSizeI((int)(size * 0.62f), (int)(size * 0.28f)),
-        WheelSplitMode.Vertical => new SKSizeI((int)(size * 0.36f), (int)(size * 0.4f)),
-        WheelSplitMode.Diagonal or WheelSplitMode.Cross => new SKSizeI((int)(size * 0.3f), (int)(size * 0.2f)),
-        _ => new SKSizeI((int)(size * 0.62f), (int)(size * 0.62f))
-    };
-
     /// <summary>The divider lines of <paramref name="mode"/>, as (from, to) pairs. Empty when unsplit.</summary>
     public static IReadOnlyList<(SKPoint From, SKPoint To)> Dividers(WheelSplitMode mode, int size)
     {
