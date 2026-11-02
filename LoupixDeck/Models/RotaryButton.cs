@@ -130,6 +130,13 @@ public partial class RotaryButton(int index,string rotaryLeftCommand, string rot
 
     public bool ShouldSerializeSegments() => Segments is { Count: > 0 };
 
+    /// <summary>
+    /// The commands bound to the dial itself, in resolution order: left, right, then the press
+    /// command. A split wheel's press lives on its segments, so its own press command is left out.
+    /// </summary>
+    public string[] DialCommands() =>
+        IsSplit ? [RotaryLeftCommand, RotaryRightCommand] : [RotaryLeftCommand, RotaryRightCommand, Command];
+
     /// <summary>True when the wheel screen is split into segments.</summary>
     [JsonIgnore]
     public bool IsSplit => SplitMode != WheelSplitMode.None;

@@ -3242,6 +3242,65 @@ public static class BitmapHelper
         }
     }
 
+    // Divider between the segments of a split wheel: thin and dim, so it separates without
+    // competing with the segments' own content.
+    private static readonly SKColor WheelDividerColor = new(255, 255, 255, 0x60);
+
+    /// <summary>
+    /// Renders a split wheel screen (<see cref="RotaryButton.SplitMode"/>): each segment clipped
+    /// to its area, drawn from its own layer canvas (background colour, then layers, with the
+    /// segment's label and the wheel's live <paramref name="value"/> available to dial layers) or,
+    /// without one, its label centred in the segment; then the divider lines on top. The caller owns
+    /// the bitmap.
+    /// </summary>
+    public static SKBitmap RenderWheelSegments(RotaryButton wheel, LoupixDeck.PluginSdk.AdjustmentValue? value,
+        int size)
+    {
+        ArgumentNullException.ThrowIfNull(wheel);
+
+        var mode = wheel.SplitMode;
+        var segments = wheel.ActiveSegments();
+
+        // Recorded, so the on-screen view can draw the wheel sharp at its own size (#251).
+        using var recording = new RecordedRender(size, size);
+
+        lock (SkiaRenderGate.Sync)
+        {
+            var canvas = recording.Canvas;
+            canvas.Clear(SKColors.Black);
+
+            for (int i = 0; i < segments.Count; i++)
+            {
+                var segment = segments[i];
+                using var area = WheelSplitGeometry.SegmentPath(mode, i, size);
+
+                canvas.Save();
+                canvas.ClipPath(area, antialias: true);
+
+                if (segment.Canvas is { } segmentCanvas)
+                {
+                    if (segmentCanvas.BackgroundEnabled)
+                        canvas.DrawColor(segmentCanvas.BackColor.ToSKColor());
+                    DrawLayers(canvas, segmentCanvas.Layers, size, size,
+                        new DialRenderContext(segment.DisplayText, value));
+                }
+                else if (!string.IsNullOrWhiteSpace(segment.DisplayText))
+                {
+                    var centre = WheelSplitGeometry.Centroid(mode, i, size);
+                    var box = WheelSplitGeometry.LabelBox(mode, size);
+                    DrawTextAt(canvas, segment.DisplayText, SKColors.White, segments.Count > 2 ? 16 : 22,
+                        centered: true, posX: centre.X - box.Width / 2f, posY: centre.Y - box.Height / 2f,
+                        imageWidth: box.Width, imageHeight: box.Height, bold: false);
+                }
+
+                canvas.Restore();
+            }
+
+            WheelSplitGeometry.DrawDividers(canvas, mode, size, WheelDividerColor, Math.Max(1f, size / 120f));
+            return recording.Finish();
+        }
+    }
+
     /// <summary>
     /// Lets a plugin draw the wheel screen (<paramref name="size"/> square) onto a black canvas.
     /// Returns the frame, or null when <paramref name="render"/> declines or throws, so the caller
