@@ -190,6 +190,6 @@ public static class WheelSplitGeometry
             2 => "Wheel_SegmentBottomLeft",
             _ => "Wheel_SegmentBottomRight"
         },
-        _ => "Device_CentreWheel"
+        _ => "TouchButton_CentreWheelTitle"
     };
 }

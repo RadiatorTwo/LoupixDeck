@@ -139,6 +139,59 @@
                 </Border>
             </StackPanel>
         </DataTemplate>
+
+        <!-- One press strip of a split wheel's segment: its name, label and command chain. The
+             chip list's data context is the segment's slot, so the shared chip handlers and the
+             drag code treat it like the fixed strips. -->
+        <DataTemplate x:Key="SegmentStripTemplate" DataType="{x:Type vm:WheelSegmentEditor}">
+            <Border Classes="sequence-strip segment-strip"
+                    Classes.active="{Binding Slot.IsActive}"
+                    MinHeight="120"
+                    Margin="0,0,0,10">
+                <Grid RowDefinitions="Auto,Auto,*">
+                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,6">
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Slot.Title}" FontWeight="SemiBold" />
+                            <TextBlock Classes="hint"
+                                       Text="{loc:TrFormat Common_CommandCountFmt, Slot.Commands.Count}" />
+                        </StackPanel>
+                        <Button Grid.Column="1" Content="{loc:Tr RotaryButton_Clear}"
+                                Command="{Binding Slot.ClearCommandCommand}"
+                                IsEnabled="{Binding Slot.HasCommand}"
+                                VerticalAlignment="Center"
+                                MinWidth="70"
+                                HorizontalContentAlignment="Center"
+                                ToolTip.Tip="{loc:Tr RotaryButton_RemoveAllCommandsInThis}" />
+                    </Grid>
+                    <Grid Grid.Row="1" ColumnDefinitions="Auto,*" Margin="0,0,0,8">
+                        <TextBlock Grid.Column="0" Text="{loc:Tr Wheel_SegmentLabel}"
+                                   VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <TextBox Grid.Column="1"
+                                 Text="{Binding Segment.DisplayText, Mode=TwoWay}"
+                                 ToolTip.Tip="{loc:Tr Wheel_SegmentLabelHint}" />
+                    </Grid>
+                    <Panel Grid.Row="2" MinHeight="36">
+                        <ScrollViewer Margin="-22,0,-6,0"
+                                      HorizontalScrollBarVisibility="Disabled"
+                                      VerticalScrollBarVisibility="Auto">
+                            <ItemsControl Classes="segment-commands"
+                                          DataContext="{Binding Slot}"
+                                          x:DataType="vm:CommandSequenceSlot"
+                                          ItemsSource="{Binding Commands}"
+                                          VerticalAlignment="Top"
+                                          ItemsPanel="{StaticResource ChipPanel}"
+                                          ItemTemplate="{StaticResource CommandChipTemplate}"
+                                          PointerMoved="CommandList_PointerMoved"
+                                          PointerReleased="CommandList_PointerReleased"
+                                          PointerCaptureLost="CommandList_PointerCaptureLost" />
+                        </ScrollViewer>
+                        <TextBlock Classes="hint" VerticalAlignment="Center"
+                                   Text="{loc:Tr RotaryButton_EmptyClickThisStripThen}"
+                                   IsVisible="{Binding !Slot.Commands.Count}" />
+                    </Panel>
+                </Grid>
+            </Border>
+        </DataTemplate>
     </Window.Resources>
 
     <Window.Styles>
@@ -164,12 +217,22 @@
             <!-- OFF toggle + side-strip label sit directly under the title, above
                  the command slots. The label shows on the dial's side-strip segment
                  (segmented mode, Razer); ignored on devices without side strips. -->
-            <Grid Grid.Row="1" ColumnDefinitions="Auto,*" Margin="0,0,0,8">
+            <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,*" Margin="0,0,0,8">
                 <CheckBox Grid.Column="0"
                           Content="{loc:Tr RotaryButton_RunAlsoWhenDeviceIs}"
                           IsChecked="{Binding ButtonData.EnableWhenOff}"
                           VerticalAlignment="Center" />
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                <!-- CT centre wheel only: split its screen into separately pressable segments. -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="16,0,0,0"
+                            VerticalAlignment="Center"
+                            IsVisible="{Binding IsWheel}">
+                    <TextBlock Text="{loc:Tr Wheel_SplitMode}" VerticalAlignment="Center" />
+                    <ComboBox Width="190"
+                              ItemsSource="{Binding SplitOptions}"
+                              SelectedItem="{Binding SelectedSplitOption, Mode=TwoWay}"
+                              ToolTip.Tip="{loc:Tr Wheel_SplitModeHint}" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8"
                             HorizontalAlignment="Right" VerticalAlignment="Center">
                     <TextBlock Text="{loc:Tr RotaryButton_StripLabel}" VerticalAlignment="Center" />
                     <TextBox Width="200"
@@ -190,7 +253,7 @@
 
                 <!-- Left: three sequence strips, equal share of the height. Click
                      a strip to make it the double-click target. -->
-                <Grid Grid.Column="0" RowDefinitions="*,*,*" Margin="0,0,12,0">
+                <Grid Grid.Column="0" Name="SlotColumn" RowDefinitions="*,*,*" Margin="0,0,12,0">
 
                     <!-- Rotate Left -->
                     <Border Grid.Row="0" Name="CommandDropZoneLeft"
@@ -284,50 +347,62 @@
                         </Grid>
                     </Border>
 
-                    <!-- Button Press -->
-                    <Border Grid.Row="2" Name="CommandDropZonePress"
-                            x:DataType="vm:CommandSequenceSlot"
-                            DataContext="{Binding ButtonPressSlot}"
-                            Classes="sequence-strip"
-                            Classes.active="{Binding IsActive}">
-                        <Grid RowDefinitions="Auto,*">
-                            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
-                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
-                                    <TextBlock Classes="hint"
-                                               Text="{loc:TrFormat Common_CommandCountFmt, Commands.Count}" />
-                                </StackPanel>
-                                <Button Grid.Column="1" Content="{loc:Tr RotaryButton_Clear}"
-                                        Command="{Binding ClearCommandCommand}"
-                                        IsEnabled="{Binding HasCommand}"
-                                        VerticalAlignment="Center"
-                                        MinWidth="70"
-                                        HorizontalContentAlignment="Center"
-                                        ToolTip.Tip="{loc:Tr RotaryButton_RemoveAllCommandsInThis}" />
+                    <!-- Split wheel: one press strip per segment instead of the single press. -->
+                    <ScrollViewer Grid.Row="2"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  VerticalScrollBarVisibility="Auto"
+                                  IsVisible="{Binding IsSplit}">
+                        <ItemsControl Name="SegmentList"
+                                      ItemsSource="{Binding SegmentEditors}"
+                                      ItemTemplate="{StaticResource SegmentStripTemplate}" />
+                    </ScrollViewer>
+
+                    <!-- Button Press (hidden while the wheel is split) -->
+                    <Panel Grid.Row="2" IsVisible="{Binding !IsSplit}">
+                        <Border Name="CommandDropZonePress"
+                                x:DataType="vm:CommandSequenceSlot"
+                                DataContext="{Binding ButtonPressSlot}"
+                                Classes="sequence-strip"
+                                Classes.active="{Binding IsActive}">
+                            <Grid RowDefinitions="Auto,*">
+                                <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                                        <TextBlock Classes="hint"
+                                                   Text="{loc:TrFormat Common_CommandCountFmt, Commands.Count}" />
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Content="{loc:Tr RotaryButton_Clear}"
+                                            Command="{Binding ClearCommandCommand}"
+                                            IsEnabled="{Binding HasCommand}"
+                                            VerticalAlignment="Center"
+                                            MinWidth="70"
+                                            HorizontalContentAlignment="Center"
+                                            ToolTip.Tip="{loc:Tr RotaryButton_RemoveAllCommandsInThis}" />
+                                </Grid>
+                                <Panel Grid.Row="1" MinHeight="36">
+                                    <!-- Pulled left by the leading arrow gutter (22) so the first
+                                         chip of each row lines up with the strip's title, and
+                                         widened right by the chip's trailing margin (6) so the
+                                         wrap width still fits two chips per row. -->
+                                    <ScrollViewer Margin="-22,0,-6,0"
+                                                  HorizontalScrollBarVisibility="Disabled"
+                                                  VerticalScrollBarVisibility="Auto">
+                                        <ItemsControl Name="CommandListPress"
+                                                      ItemsSource="{Binding Commands}"
+                                                      VerticalAlignment="Top"
+                                                      ItemsPanel="{StaticResource ChipPanel}"
+                                                      ItemTemplate="{StaticResource CommandChipTemplate}"
+                                                      PointerMoved="CommandList_PointerMoved"
+                                                      PointerReleased="CommandList_PointerReleased"
+                                                      PointerCaptureLost="CommandList_PointerCaptureLost" />
+                                    </ScrollViewer>
+                                    <TextBlock Classes="hint" VerticalAlignment="Center"
+                                               Text="{loc:Tr RotaryButton_EmptyClickThisStripThen}"
+                                               IsVisible="{Binding !Commands.Count}" />
+                                </Panel>
                             </Grid>
-                            <Panel Grid.Row="1" MinHeight="36">
-                                <!-- Pulled left by the leading arrow gutter (22) so the first
-                                     chip of each row lines up with the strip's title, and
-                                     widened right by the chip's trailing margin (6) so the
-                                     wrap width still fits two chips per row. -->
-                                <ScrollViewer Margin="-22,0,-6,0"
-                                              HorizontalScrollBarVisibility="Disabled"
-                                              VerticalScrollBarVisibility="Auto">
-                                    <ItemsControl Name="CommandListPress"
-                                                  ItemsSource="{Binding Commands}"
-                                                  VerticalAlignment="Top"
-                                                  ItemsPanel="{StaticResource ChipPanel}"
-                                                  ItemTemplate="{StaticResource CommandChipTemplate}"
-                                                  PointerMoved="CommandList_PointerMoved"
-                                                  PointerReleased="CommandList_PointerReleased"
-                                                  PointerCaptureLost="CommandList_PointerCaptureLost" />
-                                </ScrollViewer>
-                                <TextBlock Classes="hint" VerticalAlignment="Center"
-                                           Text="{loc:Tr RotaryButton_EmptyClickThisStripThen}"
-                                           IsVisible="{Binding !Commands.Count}" />
-                            </Panel>
-                        </Grid>
-                    </Border>
+                        </Border>
+                    </Panel>
                 </Grid>
 
                 <!-- Right: master-detail command picker, full height (issue #171) -->

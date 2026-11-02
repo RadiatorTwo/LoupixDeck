@@ -503,6 +503,26 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         OnPropertyChanged(nameof(TextSources));
     }
 
+    /// <summary>Segment of a split wheel being edited, or -1 for the whole wheel screen.</summary>
+    private int _wheelSegmentIndex = -1;
+
+    /// <summary>The segment being edited, or null for the whole wheel screen.</summary>
+    private WheelSegment EditedSegment =>
+        _wheel != null && _wheelSegmentIndex >= 0 && _wheelSegmentIndex < _wheel.ActiveSegments().Count
+            ? _wheel.ActiveSegments()[_wheelSegmentIndex]
+            : null;
+
+    /// <summary>
+    /// Like <see cref="ConfigureWheel"/>, for the canvas of segment <paramref name="index"/> of a
+    /// split wheel: the preview dims everything outside the segment, dial-label layers show the
+    /// segment's label, and "Reset" goes back to the segment's default look.
+    /// </summary>
+    public void ConfigureWheelSegment(RotaryButton wheel, int index)
+    {
+        _wheelSegmentIndex = index;
+        ConfigureWheel(wheel);
+    }
+
     /// <summary>Sample value the wheel preview is rendered with, so the arc and value text are visible.</summary>
     private static readonly AdjustmentValue WheelPreviewValue = new(0.65, "65 %");
 
@@ -516,7 +536,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// </summary>
     private DialRenderContext? PreviewDial => IsWheelCanvas
         ? new DialRenderContext(
-            string.IsNullOrWhiteSpace(_wheel.DisplayText) ? Loc.Tr("TouchButton_WheelSampleLabel") : _wheel.DisplayText,
+            WheelPreviewLabel(EditedSegment?.DisplayText ?? _wheel.DisplayText),
             WheelPreviewValue)
         : IsStripCanvas
             ? null
@@ -605,7 +625,16 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     public int ButtonNumber => (ButtonData?.Index ?? 0) + 1;
 
     /// <summary>Window title, e.g. "Touch Button 1" — or the wheel's own title for its canvas.</summary>
-    public string ButtonLabel => IsWheelCanvas ? Loc.Tr("TouchButton_CentreWheelTitle") : $"Touch Button {ButtonNumber}";
+    public string ButtonLabel => IsWheelCanvas
+        ? EditedSegment != null
+            ? Loc.Tr("Wheel_SegmentTitleFmt", Loc.Tr("TouchButton_CentreWheelTitle"),
+                Loc.Tr(WheelSplitGeometry.SegmentNameKey(_wheel.SplitMode, _wheelSegmentIndex)))
+            : Loc.Tr("TouchButton_CentreWheelTitle")
+        : $"Touch Button {ButtonNumber}";
+
+    /// <summary>The wheel preview's dial label: <paramref name="label"/>, or a sample when it is empty.</summary>
+    private static string WheelPreviewLabel(string label) =>
+        string.IsNullOrWhiteSpace(label) ? Loc.Tr("TouchButton_WheelSampleLabel") : label;
 
     /// <summary>Resolution badge shown in the canvas corner, e.g. "90 × 90 px".</summary>
     public string CanvasSizeText => $"{DeviceWidth} × {DeviceHeight} px";
@@ -1588,7 +1617,9 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
             // A wheel canvas resets to the automatic layout's layers rather than to nothing, so
             // "Reset" means "back to the stock look", not a blank disc.
-            if (IsWheelCanvas)
+            if (IsWheelCanvas && EditedSegment != null)
+                WheelCanvasDefaults.PopulateSegment(b, DeviceWidth, _wheel.SplitMode, _wheelSegmentIndex);
+            else if (IsWheelCanvas)
                 WheelCanvasDefaults.Populate(b, DeviceWidth);
         }
         finally
@@ -1759,7 +1790,9 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             SKImageInfo info = new(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
             using SKSurface surface = SKSurface.Create(info, frame.Address, frame.RowBytes);
             BitmapHelper.DrawEditorCanvas(surface.Canvas, ButtonData, width, height, DeviceWidth, DeviceHeight,
-                ShowGrid, GridStepDevice, segmentCount, PreviewDial, roundMask: IsWheelCanvas);
+                ShowGrid, GridStepDevice, segmentCount, PreviewDial, roundMask: IsWheelCanvas,
+                wheelSplit: EditedSegment != null ? _wheel.SplitMode : Models.WheelSplitMode.None,
+                wheelSegment: _wheelSegmentIndex);
         }
 
         EditorPreview = target;

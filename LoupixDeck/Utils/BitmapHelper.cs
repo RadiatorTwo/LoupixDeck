@@ -1811,21 +1811,25 @@ public static class BitmapHelper
         int gridStepDevice = 10,
         int segmentCount = 0,
         DialRenderContext? dial = null,
-        bool roundMask = false)
+        bool roundMask = false,
+        WheelSplitMode wheelSplit = WheelSplitMode.None,
+        int wheelSegment = -1)
     {
         ArgumentNullException.ThrowIfNull(touchButton);
 
         var bmp = new SKBitmap(canvasWidth, canvasHeight);
         using var canvas = new SKCanvas(bmp);
         DrawEditorCanvas(canvas, touchButton, canvasWidth, canvasHeight, deviceWidth, deviceHeight,
-            drawGrid, gridStepDevice, segmentCount, dial, roundMask);
+            drawGrid, gridStepDevice, segmentCount, dial, roundMask, wheelSplit, wheelSegment);
         return bmp;
     }
 
     /// <summary>
     /// Draws what <see cref="RenderEditorCanvas"/> renders onto a caller-owned canvas of
     /// <paramref name="canvasWidth"/>×<paramref name="canvasHeight"/>, so a caller that redraws
-    /// often can reuse its pixel buffer instead of allocating one per frame.
+    /// often can reuse its pixel buffer instead of allocating one per frame. For a segment of a
+    /// split wheel (<paramref name="wheelSplit"/>, <paramref name="wheelSegment"/>) everything
+    /// outside the segment is dimmed, since the wheel clips it away.
     /// </summary>
     public static void DrawEditorCanvas(
         SKCanvas canvas,
@@ -1838,7 +1842,9 @@ public static class BitmapHelper
         int gridStepDevice = 10,
         int segmentCount = 0,
         DialRenderContext? dial = null,
-        bool roundMask = false)
+        bool roundMask = false,
+        WheelSplitMode wheelSplit = WheelSplitMode.None,
+        int wheelSegment = -1)
     {
         ArgumentNullException.ThrowIfNull(canvas);
         ArgumentNullException.ThrowIfNull(touchButton);
@@ -1920,6 +1926,10 @@ public static class BitmapHelper
             };
             canvas.DrawOval(frameRect, edge);
         }
+
+        if (wheelSplit != WheelSplitMode.None && wheelSegment >= 0)
+            DrawWheelSegmentMask(canvas, frameOffsetX, frameOffsetY, scale, deviceWidth, frameRect,
+                wheelSplit, wheelSegment);
 
         // Optional alignment grid, drawn on top of the layers but kept subtle so it
         // never competes with the content. Lines are spaced in device pixels and
@@ -3240,6 +3250,32 @@ public static class BitmapHelper
             DrawLayers(skCanvas, canvas.Layers, size, size, new DialRenderContext(wheel.DisplayText, value));
             return recording.Finish();
         }
+    }
+
+    /// <summary>
+    /// Editor overlay for one segment of a split wheel: dims the rest of the screen, which the
+    /// wheel clips away, and draws the dividers so the user sees the segment's edges.
+    /// </summary>
+    private static void DrawWheelSegmentMask(SKCanvas canvas, float offsetX, float offsetY, float scale,
+        int size, SKRect frameRect, WheelSplitMode mode, int index)
+    {
+        using var area = WheelSplitGeometry.SegmentPath(mode, index, size);
+        area.Transform(SKMatrix.CreateScaleTranslation(scale, scale, offsetX, offsetY));
+
+        canvas.Save();
+        canvas.ClipRect(frameRect);
+        canvas.ClipPath(area, SKClipOperation.Difference, antialias: true);
+        using (var dim = new SKPaint { Color = new SKColor(0, 0, 0, 0xB0) })
+        {
+            canvas.DrawRect(frameRect, dim);
+        }
+        canvas.Restore();
+
+        canvas.Save();
+        canvas.Translate(offsetX, offsetY);
+        canvas.Scale(scale);
+        WheelSplitGeometry.DrawDividers(canvas, mode, size, new SKColor(255, 255, 255, 0x80), 1f / scale);
+        canvas.Restore();
     }
 
     // Divider between the segments of a split wheel: thin and dim, so it separates without

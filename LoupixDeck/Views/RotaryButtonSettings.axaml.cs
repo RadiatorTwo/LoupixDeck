@@ -11,10 +11,14 @@ namespace LoupixDeck.Views;
 
 public partial class RotaryButtonSettings : Window
 {
-    // The three sequence strips, paired with their chip list. Resolved once after
+    // The three fixed sequence strips, paired with their chip list. Resolved once after
     // InitializeComponent; the owning slot is read from each list's DataContext at
-    // use time (it is null until the view model has run Initialize).
+    // use time (it is null until the view model has run Initialize). A split wheel's
+    // segment strips come and go with the split mode and are found through Strips().
     private (Border Zone, ItemsControl List)[] _strips;
+
+    // Chip lists whose connector arrows are kept up to date; segment lists join on first use.
+    private readonly HashSet<ItemsControl> _connectorLists = [];
 
     // ───────── Chip-reorder drag state ─────────
 
@@ -44,7 +48,27 @@ public partial class RotaryButtonSettings : Window
         // Re-evaluate which chips start a wrapped row (and thus shouldn't draw a
         // leading arrow) after every layout pass, for each strip independently.
         foreach (var (_, list) in _strips)
-            list.LayoutUpdated += (_, _) => UpdateConnectorVisibility(list);
+            WireConnectors(list);
+
+        // Segment strips are created by the items control; wire their chip lists once they
+        // exist, and give the segments more room than the single press strip had.
+        SegmentList.LayoutUpdated += (_, _) =>
+        {
+            foreach (var (_, list) in SegmentStrips())
+                WireConnectors(list);
+        };
+        DataContextChanged += (_, _) =>
+        {
+            if (DataContext is RotaryButtonSettingsViewModel model)
+            {
+                model.PropertyChanged += (_, e) =>
+                {
+                    if (e.PropertyName == nameof(RotaryButtonSettingsViewModel.IsSplit))
+                        UpdateSlotRows(model);
+                };
+                UpdateSlotRows(model);
+            }
+        };
 
         // Card-based command picker → sequence-strip assignment (issue #171).
         PickerControl.CommandActivated += Picker_CommandActivated;
@@ -84,6 +108,12 @@ public partial class RotaryButtonSettings : Window
             if (visual is Control { DataContext: CommandSequenceSlot slot })
             {
                 vm.SetActiveSlot(slot);
+                return;
+            }
+
+            if (visual is Control { DataContext: WheelSegmentEditor segment })
+            {
+                vm.SetActiveSlot(segment.Slot);
                 return;
             }
 
@@ -292,13 +322,13 @@ public partial class RotaryButtonSettings : Window
         {
             // A group fills every slot at once: highlight all strips when over the
             // drop area and show no per-slot insertion marker.
-            foreach (var (zone, _) in _strips)
+            foreach (var (zone, _) in Strips())
                 zone.Classes.Set("drop-active", target.HasValue);
             HideDropMarker();
             return;
         }
 
-        foreach (var (zone, _) in _strips)
+        foreach (var (zone, _) in Strips())
             zone.Classes.Set("drop-active", target.HasValue && ReferenceEquals(zone, target.Value.Zone));
 
         if (target.HasValue)
@@ -327,7 +357,7 @@ public partial class RotaryButtonSettings : Window
         _pickerDragEntry = null;
         HideDragGhost();
         HideDropMarker();
-        foreach (var (zone, _) in _strips)
+        foreach (var (zone, _) in Strips())
             zone.Classes.Set("drop-active", false);
     }
 
@@ -358,10 +388,44 @@ public partial class RotaryButtonSettings : Window
     private static CommandSequenceSlot ResolveSlot(Control control)
         => control.FindAncestorOfType<ItemsControl>()?.DataContext as CommandSequenceSlot;
 
+    /// <summary>Every sequence strip on screen: the fixed ones that are visible, then the
+    /// segment strips of a split wheel.</summary>
+    private IEnumerable<(Border Zone, ItemsControl List)> Strips() =>
+        _strips.Where(strip => strip.Zone.IsEffectivelyVisible).Concat(SegmentStrips());
+
+    /// <summary>The segment strips the items control currently shows, with their chip lists.</summary>
+    private IEnumerable<(Border Zone, ItemsControl List)> SegmentStrips()
+    {
+        if (!SegmentList.IsEffectivelyVisible)
+            yield break;
+
+        foreach (var zone in SegmentList.GetVisualDescendants().OfType<Border>()
+                     .Where(b => b.Classes.Contains("segment-strip")))
+        {
+            var list = zone.GetVisualDescendants().OfType<ItemsControl>()
+                .FirstOrDefault(c => c.Classes.Contains("segment-commands"));
+            if (list != null)
+                yield return (zone, list);
+        }
+    }
+
+    private void WireConnectors(ItemsControl list)
+    {
+        if (_connectorLists.Add(list))
+            list.LayoutUpdated += (_, _) => UpdateConnectorVisibility(list);
+    }
+
+    /// <summary>A split wheel's segment strips share the press row; give it more of the column.</summary>
+    private void UpdateSlotRows(RotaryButtonSettingsViewModel vm)
+    {
+        if (SlotColumn.RowDefinitions.Count < 3) return;
+        SlotColumn.RowDefinitions[2].Height = new GridLength(vm.IsSplit ? 2.5 : 1, GridUnitType.Star);
+    }
+
     /// <summary>The strip whose drop zone currently contains the pointer, or null.</summary>
     private (Border Zone, ItemsControl List)? StripUnderPointer(PointerEventArgs e)
     {
-        foreach (var (zone, list) in _strips)
+        foreach (var (zone, list) in Strips())
         {
             var pos = e.GetPosition(zone);
             if (pos.X >= 0 && pos.Y >= 0 &&

@@ -34,11 +34,23 @@ public static class WheelCanvasDefaults
     {
         if (size <= 0) size = 240;
 
-        var canvas = new TouchButton(RotaryButton.WheelSegmentCanvasIndex + index)
-        {
-            BackgroundEnabled = true,
-            BackColor = Colors.Black
-        };
+        var canvas = new TouchButton(RotaryButton.WheelSegmentCanvasIndex + index);
+        PopulateSegment(canvas, size, mode, index);
+        return canvas;
+    }
+
+    /// <summary>
+    /// Replaces <paramref name="canvas"/>'s background and layers with the default look of segment
+    /// <paramref name="index"/> (see <see cref="CreateSegment"/>).
+    /// </summary>
+    public static void PopulateSegment(TouchButton canvas, int size, WheelSplitMode mode, int index)
+    {
+        ArgumentNullException.ThrowIfNull(canvas);
+        if (size <= 0) size = 240;
+
+        canvas.BackgroundEnabled = true;
+        canvas.BackColor = Colors.Black;
+        canvas.Layers.Clear();
 
         var centre = WheelSplitGeometry.Centroid(mode, index, size);
         var box = WheelSplitGeometry.LabelBox(mode, size);
@@ -55,8 +67,6 @@ public static class WheelCanvasDefaults
             PositionX = (int)Math.Round(centre.X - size / 2f),
             PositionY = (int)Math.Round(centre.Y - size / 2f)
         });
-
-        return canvas;
     }
 
     /// <summary>
