@@ -1,10 +1,11 @@
+using CommunityToolkit.Mvvm.ComponentModel;
 using LoupixDeck.Utils;
 using Newtonsoft.Json;
 using SkiaSharp;
 
 namespace LoupixDeck.Models;
 
-public class RotaryButton(int index,string rotaryLeftCommand, string rotaryRightCommand) : LoupedeckButton
+public partial class RotaryButton(int index,string rotaryLeftCommand, string rotaryRightCommand) : LoupedeckButton
 {
     public int Index { get; } = index;
 
@@ -89,7 +90,101 @@ public class RotaryButton(int index,string rotaryLeftCommand, string rotaryRight
     /// going through the setters, so their change handlers have to be attached afterwards, the
     /// same as <see cref="TouchButton.RewireLayerHandlers"/> for grid keys.
     /// </summary>
-    public void RewireAfterLoad() => _canvas?.RewireLayerHandlers();
+    public void RewireAfterLoad()
+    {
+        _canvas?.RewireLayerHandlers();
+        EnsureSegments();
+        foreach (var segment in Segments)
+            segment?.RewireAfterLoad();
+    }
+
+    // ───────── Split wheel screen (PluginSdk #30) ─────────
+
+    /// <summary>
+    /// <see cref="TouchButton.Index"/> of the first segment canvas; segment <c>n</c> uses this
+    /// plus <c>n</c>. Like <see cref="WheelCanvasIndex"/>, only an identifier.
+    /// </summary>
+    public const int WheelSegmentCanvasIndex = 1001;
+
+    /// <summary>
+    /// How this wheel mode splits the wheel screen into pressable segments. Only the Loupedeck
+    /// CT's centre wheel uses it. Written only when split, so configs without a split load and
+    /// save unchanged; missing in older JSON means <see cref="WheelSplitMode.None"/>.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSplit))]
+    public partial WheelSplitMode SplitMode { get; set; }
+
+    public bool ShouldSerializeSplitMode() => SplitMode != WheelSplitMode.None;
+
+    partial void OnSplitModeChanged(WheelSplitMode value) => EnsureSegments();
+
+    /// <summary>
+    /// The segments of a split wheel, in the order <see cref="WheelSplitGeometry"/> documents. Up
+    /// to <see cref="WheelSplitGeometry.MaxSegments"/> are kept even when the current mode uses
+    /// fewer, so switching from four segments to two and back keeps the hidden ones. Written only
+    /// when there is at least one.
+    /// </summary>
+    [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Replace)]
+    public List<WheelSegment> Segments { get; set; } = [];
+
+    public bool ShouldSerializeSegments() => Segments is { Count: > 0 };
+
+    /// <summary>True when the wheel screen is split into segments.</summary>
+    [JsonIgnore]
+    public bool IsSplit => SplitMode != WheelSplitMode.None;
+
+    /// <summary>Grows <see cref="Segments"/> to the current mode's segment count. Never shrinks it.</summary>
+    public void EnsureSegments()
+    {
+        Segments ??= [];
+        for (int i = 0; i < Segments.Count; i++)
+            Segments[i] ??= new WheelSegment();
+
+        int needed = WheelSplitGeometry.SegmentCount(SplitMode);
+        while (Segments.Count < needed)
+            Segments.Add(new WheelSegment());
+    }
+
+    /// <summary>
+    /// The segments the current mode shows, in order. Empty when the wheel is not split. A
+    /// snapshot, safe to enumerate while the editor changes the list.
+    /// </summary>
+    public IReadOnlyList<WheelSegment> ActiveSegments()
+    {
+        int count = WheelSplitGeometry.SegmentCount(SplitMode);
+        if (count == 0) return [];
+        var segments = Segments;
+        return segments == null ? [] : segments.Take(count).Select(s => s ?? new WheelSegment()).ToArray();
+    }
+
+    /// <summary>
+    /// The SDK description of segment <paramref name="index"/>, handed to plugins as
+    /// <c>CommandContext.WheelSegment</c>.
+    /// </summary>
+    public LoupixDeck.PluginSdk.WheelSegmentInfo SegmentInfo(int index) =>
+        new((LoupixDeck.PluginSdk.WheelSplitMode)(int)SplitMode, index, WheelSplitGeometry.SegmentCount(SplitMode));
+
+    /// <summary>
+    /// The layer canvases currently drawn on the wheel screen, each with the segment it belongs to
+    /// (null for the unsplit wheel's own <see cref="Canvas"/>). Canvases of hidden segments and,
+    /// while split, the unsplit canvas are not included.
+    /// </summary>
+    public IReadOnlyList<(TouchButton Canvas, WheelSegment Segment, int Index)> VisibleCanvases()
+    {
+        if (!IsSplit)
+            return _canvas == null ? [] : [(_canvas, null, -1)];
+
+        var result = new List<(TouchButton, WheelSegment, int)>();
+        var segments = ActiveSegments();
+        for (int i = 0; i < segments.Count; i++)
+        {
+            if (segments[i].Canvas is { } canvas)
+                result.Add((canvas, segments[i], i));
+        }
+
+        return result;
+    }
 
     private SKBitmap _renderedImage;
 

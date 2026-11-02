@@ -26,6 +26,40 @@ public static class WheelCanvasDefaults
     }
 
     /// <summary>
+    /// A new canvas for segment <paramref name="index"/> of a split wheel (<paramref name="mode"/>):
+    /// the whole <paramref name="size"/>-pixel screen, black, with the segment's label centred in
+    /// the visible part of the segment. The renderer clips it to the segment.
+    /// </summary>
+    public static TouchButton CreateSegment(int size, WheelSplitMode mode, int index)
+    {
+        if (size <= 0) size = 240;
+
+        var canvas = new TouchButton(RotaryButton.WheelSegmentCanvasIndex + index)
+        {
+            BackgroundEnabled = true,
+            BackColor = Colors.Black
+        };
+
+        var centre = WheelSplitGeometry.Centroid(mode, index, size);
+        var box = WheelSplitGeometry.LabelBox(mode, size);
+        canvas.Layers.Add(new TextLayer
+        {
+            FontFamily = TextFontSettings.DefaultFamily,
+            Name = LabelLayerName,
+            TextSource = TextSource.DialLabel,
+            TextSize = WheelSplitGeometry.SegmentCount(mode) > 2 ? 16 : 20,
+            Centered = true,
+            BoxWidth = box.Width,
+            BoxHeight = box.Height,
+            // Centred boxes are positioned by their offset from the screen centre.
+            PositionX = (int)Math.Round(centre.X - size / 2f),
+            PositionY = (int)Math.Round(centre.Y - size / 2f)
+        });
+
+        return canvas;
+    }
+
+    /// <summary>
     /// Replaces <paramref name="canvas"/>'s background and layers with the default look.
     /// </summary>
     public static void Populate(TouchButton canvas, int size)
