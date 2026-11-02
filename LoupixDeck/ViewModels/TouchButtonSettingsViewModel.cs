@@ -902,15 +902,6 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         set
         {
             if (ReferenceEquals(_selectedLayer, value)) return;
-
-            // The segments row of the all-segments list is not a layer: keep the selection and
-            // tell the list again, so it shows the real one.
-            if (value is WheelSegmentsMarker)
-            {
-                Avalonia.Threading.Dispatcher.UIThread.Post(() => OnPropertyChanged(nameof(SelectedLayer)));
-                return;
-            }
-
             _selectedLayer = value;
             OnPropertyChanged(nameof(SelectedLayer));
             OnPropertyChanged(nameof(SelectedImageLayer));
@@ -1005,7 +996,9 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     }
 
     /// <summary>True when a layer is selected — the right panel then shows layer properties.</summary>
-    public bool HasSelectedLayer => _selectedLayer != null;
+    // The segments row of the all-segments list can be selected to move it, but it is no layer:
+    // no properties, no deleting.
+    public bool HasSelectedLayer => _selectedLayer is not null and not WheelSegmentsMarker;
 
     /// <summary>
     /// True when the state itself is the editing context (no layer selected) on a grid touch
@@ -1018,7 +1011,8 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// (<see cref="LayerBase.IsCommandOwned"/>) cannot be deleted manually — they are
     /// removed by unbinding the button's command — so the delete button is disabled for them.
     /// </summary>
-    public bool CanDeleteSelectedLayer => _selectedLayer != null && !_selectedLayer.IsCommandOwned;
+    public bool CanDeleteSelectedLayer =>
+        _selectedLayer is not null and not WheelSegmentsMarker && !_selectedLayer.IsCommandOwned;
 
     /// <summary>Commands of the sequence(s) that declare parameters — one card each in the
     /// Parameters tab, the same rows as the chip flyout.</summary>
@@ -1777,6 +1771,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         // by a command that is gone has no owner left, so the user may delete it.
         if (_selectedLayer == null || IsOwnedByBoundCommand(_selectedLayer)) return;
         var idx = ButtonData.Layers.IndexOf(_selectedLayer);
+        if (idx < 0) return;
         ButtonData.Layers.Remove(_selectedLayer);
         // Prefer the item that moved into the freed slot (the one below); fall back
         // to the new last item (the one above) when the removed layer was last.
@@ -1841,8 +1836,22 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         var layers = ButtonData.Layers;
         SortSharedLayers();
 
-        int i = layers.IndexOf(layer);
         int boundary = layers.Count(l => l.BehindSegments);
+
+        // The segments row moves by passing the layer next to it to the other side: up takes the
+        // lowest layer in front of the segments behind them, down brings the topmost layer
+        // behind them to the front.
+        if (layer is WheelSegmentsMarker)
+        {
+            if (up && boundary < layers.Count)
+                layers[boundary].BehindSegments = true;
+            else if (!up && boundary > 0)
+                layers[boundary - 1].BehindSegments = false;
+            ReselectAfterMove(layer);
+            return;
+        }
+
+        int i = layers.IndexOf(layer);
         if (i < 0) return;
 
         if (up)

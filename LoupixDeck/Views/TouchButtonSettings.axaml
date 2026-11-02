@@ -519,17 +519,24 @@
                                     <!-- The segments of a split wheel, between the all-segments layers in
                                          front of them (above) and behind them (below). Not a layer. -->
                                     <DataTemplate DataType="vm:WheelSegmentsMarker">
-                                        <Grid ColumnDefinitions="Auto,*" Opacity="0.8"
-                                              ToolTip.Tip="{loc:Tr Wheel_SegmentsMarkerHint}">
-                                            <Viewbox Grid.Column="0" Width="16" Height="16" Margin="2,0,8,0"
-                                                     VerticalAlignment="Center">
-                                                <Canvas Width="24" Height="24">
-                                                    <Path Classes="zone-lines" Data="M2,2 H22 V22 H2 Z M2,2 L22,22 M22,2 L2,22" />
-                                                </Canvas>
-                                            </Viewbox>
-                                            <TextBlock Grid.Column="1" Text="{Binding Name}" FontStyle="Italic"
-                                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                                        </Grid>
+                                        <StackPanel Spacing="2" ToolTip.Tip="{loc:Tr Wheel_SegmentsMarkerHint}">
+                                            <TextBlock Classes="hint" FontSize="11"
+                                                       Text="{loc:Tr Wheel_LayersInFront}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <Grid ColumnDefinitions="Auto,*">
+                                                <Viewbox Grid.Column="0" Width="16" Height="16" Margin="2,0,8,0"
+                                                         VerticalAlignment="Center">
+                                                    <Canvas Width="24" Height="24">
+                                                        <Path Classes="zone-lines" Data="M2,2 H22 V22 H2 Z M2,2 L22,22 M22,2 L2,22" />
+                                                    </Canvas>
+                                                </Viewbox>
+                                                <TextBlock Grid.Column="1" Text="{Binding Name}" FontWeight="SemiBold"
+                                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                            </Grid>
+                                            <TextBlock Classes="hint" FontSize="11"
+                                                       Text="{loc:Tr Wheel_LayersBehind}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
                                     </DataTemplate>
                                     <!-- Plugin-owned layer: rendered by a plugin command, not user-addable. -->
                                     <DataTemplate DataType="layers:PluginLayer">
