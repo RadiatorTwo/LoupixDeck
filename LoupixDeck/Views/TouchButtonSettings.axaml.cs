@@ -537,6 +537,12 @@ public partial class TouchButtonSettings : Window
             await vm.ChangeSelectedSymbolAsync();
     }
 
+    private void Editor_PointerExited(object sender, PointerEventArgs e)
+    {
+        if (DataContext is TouchButtonSettingsViewModel vm)
+            vm.ClearWheelHover();
+    }
+
     private void Editor_PointerPressed(object sender, PointerPressedEventArgs e)
     {
         if (DataContext is not TouchButtonSettingsViewModel vm || vm.ButtonData == null) return;
@@ -569,13 +575,24 @@ public partial class TouchButtonSettings : Window
             return;
         }
 
-        // 3) Nothing hit → deselect
+        // 3) Nothing hit → deselect; on a split wheel, edit the segment that was clicked
         vm.SelectedLayer = null;
+        vm.TrySelectWheelSegmentAt(pos.X, pos.Y);
     }
 
     private void Editor_PointerMoved(object sender, PointerEventArgs e)
     {
-        if (_dragMode == DragMode.None) return;
+        if (_dragMode == DragMode.None)
+        {
+            // Not dragging: on a split wheel, show which segment a click would select.
+            if (DataContext is TouchButtonSettingsViewModel hoverVm)
+            {
+                var hover = e.GetPosition(EditorRoot);
+                hoverVm.UpdateWheelHover(hover.X, hover.Y);
+            }
+
+            return;
+        }
         if (DataContext is not TouchButtonSettingsViewModel vm || vm.SelectedLayer == null) return;
 
         var pos = e.GetPosition(EditorRoot);

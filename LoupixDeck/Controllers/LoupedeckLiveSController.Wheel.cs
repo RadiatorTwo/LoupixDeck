@@ -106,33 +106,48 @@ public partial class LoupedeckLiveSController
     private volatile bool _wheelDrawnFromCanvas;
 
     /// <summary>
-    /// Subscribes a wheel mode's custom <see cref="Models.RotaryButton.Canvas"/> to the live
-    /// redraw pipeline, so editing its layers repaints the wheel screen immediately (mirroring
-    /// <see cref="RegisterStripCanvas"/> for the side strips). Idempotent; <see cref="RedrawWheel"/>
-    /// calls it on every paint so page, mode, workspace and profile switches need no extra wiring.
+    /// Subscribes the layer canvases a wheel mode shows — its custom
+    /// <see cref="Models.RotaryButton.Canvas"/>, or the canvases of its segments when split — to
+    /// the live redraw pipeline, so editing their layers repaints the wheel screen immediately
+    /// (mirroring <see cref="RegisterStripCanvas"/> for the side strips). Idempotent;
+    /// <see cref="RedrawWheel"/> calls it on every paint so page, mode, workspace and profile
+    /// switches need no extra wiring.
     /// </summary>
     public void RegisterWheelCanvas(Models.RotaryButton wheel)
     {
-        var canvas = wheel?.Canvas;
-        if (canvas == null) return;
-        if (ReferenceEquals(_wiredWheelCanvas, canvas)) return;
+        var canvases = wheel == null
+            ? []
+            : wheel.VisibleCanvases().Select(v => v.Canvas).ToArray();
 
-        // One canvas is wired at a time: the mode showing on the glass. A canvas that was
-        // dropped (automatic layout) or belongs to a mode no longer showing is let go.
-        if (_wiredWheelCanvas != null)
-            _wiredWheelCanvas.ItemChanged -= WheelCanvasItemChanged;
-        canvas.ItemChanged += WheelCanvasItemChanged;
-        _wiredWheelCanvas = canvas;
+        lock (_wiredWheelCanvases)
+        {
+            if (_wiredWheelCanvases.SetEquals(canvases)) return;
+
+            // Only the canvases on the glass are wired: those of a mode no longer showing, a
+            // canvas that was dropped (automatic layout) or a hidden segment are let go.
+            foreach (var old in _wiredWheelCanvases.Except(canvases).ToArray())
+            {
+                old.ItemChanged -= WheelCanvasItemChanged;
+                _wiredWheelCanvases.Remove(old);
+            }
+
+            foreach (var canvas in canvases)
+            {
+                if (_wiredWheelCanvases.Add(canvas))
+                    canvas.ItemChanged += WheelCanvasItemChanged;
+            }
+        }
     }
 
-    /// <summary>The wheel canvas currently subscribed to <see cref="WheelCanvasItemChanged"/>.</summary>
-    private Models.TouchButton _wiredWheelCanvas;
+    /// <summary>The wheel canvases currently subscribed to <see cref="WheelCanvasItemChanged"/>.</summary>
+    private readonly HashSet<Models.TouchButton> _wiredWheelCanvases = new(ReferenceEqualityComparer.Instance);
 
     private void WheelCanvasItemChanged(object sender, EventArgs e)
     {
         // A canvas of a mode that is no longer showing can still be subscribed; only the
         // active mode's edits reach the glass. RedrawWheel guards the device state itself.
-        if (!ReferenceEquals(sender, config.CurrentTouchButtonPage?.Wheel?.Canvas)) return;
+        var wheel = config.CurrentTouchButtonPage?.Wheel;
+        if (wheel == null || !wheel.VisibleCanvases().Any(v => ReferenceEquals(v.Canvas, sender))) return;
         _ = RedrawWheel();
     }
 
@@ -187,8 +202,13 @@ public partial class LoupedeckLiveSController
                         ?? RenderBoundWheel(wheel, value, device.WheelScreenSize, out interval);
                 SchedulePluginWheel(interval);
 
-                _wheelDrawnFromCanvas = frame == null && wheel.Canvas != null;
-                if (frame == null && wheel.Canvas != null)
+                _wheelDrawnFromCanvas = frame == null && (wheel.IsSplit || wheel.Canvas != null);
+                if (frame == null && wheel.IsSplit)
+                {
+                    RegisterWheelCanvas(wheel);
+                    frame = BitmapHelper.RenderWheelSegments(wheel, value, device.WheelScreenSize);
+                }
+                else if (frame == null && wheel.Canvas != null)
                 {
                     RegisterWheelCanvas(wheel);
                     frame = BitmapHelper.RenderWheelCanvas(wheel, wheel.Canvas, value, device.WheelScreenSize);
@@ -296,7 +316,7 @@ public partial class LoupedeckLiveSController
         _lastWheelTapTimestamp = now;
 
         if (TrySelectWheelMenuHighlight()) return;
-        OnWheelPressed();
+        OnWheelPressed(start.X, start.Y);
     }
 
     /// <summary>
@@ -366,7 +386,7 @@ public partial class LoupedeckLiveSController
         var wheel = config.CurrentTouchButtonPage?.Wheel;
         if (wheel == null) return null;
 
-        foreach (var command in new[] { wheel.RotaryLeftCommand, wheel.RotaryRightCommand, wheel.Command })
+        foreach (var command in wheel.DialCommands())
         {
             if (commandService.IsWheelInputHandler(command)) return command;
         }
@@ -537,9 +557,11 @@ public partial class LoupedeckLiveSController
     /// <summary>
     /// Runs the wheel's press, with the same precedence as a side dial's press in
     /// <see cref="OnSimpleButtonPress"/>: a display takeover, an exclusive provider that owns
-    /// the wheel's press, an open folder's rotary override, then the user's binding.
+    /// the wheel's press, an open folder's rotary override, then the user's binding. On a split
+    /// wheel the binding is that of the segment under (<paramref name="x"/>, <paramref name="y"/>),
+    /// where the finger first touched.
     /// </summary>
-    private void OnWheelPressed()
+    private void OnWheelPressed(int x, int y)
     {
         using var _routerScope = router.Enter(serviceProvider);
 
@@ -569,9 +591,34 @@ public partial class LoupedeckLiveSController
         if (wheel == null) return;
         if (_isDeviceOff && !wheel.EnableWhenOff) return;
 
+        if (wheel.IsSplit)
+        {
+            PressWheelSegment(wheel, x, y);
+            return;
+        }
+
         var command = RotaryPressCommand(wheel);
         if (command == null) return;
 
         FireAndForget(command, ButtonTargets.RotaryEncoder, index);
+    }
+
+    /// <summary>
+    /// Runs the press command of the segment of a split <paramref name="wheel"/> that contains
+    /// (<paramref name="x"/>, <paramref name="y"/>). The plugin sees the segment through the button
+    /// key (<see cref="WheelSegmentRegistry"/>). An empty segment does nothing.
+    /// </summary>
+    private void PressWheelSegment(Models.RotaryButton wheel, int x, int y)
+    {
+        var segments = wheel.ActiveSegments();
+        int index = WheelSplitGeometry.HitTest(wheel.SplitMode, x, y, WheelScreenSize);
+        if (index < 0 || index >= segments.Count) return;
+
+        var segment = segments[index];
+        if (string.IsNullOrEmpty(segment.Command)) return;
+
+        WheelSegmentRegistry.Set(segment.RuntimeKey, wheel.SegmentInfo(index));
+        FireAndForget(segment.Command, ButtonTargets.RotaryEncoder, Device.WheelRotaryIndex,
+            buttonKey: segment.RuntimeKey);
     }
 }

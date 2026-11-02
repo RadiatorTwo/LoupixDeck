@@ -1,15 +1,18 @@
 ﻿using LoupixDeck.Localization;
 using System.Collections.ObjectModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using LoupixDeck.Models;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Services;
 using LoupixDeck.Services.Commands;
+using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
 using LoupixDeck.ViewModels.CommandPicker;
+using WheelSplitMode = LoupixDeck.Models.WheelSplitMode;
 
 namespace LoupixDeck.ViewModels;
 
-public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, DialogResult>, IAsyncInitViewModel
+public partial class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, DialogResult>, IAsyncInitViewModel
 {
     public override void Initialize(RotaryButton parameter)
     {
@@ -24,9 +27,16 @@ public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, D
 
         Slots = [RotaryLeftSlot, RotaryRightSlot, ButtonPressSlot];
 
+        // Only the CT's centre wheel has a screen to split.
+        SplitOptions = IsWheel ? WheelSplitOption.All() : [];
+        SelectedSplitOption = SplitOptions.FirstOrDefault(o => o.Mode == ButtonData.SplitMode) ?? SplitOptions.FirstOrDefault();
+        RebuildSegmentEditors();
+
         // The first slot is the default double-click target.
         SetActiveSlot(RotaryLeftSlot);
 
+        OnPropertyChanged(nameof(IsWheel));
+        OnPropertyChanged(nameof(SplitOptions));
         OnPropertyChanged(nameof(KnobLabel));
         OnPropertyChanged(nameof(RotaryLeftSlot));
         OnPropertyChanged(nameof(RotaryRightSlot));
@@ -39,8 +49,74 @@ public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, D
     /// System.UpdateButton / GotoRotaryPage index space. The CT's centre wheel is named
     /// as such rather than as a seventh rotary.</summary>
     public string KnobLabel => ButtonData?.Index == LoupedeckDevice.Device.LoupedeckDevice.WheelRotaryIndex
-        ? "Centre Wheel"
+        ? Loc.Tr("TouchButton_CentreWheelTitle")
         : $"Rotary Button {(ButtonData?.Index ?? 0) + 1}";
+
+    /// <summary>True when editing the Loupedeck CT's centre wheel, whose screen can be split.</summary>
+    public bool IsWheel => ButtonData?.Index == LoupedeckDevice.Device.LoupedeckDevice.WheelRotaryIndex;
+
+    /// <summary>The split modes offered for the wheel screen. Empty for any other dial.</summary>
+    public IReadOnlyList<WheelSplitOption> SplitOptions { get; private set; } = [];
+
+    /// <summary>
+    /// The chosen split mode. Changing it splits the wheel at once (keeping segments a mode with
+    /// fewer of them hides) and swaps the single press strip for one strip per segment.
+    /// </summary>
+    [ObservableProperty]
+    public partial WheelSplitOption SelectedSplitOption { get; set; }
+
+    partial void OnSelectedSplitOptionChanged(WheelSplitOption value)
+    {
+        if (ButtonData == null || value == null || !IsWheel || ButtonData.SplitMode == value.Mode) return;
+
+        ButtonData.SplitMode = value.Mode;
+        RebuildSegmentEditors();
+    }
+
+    /// <summary>True while the wheel screen is split: the segment strips replace the press strip.</summary>
+    public bool IsSplit => IsWheel && ButtonData?.IsSplit == true;
+
+    /// <summary>One press strip and label per segment of the split wheel, in segment order.</summary>
+    public IReadOnlyList<WheelSegmentEditor> SegmentEditors { get; private set; } = [];
+
+    /// <summary>
+    /// Recreates the segment strips for the wheel's current split mode and folds them into
+    /// <see cref="Slots"/>, so they take part in the active-slot highlight and cleanup.
+    /// </summary>
+    private void RebuildSegmentEditors()
+    {
+        foreach (var old in SegmentEditors)
+            old.Slot.Cleanup();
+
+        var editors = new List<WheelSegmentEditor>();
+        if (IsSplit)
+        {
+            var segments = ButtonData.ActiveSegments();
+            foreach (int i in WheelSegmentEditor.DisplayOrder(ButtonData.SplitMode, segments.Count))
+            {
+                var segment = segments[i];
+                var slot = new CommandSequenceSlot(
+                    Loc.Tr(WheelSplitGeometry.SegmentNameKey(ButtonData.SplitMode, i)),
+                    _commandBuilder, _commandRegistry, _commandLock, _dialogService,
+                    () => segment.Command, v => segment.Command = v);
+                editors.Add(new WheelSegmentEditor(slot, ButtonData.SplitMode, i));
+            }
+        }
+
+        SegmentEditors = editors;
+        Slots = [RotaryLeftSlot, RotaryRightSlot, ButtonPressSlot, .. editors.Select(e => e.Slot)];
+
+        // A strip that went away cannot stay the double-click target.
+        if (ActiveSlot != null && !Slots.Contains(ActiveSlot))
+        {
+            ActiveSlot = null;
+            SetActiveSlot(RotaryLeftSlot);
+        }
+
+        OnPropertyChanged(nameof(SegmentEditors));
+        OnPropertyChanged(nameof(Slots));
+        OnPropertyChanged(nameof(IsSplit));
+    }
 
     private readonly ICommandBuilder _commandBuilder;
     private readonly IMenuTreeBuilder _menuTreeBuilder;
@@ -126,7 +202,11 @@ public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, D
             {
                 RotaryAction.CounterClockwise => RotaryLeftSlot,
                 RotaryAction.Clockwise => RotaryRightSlot,
-                RotaryAction.Press => ButtonPressSlot,
+                // A split wheel has no single press: a group's press lands on the segment strip
+                // the user picked, or nowhere.
+                RotaryAction.Press => IsSplit
+                    ? SegmentEditors.FirstOrDefault(e => ReferenceEquals(e.Slot, ActiveSlot))?.Slot
+                    : ButtonPressSlot,
                 _ => null
             };
 

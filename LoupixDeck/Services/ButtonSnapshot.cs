@@ -68,8 +68,20 @@ public static class ButtonSnapshot
                 case RotaryButton rotary:
                     // Canvas is omitted from the JSON when null, so Populate leaves a target's old
                     // canvas in place; a snapshot without one means "automatic layout".
-                    if (!JObject.Parse(json).ContainsKey("Canvas"))
+                    // The same goes for a split wheel's mode and segments, written only when used.
+                    JObject snapshot = JObject.Parse(json);
+                    if (!snapshot.ContainsKey("Canvas"))
                         rotary.Canvas = null;
+                    // Only the CT wheel can be split; a wheel mode pasted onto a side dial is not.
+                    if (!snapshot.ContainsKey("SplitMode") ||
+                        rotary.Index != LoupedeckDevice.Device.LoupedeckDevice.WheelRotaryIndex)
+                        rotary.SplitMode = WheelSplitMode.None;
+                    if (!snapshot.ContainsKey("Segments"))
+                        rotary.Segments = [];
+                    if (!snapshot.ContainsKey("SplitCanvas"))
+                        rotary.SplitCanvas = null;
+                    if (!snapshot.ContainsKey("ShowSplitDividers"))
+                        rotary.ShowSplitDividers = true;
                     rotary.RewireAfterLoad();
                     break;
             }
@@ -109,7 +121,11 @@ public static class ButtonSnapshot
                        && string.IsNullOrEmpty(rotary.RotaryLeftCommand)
                        && string.IsNullOrEmpty(rotary.RotaryRightCommand)
                        && string.IsNullOrEmpty(rotary.DisplayText)
-                       && rotary.Canvas == null;
+                       && rotary.Canvas == null
+                       && !rotary.IsSplit
+                       && rotary.Segments is not { Count: > 0 }
+                       && rotary.SplitCanvas == null
+                       && rotary.ShowSplitDividers;
 
             default:
                 return button == null;

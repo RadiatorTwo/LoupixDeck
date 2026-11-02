@@ -1499,10 +1499,11 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Opens the layer editor on the active wheel mode's canvas (the CT's 240×240 wheel screen).
-    /// A mode without a canvas gets one that reproduces the automatic layout first, so the
-    /// editor opens on what the wheel already shows; "Use automatic layout" in the editor drops
-    /// it again.
+    /// Opens the layer editor on the active wheel mode's screen (the CT's 240×240 wheel). An
+    /// unsplit mode without a canvas gets one that reproduces the automatic layout first, so the
+    /// editor opens on what the wheel already shows; "Use automatic layout" in the editor drops it
+    /// again. A split mode opens on its first segment, every segment having a canvas of its own;
+    /// the editor switches segments and can change the split itself.
     /// </summary>
     private async Task EditWheelCanvas_Click()
     {
@@ -1510,13 +1511,33 @@ public partial class MainWindowViewModel : ViewModelBase
         int size = LoupedeckController.WheelScreenSize;
         if (wheel == null || size <= 0) return;
 
-        bool created = wheel.Canvas == null;
-        wheel.Canvas ??= WheelCanvasDefaults.Create(size);
+        bool createdWheelCanvas = false;
+        TouchButton EnsureWheelCanvas()
+        {
+            if (wheel.Canvas == null)
+            {
+                wheel.Canvas = WheelCanvasDefaults.Create(size);
+                createdWheelCanvas = true;
+            }
+
+            return wheel.Canvas;
+        }
+
+        TouchButton start;
+        if (wheel.IsSplit)
+        {
+            TouchButtonSettingsViewModel.EnsureSegmentCanvases(wheel);
+            start = wheel.ActiveSegments()[0].Canvas;
+        }
+        else
+        {
+            start = EnsureWheelCanvas();
+        }
+
+        // The managers follow the canvases they saw at their last scan; canvases created just now
+        // are new to them, so their layer edits would not reach them until an unrelated rescan.
         LoupedeckController.RegisterWheelCanvas(wheel);
-        // The managers follow the canvas they saw at their last scan; a canvas created just now is
-        // new to them, so its layer edits would not reach them until an unrelated rescan.
-        if (created)
-            RescanWheelContent();
+        RescanWheelContent();
 
         TouchButtonSettingsViewModel editor = null;
         await _dialogService.ShowDialogAsync<TouchButtonSettingsViewModel, DialogResult>(vm =>
@@ -1524,14 +1545,23 @@ public partial class MainWindowViewModel : ViewModelBase
             editor = vm;
             vm.SetCanvasSize(size, size);
             vm.ConfigureWheel(wheel);
-            vm.Initialize(wheel.Canvas);
+            vm.EnsureWheelCanvas = EnsureWheelCanvas;
+            vm.WheelCanvasesChanged = () =>
+            {
+                LoupedeckController.RegisterWheelCanvas(wheel);
+                RescanWheelContent();
+                _ = LoupedeckController.RefreshWheel();
+            };
+            vm.Initialize(start);
         });
 
-        // Opening and closing the editor is not a customisation: a canvas created just for this
-        // visit is dropped again unless something was edited, so the automatic layout (which
+        // Opening and closing the editor is not a customisation: a wheel canvas created just for
+        // this visit is dropped again unless something was edited, so the automatic layout (which
         // adapts to whether the command reports a value) stays in charge until the user changes
-        // something. "Use automatic layout" drops a canvas of any age.
-        if (editor?.RevertToAutoLayout == true || (created && editor?.HasEdits != true))
+        // something. "Use automatic layout" drops a canvas of any age. A split wheel keeps its
+        // segment canvases: it has no automatic layout.
+        if (!wheel.IsSplit &&
+            (editor?.RevertToAutoLayout == true || (createdWheelCanvas && editor?.HasEdits != true)))
             wheel.Canvas = null;
 
         LoupedeckController.SaveConfig();

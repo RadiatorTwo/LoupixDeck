@@ -1,4 +1,6 @@
 ﻿using LoupixDeck.Localization;
+using Avalonia.Media;
+using CommunityToolkit.Mvvm.ComponentModel;
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Models;
@@ -183,7 +185,44 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     {
         layer.DeviceBaseWidth = DeviceWidth;
         layer.DeviceBaseHeight = DeviceHeight;
+        PlaceInEditedSegment(layer);
+
+        // On the all-segments surface a new layer goes behind the segments, on top of the layers
+        // already there (right under the segments row of the list). The canvas keeps the layers
+        // behind the segments first, so that is the index after the last of them.
+        if (IsEditingSharedSurface)
+        {
+            SortSharedLayers();
+            layer.BehindSegments = true;
+            int behind = 0;
+            while (behind < ButtonData.Layers.Count && ButtonData.Layers[behind].BehindSegments)
+                behind++;
+            ButtonData.Layers.Insert(behind, layer);
+            return;
+        }
+
         ButtonData.Layers.Add(layer);
+    }
+
+    /// <summary>
+    /// A new layer on a segment of a split wheel starts in the middle of that segment instead of
+    /// the screen centre, which lies on the dividers; a text box is sized to fit the segment.
+    /// </summary>
+    private void PlaceInEditedSegment(LayerBase layer)
+    {
+        if (EditedSegment == null || layer.PositionX != 0 || layer.PositionY != 0) return;
+
+        var mode = _wheel.SplitMode;
+        var centre = WheelSplitGeometry.Centroid(mode, _wheelSegmentIndex, DeviceWidth);
+        layer.PositionX = (int)Math.Round(centre.X - DeviceWidth / 2f);
+        layer.PositionY = (int)Math.Round(centre.Y - DeviceHeight / 2f);
+
+        if (layer is TextLayer text)
+        {
+            float share = WheelSplitGeometry.SegmentCount(mode) > 2 ? 0.3f : 0.45f;
+            text.BoxWidth = (int)Math.Round(DeviceWidth * share);
+            text.BoxHeight = (int)Math.Round(DeviceHeight * share * 0.6f);
+        }
     }
 
     // ───────── Editor zoom ─────────
@@ -494,6 +533,17 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     public void ConfigureWheel(RotaryButton wheel)
     {
         _wheel = wheel;
+        _wheelSegmentIndex = wheel.IsSplit ? 0 : -1;
+        WheelSplitOptions = WheelSplitOption.All();
+        _suppressWheelSplitChange = true;
+        SelectedWheelSplit = WheelSplitOptions.FirstOrDefault(o => o.Mode == wheel.SplitMode);
+        _suppressWheelSplitChange = false;
+        RebuildWheelSurfaceChoices();
+        OnPropertyChanged(nameof(WheelSplitOptions));
+        OnPropertyChanged(nameof(ShowWheelDividers));
+        OnPropertyChanged(nameof(WheelDividerIcon));
+        OnPropertyChanged(nameof(IsWheelSplit));
+        OnPropertyChanged(nameof(ShowUseAutomaticLayout));
         OnPropertyChanged(nameof(IsWheelCanvas));
         OnPropertyChanged(nameof(ShowStatesSection));
         OnPropertyChanged(nameof(ShowButtonSection));
@@ -501,6 +551,230 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         OnPropertyChanged(nameof(ShowParametersTab));
         OnPropertyChanged(nameof(ButtonLabel));
         OnPropertyChanged(nameof(TextSources));
+    }
+
+    /// <summary>
+    /// Surface of the wheel being edited: a segment index of a split wheel, <see cref="SharedSurface"/>
+    /// for the layers shown on all segments, or -1 for the whole screen of an unsplit wheel.
+    /// </summary>
+    private int _wheelSegmentIndex = -1;
+
+    /// <summary><see cref="_wheelSegmentIndex"/> while the split wheel's all-segments surface is edited.</summary>
+    private const int SharedSurface = -2;
+
+    /// <summary>The segment being edited, or null for the whole wheel screen or the all-segments surface.</summary>
+    private WheelSegment EditedSegment =>
+        _wheel != null && _wheelSegmentIndex >= 0 && _wheelSegmentIndex < _wheel.ActiveSegments().Count
+            ? _wheel.ActiveSegments()[_wheelSegmentIndex]
+            : null;
+
+    /// <summary>True while the split wheel's all-segments surface (<see cref="RotaryButton.SplitCanvas"/>) is edited.</summary>
+    private bool IsEditingSharedSurface => IsWheelSplit && _wheelSegmentIndex == SharedSurface;
+
+    // ───────── Split wheel ─────────
+
+    /// <summary>
+    /// Gives a split wheel everything the editor edits: a canvas for each active segment (a
+    /// segment shows nothing until it has one) and the all-segments surface. The canvas of an
+    /// unsplit wheel is owned by the caller (<see cref="EnsureWheelCanvas"/>).
+    /// </summary>
+    public static void EnsureSegmentCanvases(RotaryButton wheel)
+    {
+        var segments = wheel.ActiveSegments();
+        for (int i = 0; i < segments.Count; i++)
+            segments[i].Canvas ??= WheelCanvasDefaults.CreateSegment(i);
+        wheel.SplitCanvas ??= WheelCanvasDefaults.CreateSplitShared();
+    }
+
+    /// <summary>
+    /// Asked when the wheel's split changed in the editor, so the caller can register the new
+    /// canvases with the live redraw and the dynamic-content managers. Optional.
+    /// </summary>
+    public Action WheelCanvasesChanged { get; set; }
+
+    /// <summary>
+    /// Asked for the wheel's own canvas when the editor switches it back to unsplit and it has
+    /// none. Set by the caller, which creates and tracks it. Optional; without it no canvas is made.
+    /// </summary>
+    public Func<TouchButton> EnsureWheelCanvas { get; set; }
+
+    /// <summary>The split modes offered for the wheel screen.</summary>
+    public IReadOnlyList<WheelSplitOption> WheelSplitOptions { get; private set; } = [];
+
+    /// <summary>True while a split wheel is edited: the surface selector shows.</summary>
+    public bool IsWheelSplit => IsWheelCanvas && _wheel.IsSplit;
+
+    /// <summary>
+    /// Whether the split wheel draws the lines between its segments, on the device and in the
+    /// preview (<see cref="RotaryButton.ShowSplitDividers"/>).
+    /// </summary>
+    public bool ShowWheelDividers
+    {
+        get => _wheel?.ShowSplitDividers ?? true;
+        set
+        {
+            if (_wheel == null || _wheel.ShowSplitDividers == value) return;
+            _wheel.ShowSplitDividers = value;
+            HasEdits = true;
+            OnPropertyChanged(nameof(ShowWheelDividers));
+            UpdateEditorPreview();
+            WheelCanvasesChanged?.Invoke();
+        }
+    }
+
+    /// <summary>Icon of the divider toggle: the current split's dividers.</summary>
+    public Geometry WheelDividerIcon => WheelZoneIcons.Dividers(_wheel?.SplitMode ?? Models.WheelSplitMode.None);
+
+    /// <summary>"Use automatic layout" only applies to an unsplit wheel; a split one has no automatic look.</summary>
+    public bool ShowUseAutomaticLayout => IsWheelCanvas && !_wheel.IsSplit;
+
+    /// <summary>Stands for the segments in the all-segments surface's layer list (see <see cref="SharedSurfaceLayerView"/>).</summary>
+    private readonly WheelSegmentsMarker _segmentsMarker = new() { Name = Loc.Tr("Wheel_SegmentsMarker") };
+
+    /// <summary>Segment under the pointer in the preview, highlighted so a click's target shows; -1 for none.</summary>
+    private int _hoverSegment = -1;
+
+    /// <summary>Highlights the segment under a point of the editor canvas (editor pixels) in the preview.</summary>
+    public void UpdateWheelHover(double editorX, double editorY) => SetWheelHover(WheelSegmentAt(editorX, editorY));
+
+    /// <summary>Removes the hover highlight, e.g. when the pointer leaves the preview.</summary>
+    public void ClearWheelHover() => SetWheelHover(-1);
+
+    private void SetWheelHover(int segment)
+    {
+        if (segment == _hoverSegment) return;
+        _hoverSegment = segment;
+        UpdateEditorPreview();
+    }
+
+    /// <summary>The segment of a split wheel under a point of the editor canvas, or -1.</summary>
+    private int WheelSegmentAt(double editorX, double editorY)
+    {
+        if (!IsWheelSplit) return -1;
+
+        var (scale, frameW, frameH) = BitmapHelper.ComputeEditorFrame(DeviceWidth, DeviceHeight);
+        double x = (editorX - ((EditorCanvasWidth - frameW) / 2.0)) / scale;
+        double y = (editorY - ((EditorCanvasHeight - frameH) / 2.0)) / scale;
+        if (x < 0 || y < 0 || x > DeviceWidth || y > DeviceHeight) return -1;
+
+        // Only the round glass counts: the corners of the square show nothing.
+        double r = DeviceWidth / 2.0;
+        if (((x - r) * (x - r)) + ((y - r) * (y - r)) > r * r) return -1;
+
+        return WheelSplitGeometry.HitTest(_wheel.SplitMode, (int)x, (int)y, DeviceWidth);
+    }
+
+    // Set while ConfigureWheel picks the current option, so that does not count as a change.
+    private bool _suppressWheelSplitChange;
+
+    /// <summary>
+    /// The wheel's split mode. Changing it splits the wheel at once (keeping segments a mode with
+    /// fewer of them hides) and switches the editor to the first segment, or back to the whole
+    /// wheel screen.
+    /// </summary>
+    [ObservableProperty]
+    public partial WheelSplitOption SelectedWheelSplit { get; set; }
+
+    partial void OnSelectedWheelSplitChanged(WheelSplitOption value)
+    {
+        if (_suppressWheelSplitChange || value == null || _wheel == null || _wheel.SplitMode == value.Mode) return;
+
+        _wheel.SplitMode = value.Mode;
+        HasEdits = true;
+
+        TouchButton canvas;
+        if (_wheel.IsSplit)
+        {
+            EnsureSegmentCanvases(_wheel);
+            canvas = _wheel.ActiveSegments()[0].Canvas;
+        }
+        else
+        {
+            canvas = _wheel.Canvas ?? EnsureWheelCanvas?.Invoke();
+        }
+
+        // The index first, so the surface choice rebuilt below does not switch canvases itself.
+        _wheelSegmentIndex = _wheel.IsSplit ? 0 : -1;
+        RebuildWheelSurfaceChoices();
+        OnPropertyChanged(nameof(IsWheelSplit));
+        OnPropertyChanged(nameof(WheelDividerIcon));
+        OnPropertyChanged(nameof(ShowUseAutomaticLayout));
+        WheelCanvasesChanged?.Invoke();
+
+        if (canvas != null)
+            SwitchEditedCanvas(canvas, _wheel.IsSplit ? 0 : -1);
+    }
+
+    /// <summary>
+    /// The surfaces of a split wheel the editor can work on: first "All segments", then the
+    /// segments in segment order.
+    /// </summary>
+    public IReadOnlyList<WheelSurfaceChoice> WheelSurfaceChoices { get; private set; } = [];
+
+    /// <summary>The selected entry of <see cref="WheelSurfaceChoices"/>: 0 = all segments, n = segment n - 1.</summary>
+    [ObservableProperty]
+    public partial int SelectedWheelSurface { get; set; } = -1;
+
+    partial void OnSelectedWheelSurfaceChanged(int value)
+    {
+        if (!IsWheelSplit || value < 0) return;
+
+        int index = value == 0 ? SharedSurface : value - 1;
+        if (index == _wheelSegmentIndex) return;
+
+        EnsureSegmentCanvases(_wheel);
+        var segments = _wheel.ActiveSegments();
+        if (index == SharedSurface)
+            SwitchEditedCanvas(_wheel.SplitCanvas, SharedSurface);
+        else if (index < segments.Count)
+            SwitchEditedCanvas(segments[index].Canvas, index);
+    }
+
+    /// <summary>
+    /// Selects the segment under a point of the editor canvas (in editor pixels), for a click on
+    /// empty canvas. True when a segment was hit.
+    /// </summary>
+    public bool TrySelectWheelSegmentAt(double editorX, double editorY)
+    {
+        int index = WheelSegmentAt(editorX, editorY);
+        if (index < 0) return false;
+
+        SelectedWheelSurface = index + 1;
+        return true;
+    }
+
+    private void RebuildWheelSurfaceChoices()
+    {
+        var mode = _wheel?.SplitMode ?? Models.WheelSplitMode.None;
+        WheelSurfaceChoices = IsWheelSplit
+            ? [new WheelSurfaceChoice(Loc.Tr("Wheel_AllSegments"), WheelZoneIcons.Whole(), WheelZoneIcons.Lines(mode)),
+                .. Enumerable.Range(0, WheelSplitGeometry.SegmentCount(mode))
+                    .Select(i => new WheelSurfaceChoice(Loc.Tr(WheelSplitGeometry.SegmentNameKey(mode, i)),
+                        WheelZoneIcons.Fill(mode, i), WheelZoneIcons.Lines(mode)))]
+            : [];
+        OnPropertyChanged(nameof(WheelSurfaceChoices));
+        SelectedWheelSurface = SurfaceChoiceOf(_wheelSegmentIndex);
+    }
+
+    /// <summary>The <see cref="WheelSurfaceChoices"/> entry of an edited surface index.</summary>
+    private int SurfaceChoiceOf(int segmentIndex) => !IsWheelSplit
+        ? -1
+        : segmentIndex == SharedSurface ? 0 : Math.Max(segmentIndex, 0) + 1;
+
+    /// <summary>
+    /// Makes <paramref name="canvas"/> the edited surface: the wheel's own canvas
+    /// (<paramref name="segmentIndex"/> -1), a segment's, or the all-segments surface
+    /// (<see cref="SharedSurface"/>). Edits made so far stay on the canvas they were made on; the
+    /// layer list, selection and preview follow the new one.
+    /// </summary>
+    private void SwitchEditedCanvas(TouchButton canvas, int segmentIndex)
+    {
+        _wheelSegmentIndex = segmentIndex;
+        _hoverSegment = -1;
+        SelectedLayer = null;
+        Initialize(canvas);
+        SelectedWheelSurface = SurfaceChoiceOf(segmentIndex);
+        OnPropertyChanged(nameof(ButtonLabel));
     }
 
     /// <summary>Sample value the wheel preview is rendered with, so the arc and value text are visible.</summary>
@@ -516,7 +790,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// </summary>
     private DialRenderContext? PreviewDial => IsWheelCanvas
         ? new DialRenderContext(
-            string.IsNullOrWhiteSpace(_wheel.DisplayText) ? Loc.Tr("TouchButton_WheelSampleLabel") : _wheel.DisplayText,
+            WheelPreviewLabel(_wheel.DisplayText),
             WheelPreviewValue)
         : IsStripCanvas
             ? null
@@ -605,7 +879,18 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     public int ButtonNumber => (ButtonData?.Index ?? 0) + 1;
 
     /// <summary>Window title, e.g. "Touch Button 1" — or the wheel's own title for its canvas.</summary>
-    public string ButtonLabel => IsWheelCanvas ? Loc.Tr("TouchButton_CentreWheelTitle") : $"Touch Button {ButtonNumber}";
+    public string ButtonLabel => IsWheelCanvas
+        ? EditedSegment != null
+            ? Loc.Tr("Wheel_SegmentTitleFmt", Loc.Tr("TouchButton_CentreWheelTitle"),
+                Loc.Tr(WheelSplitGeometry.SegmentNameKey(_wheel.SplitMode, _wheelSegmentIndex)))
+            : IsEditingSharedSurface
+                ? Loc.Tr("Wheel_SegmentTitleFmt", Loc.Tr("TouchButton_CentreWheelTitle"), Loc.Tr("Wheel_AllSegments"))
+                : Loc.Tr("TouchButton_CentreWheelTitle")
+        : $"Touch Button {ButtonNumber}";
+
+    /// <summary>The wheel preview's dial label: <paramref name="label"/>, or a sample when it is empty.</summary>
+    private static string WheelPreviewLabel(string label) =>
+        string.IsNullOrWhiteSpace(label) ? Loc.Tr("TouchButton_WheelSampleLabel") : label;
 
     /// <summary>Resolution badge shown in the canvas corner, e.g. "90 × 90 px".</summary>
     public string CanvasSizeText => $"{DeviceWidth} × {DeviceHeight} px";
@@ -711,7 +996,9 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     }
 
     /// <summary>True when a layer is selected — the right panel then shows layer properties.</summary>
-    public bool HasSelectedLayer => _selectedLayer != null;
+    // The segments row of the all-segments list can be selected to move it, but it is no layer:
+    // no properties, no deleting.
+    public bool HasSelectedLayer => _selectedLayer is not null and not WheelSegmentsMarker;
 
     /// <summary>
     /// True when the state itself is the editing context (no layer selected) on a grid touch
@@ -724,7 +1011,8 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// (<see cref="LayerBase.IsCommandOwned"/>) cannot be deleted manually — they are
     /// removed by unbinding the button's command — so the delete button is disabled for them.
     /// </summary>
-    public bool CanDeleteSelectedLayer => _selectedLayer != null && !_selectedLayer.IsCommandOwned;
+    public bool CanDeleteSelectedLayer =>
+        _selectedLayer is not null and not WheelSegmentsMarker && !_selectedLayer.IsCommandOwned;
 
     /// <summary>Commands of the sequence(s) that declare parameters — one card each in the
     /// Parameters tab, the same rows as the chip flyout.</summary>
@@ -1483,6 +1771,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         // by a command that is gone has no owner left, so the user may delete it.
         if (_selectedLayer == null || IsOwnedByBoundCommand(_selectedLayer)) return;
         var idx = ButtonData.Layers.IndexOf(_selectedLayer);
+        if (idx < 0) return;
         ButtonData.Layers.Remove(_selectedLayer);
         // Prefer the item that moved into the freed slot (the one below); fall back
         // to the new last item (the one above) when the removed layer was last.
@@ -1496,9 +1785,11 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
     /// <summary>
     /// The layers as the list shows them: topmost first. A reversed mirror of
-    /// <see cref="TouchButton.Layers"/>, whose order is the paint order (first at the bottom).
+    /// <see cref="TouchButton.Layers"/>, whose order is the paint order (first at the bottom); on a
+    /// split wheel's all-segments surface grouped around a row for the segments
+    /// (<see cref="SharedSurfaceLayerView"/>).
     /// </summary>
-    public ReversedLayerView LayerListItems
+    public ObservableCollection<LayerBase> LayerListItems
     {
         get;
         private set
@@ -1511,14 +1802,86 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
     private void RebuildLayerListItems()
     {
-        LayerListItems?.Dispose();
-        LayerListItems = ButtonData?.Layers != null ? new ReversedLayerView(ButtonData.Layers) : null;
+        (LayerListItems as IDisposable)?.Dispose();
+        if (ButtonData?.Layers == null)
+            LayerListItems = null;
+        else if (IsEditingSharedSurface)
+            LayerListItems = new SharedSurfaceLayerView(ButtonData.Layers, _segmentsMarker);
+        else
+            LayerListItems = new ReversedLayerView(ButtonData.Layers);
+    }
+
+    /// <summary>
+    /// Puts the all-segments surface's layers behind the segments first, each side in its paint
+    /// order. Changes nothing that is drawn; it keeps the canvas in the order the list shows.
+    /// </summary>
+    private void SortSharedLayers()
+    {
+        var layers = ButtonData.Layers;
+        var ordered = layers.Where(l => l.BehindSegments).Concat(layers.Where(l => !l.BehindSegments)).ToList();
+        for (int k = 0; k < ordered.Count; k++)
+        {
+            int at = layers.IndexOf(ordered[k]);
+            if (at != k) layers.Move(at, k);
+        }
+    }
+
+    /// <summary>
+    /// ▲ / ▼ on the all-segments surface: a step within the layer's side, or across the segments
+    /// row onto the other side when the layer is the one next to it. The canvas keeps the order
+    /// the list shows: the layers behind the segments first, those in front after them.
+    /// </summary>
+    private void MoveSharedLayer(LayerBase layer, bool up)
+    {
+        var layers = ButtonData.Layers;
+        SortSharedLayers();
+
+        int boundary = layers.Count(l => l.BehindSegments);
+
+        // The segments row moves by passing the layer next to it to the other side: up takes the
+        // lowest layer in front of the segments behind them, down brings the topmost layer
+        // behind them to the front.
+        if (layer is WheelSegmentsMarker)
+        {
+            if (up && boundary < layers.Count)
+                layers[boundary].BehindSegments = true;
+            else if (!up && boundary > 0)
+                layers[boundary - 1].BehindSegments = false;
+            ReselectAfterMove(layer);
+            return;
+        }
+
+        int i = layers.IndexOf(layer);
+        if (i < 0) return;
+
+        if (up)
+        {
+            if (layer.BehindSegments && i == boundary - 1)
+                layer.BehindSegments = false;
+            else if (i < layers.Count - 1)
+                layers.Move(i, i + 1);
+        }
+        else
+        {
+            if (!layer.BehindSegments && i == boundary)
+                layer.BehindSegments = true;
+            else if (i > 0)
+                layers.Move(i, i - 1);
+        }
+
+        ReselectAfterMove(layer);
     }
 
     /// <summary>Moves the selected layer one step up the list, i.e. one step closer to the top of the stack.</summary>
     private void MoveSelectedLayerUp()
     {
         if (_selectedLayer == null) return;
+        if (IsEditingSharedSurface)
+        {
+            MoveSharedLayer(_selectedLayer, up: true);
+            return;
+        }
+
         var layer = _selectedLayer;
         var idx = ButtonData.Layers.IndexOf(layer);
         if (idx < 0 || idx >= ButtonData.Layers.Count - 1) return;
@@ -1530,6 +1893,12 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     private void MoveSelectedLayerDown()
     {
         if (_selectedLayer == null) return;
+        if (IsEditingSharedSurface)
+        {
+            MoveSharedLayer(_selectedLayer, up: false);
+            return;
+        }
+
         var layer = _selectedLayer;
         var idx = ButtonData.Layers.IndexOf(layer);
         if (idx <= 0) return;
@@ -1588,7 +1957,11 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
             // A wheel canvas resets to the automatic layout's layers rather than to nothing, so
             // "Reset" means "back to the stock look", not a blank disc.
-            if (IsWheelCanvas)
+            if (IsWheelCanvas && EditedSegment != null)
+                WheelCanvasDefaults.PopulateSegment(b);
+            else if (IsEditingSharedSurface)
+                WheelCanvasDefaults.PopulateSplitShared(b);
+            else if (IsWheelCanvas)
                 WheelCanvasDefaults.Populate(b, DeviceWidth);
         }
         finally
@@ -1759,7 +2132,13 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             SKImageInfo info = new(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
             using SKSurface surface = SKSurface.Create(info, frame.Address, frame.RowBytes);
             BitmapHelper.DrawEditorCanvas(surface.Canvas, ButtonData, width, height, DeviceWidth, DeviceHeight,
-                ShowGrid, GridStepDevice, segmentCount, PreviewDial, roundMask: IsWheelCanvas);
+                ShowGrid, GridStepDevice, segmentCount, PreviewDial, roundMask: IsWheelCanvas,
+                wheelSplit: IsWheelSplit ? _wheel.SplitMode : Models.WheelSplitMode.None,
+                wheelSegment: IsEditingSharedSurface ? -1 : _wheelSegmentIndex,
+                wheelSegments: IsWheelSplit ? _wheel.ActiveSegments().Select(s => s.Canvas).ToArray() : null,
+                wheelShared: IsWheelSplit ? _wheel.SplitCanvas : null,
+                wheelHover: _hoverSegment,
+                wheelDividers: _wheel?.ShowSplitDividers ?? true);
         }
 
         EditorPreview = target;
@@ -1822,7 +2201,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             ButtonData.LiveContentChanged -= ButtonData_LiveContentChanged;
         }
 
-        LayerListItems?.Dispose();
+        (LayerListItems as IDisposable)?.Dispose();
         LayerListItems = null;
 
         DisposePreviewBuffers();

@@ -1559,7 +1559,7 @@ public partial class LoupedeckLiveSController(
                               $"(knob {globalIndex}) — plugin I/O is holding the render gate.");
         }
 
-        foreach (var command in new[] { dial.RotaryLeftCommand, dial.RotaryRightCommand, dial.Command })
+        foreach (var command in dial.DialCommands())
         {
             var value = commandService.GetAdjustmentValue(command, globalIndex);
             if (value.HasValue) return value;
@@ -2138,7 +2138,8 @@ public partial class LoupedeckLiveSController(
     /// deadlock the very thread that needs to complete the await, and the
     /// device would appear disconnected after the first such command.
     /// </summary>
-    private void FireAndForget(string command, ButtonTargets target, int? sourceIndex = null, int ticks = 0)
+    private void FireAndForget(string command, ButtonTargets target, int? sourceIndex = null, int ticks = 0,
+        string buttonKey = null)
     {
         if (string.IsNullOrEmpty(command)) return;
         _ = Task.Run(async () =>
@@ -2146,7 +2147,7 @@ public partial class LoupedeckLiveSController(
             try
             {
                 long started = System.Diagnostics.Stopwatch.GetTimestamp();
-                await commandService.ExecuteCommand(command, target, sourceIndex, ticks);
+                await commandService.ExecuteCommand(command, target, sourceIndex, ticks, buttonKey);
 
                 // An adjustment command changed its value, so the dial indicator drawn from
                 // GetValueText is stale. Repaint that dial's strip once the call finished

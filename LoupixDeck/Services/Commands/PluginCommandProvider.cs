@@ -2,6 +2,7 @@ using LoupixDeck.Commands.Base;
 using LoupixDeck.Models;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Services.Plugins;
+using LoupixDeck.Utils;
 
 namespace LoupixDeck.Services.Commands;
 
@@ -98,7 +99,8 @@ public class PluginCommandProvider : ICommandProvider
                     SourceIndex = sourceIndex,
                     Device = host?.ActiveDevice,
                     Host = host,
-                    ButtonKey = buttonKey
+                    ButtonKey = buttonKey,
+                    WheelSegment = WheelSegmentRegistry.Find(buttonKey)
                 });
             }
             catch (Exception ex)
@@ -266,7 +268,8 @@ public class PluginCommandProvider : ICommandProvider
             Host = host,
             StateName = stateName,
             SequenceCommands = sequence ?? [],
-            ButtonKey = buttonKey
+            ButtonKey = buttonKey,
+            WheelSegment = WheelSegmentRegistry.Find(buttonKey)
         };
 
         // Classification precedence: animated → image → text. A command implementing several picks
@@ -338,7 +341,8 @@ public class PluginCommandProvider : ICommandProvider
                         Device = host?.ActiveDevice,
                         Host = host,
                         StateName = stateName,
-                        ButtonKey = buttonKey
+                        ButtonKey = buttonKey,
+                        WheelSegment = WheelSegmentRegistry.Find(buttonKey)
                     });
                 }
                 catch (Exception ex)

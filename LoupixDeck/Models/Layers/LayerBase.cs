@@ -69,6 +69,15 @@ public abstract partial class LayerBase
     [ObservableProperty]
     public partial bool Visible { get; set; } = true;
 
+    /// <summary>
+    /// For a layer on a split CT wheel's all-segments surface (<see cref="RotaryButton.SplitCanvas"/>):
+    /// drawn behind the segments (a background image) instead of over them (a ring, a logo).
+    /// Ignored everywhere else. Written only when set, so other layers save unchanged.
+    /// </summary>
+    [ObservableProperty]
+    [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+    public partial bool BehindSegments { get; set; }
+
     [ObservableProperty]
     public partial int PositionX { get; set; }
 

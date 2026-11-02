@@ -516,6 +516,28 @@
                                                        ToolTip.Tip="{Binding Name}" />
                                         </Grid>
                                     </DataTemplate>
+                                    <!-- The segments of a split wheel, between the all-segments layers in
+                                         front of them (above) and behind them (below). Not a layer. -->
+                                    <DataTemplate DataType="vm:WheelSegmentsMarker">
+                                        <StackPanel Spacing="2" ToolTip.Tip="{loc:Tr Wheel_SegmentsMarkerHint}">
+                                            <TextBlock Classes="hint" FontSize="11"
+                                                       Text="{loc:Tr Wheel_LayersInFront}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <Grid ColumnDefinitions="Auto,*">
+                                                <Viewbox Grid.Column="0" Width="16" Height="16" Margin="2,0,8,0"
+                                                         VerticalAlignment="Center">
+                                                    <Canvas Width="24" Height="24">
+                                                        <Path Classes="zone-lines" Data="M2,2 H22 V22 H2 Z M2,2 L22,22 M22,2 L2,22" />
+                                                    </Canvas>
+                                                </Viewbox>
+                                                <TextBlock Grid.Column="1" Text="{Binding Name}" FontWeight="SemiBold"
+                                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                            </Grid>
+                                            <TextBlock Classes="hint" FontSize="11"
+                                                       Text="{loc:Tr Wheel_LayersBehind}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                    </DataTemplate>
                                     <!-- Plugin-owned layer: rendered by a plugin command, not user-addable. -->
                                     <DataTemplate DataType="layers:PluginLayer">
                                         <Grid ColumnDefinitions="Auto,Auto,*,Auto">
@@ -571,6 +593,32 @@
                         <StackPanel Grid.Column="0" VerticalAlignment="Center">
                             <TextBlock Classes="panel-title" Text="{loc:Tr TouchButton_Preview}"
                                        Margin="0" />
+                            <!-- Split wheel: the surface whose layers are edited - all segments, or
+                                 one segment. A click on a segment in the preview picks it too. -->
+                            <ListBox Classes="zone-picker" Margin="0,6,0,0"
+                                     IsVisible="{Binding IsWheelSplit}"
+                                     ItemsSource="{Binding WheelSurfaceChoices}"
+                                     SelectedIndex="{Binding SelectedWheelSurface, Mode=TwoWay}"
+                                     ToolTip.Tip="{loc:Tr Wheel_SegmentHint}">
+                                <ListBox.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ListBox.ItemsPanel>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate DataType="vm:WheelSurfaceChoice">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <Viewbox Width="16" Height="16" VerticalAlignment="Center">
+                                                <Canvas Width="24" Height="24">
+                                                    <Path Classes="zone-fill" Data="{Binding Fill}" />
+                                                    <Path Classes="zone-lines" Data="{Binding Lines}" />
+                                                </Canvas>
+                                            </Viewbox>
+                                            <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
                             <TextBlock Classes="label" Margin="0,2,8,0"
                                        TextTrimming="CharacterEllipsis"
                                        IsVisible="{Binding ShowStatesSection}"
@@ -649,6 +697,7 @@
                                               IsEnabled="{Binding CanEditCanvas}"
                                               PointerPressed="Editor_PointerPressed"
                                               PointerMoved="Editor_PointerMoved"
+                                              PointerExited="Editor_PointerExited"
                                               PointerReleased="Editor_PointerReleased">
                                 <Image Width="{Binding EditorCanvasWidth}"
                                        Height="{Binding EditorCanvasHeight}"
@@ -747,6 +796,44 @@
                                     <TextBlock Classes="panel-title"
                                                IsVisible="{Binding IsWheelCanvas}"
                                                Text="{loc:Tr TouchButton_CentreWheelTitle}" />
+                                    <!-- CT wheel: the split, as one icon per mode. The surface being
+                                         edited is picked in the tab bar above the preview. -->
+                                    <StackPanel IsVisible="{Binding IsWheelCanvas}" Spacing="4" Margin="0,0,0,10">
+                                        <TextBlock Classes="label" Text="{loc:Tr Wheel_SplitMode}" />
+                                        <StackPanel Orientation="Horizontal">
+                                        <ListBox Classes="zone-picker"
+                                                 ItemsSource="{Binding WheelSplitOptions}"
+                                                 SelectedItem="{Binding SelectedWheelSplit, Mode=TwoWay}">
+                                            <ListBox.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal" Spacing="4" />
+                                                </ItemsPanelTemplate>
+                                            </ListBox.ItemsPanel>
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate DataType="vm:WheelSplitOption">
+                                                    <Viewbox Width="22" Height="22" ToolTip.Tip="{Binding Label}">
+                                                        <Canvas Width="24" Height="24">
+                                                            <Path Classes="zone-lines" Data="{Binding Icon}" />
+                                                        </Canvas>
+                                                    </Viewbox>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                        <!-- Set apart from the split choice: shows or hides the
+                                             lines between the segments. -->
+                                        <Rectangle Classes="picker-divider" IsVisible="{Binding IsWheelSplit}" />
+                                        <ToggleButton Classes="zone-toggle"
+                                                      IsVisible="{Binding IsWheelSplit}"
+                                                      IsChecked="{Binding ShowWheelDividers, Mode=TwoWay}"
+                                                      ToolTip.Tip="{loc:Tr Wheel_ShowDividers}">
+                                            <Viewbox Width="22" Height="22">
+                                                <Canvas Width="24" Height="24">
+                                                    <Path Classes="zone-lines" Data="{Binding WheelDividerIcon}" />
+                                                </Canvas>
+                                            </Viewbox>
+                                        </ToggleButton>
+                                        </StackPanel>
+                                    </StackPanel>
                                     <Grid ColumnDefinitions="Auto,*,Auto">
                                         <CheckBox Grid.Column="0" Content="{loc:Tr TouchButton_Background}" Margin="0,0,10,0"
                                                   VerticalAlignment="Center"
@@ -764,7 +851,7 @@
                                     </Grid>
                                     <Button Classes="toolbar" Margin="0,8,0,0"
                                             HorizontalAlignment="Stretch"
-                                            IsVisible="{Binding IsWheelCanvas}"
+                                            IsVisible="{Binding ShowUseAutomaticLayout}"
                                             Content="{loc:Tr TouchButton_UseAutomaticLayout}"
                                             Command="{Binding UseAutomaticLayoutCommand}"
                                             ToolTip.Tip="{loc:Tr TouchButton_UseAutomaticLayoutHint}" />

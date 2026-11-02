@@ -375,6 +375,63 @@
     <!-- Bottom pipeline strip holding the assigned command sequence. Same look
          as an editor panel, plus a drop highlight while a tree drag hovers it.
          The border is always present so toggling adds no layout shift. -->
+    <!-- Split CT wheel: zone icons (a square with the split's dividers, one zone filled), the
+         icon pickers built from them (split mode, edited surface) and the divider toggle.
+         Shared by the rotary editor and the wheel appearance editor. -->
+    <Style Selector="Path.zone-fill">
+        <Setter Property="Fill" Value="{DynamicResource AppTextSecondary}" />
+    </Style>
+    <Style Selector="Path.zone-lines">
+        <Setter Property="Stroke" Value="{DynamicResource AppTextMuted}" />
+        <Setter Property="StrokeThickness" Value="1.5" />
+    </Style>
+    <Style Selector="ListBox.zone-picker">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+    <Style Selector="ListBox.zone-picker ListBoxItem">
+        <Setter Property="Padding" Value="6,4" />
+        <Setter Property="Margin" Value="0,0,4,4" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
+    </Style>
+    <Style Selector="ListBox.zone-picker ListBoxItem:selected /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AppAccentSubtle}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource PageActiveBorderBrush}" />
+    </Style>
+    <Style Selector="ListBox.zone-picker ListBoxItem:selected Path.zone-fill">
+        <Setter Property="Fill" Value="{DynamicResource PickerFocusBrush}" />
+    </Style>
+    <Style Selector="ListBox.zone-picker ListBoxItem:selected Path.zone-lines">
+        <Setter Property="Stroke" Value="{DynamicResource PickerFocusBrush}" />
+    </Style>
+    <Style Selector="ToggleButton.zone-toggle">
+        <Setter Property="Padding" Value="6,4" />
+        <Setter Property="Margin" Value="0,0,0,4" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
+        <Setter Property="VerticalAlignment" Value="Top" />
+    </Style>
+    <Style Selector="ToggleButton.zone-toggle:checked /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AppAccentSubtle}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource PageActiveBorderBrush}" />
+    </Style>
+    <Style Selector="ToggleButton.zone-toggle:checked Path.zone-lines">
+        <Setter Property="Stroke" Value="{DynamicResource PickerFocusBrush}" />
+    </Style>
+    <!-- Thin vertical rule that sets a control apart from the picker next to it. -->
+    <Style Selector="Rectangle.picker-divider">
+        <Setter Property="Width" Value="1" />
+        <Setter Property="Margin" Value="6,2,10,6" />
+        <Setter Property="Fill" Value="{DynamicResource AppBorderSubtle}" />
+    </Style>
+
     <Style Selector="Border.sequence-strip">
         <Setter Property="Background" Value="{DynamicResource AppSurface}" />
         <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
