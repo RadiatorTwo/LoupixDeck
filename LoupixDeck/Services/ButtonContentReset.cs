@@ -57,6 +57,7 @@ public static class ButtonContentReset
         button.Canvas = null;
         button.SplitMode = WheelSplitMode.None;
         button.Segments = [];
+        button.SplitCanvas = null;
         button.Refresh();
     }
 

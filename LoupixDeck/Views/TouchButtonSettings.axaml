@@ -747,8 +747,9 @@
                                     <TextBlock Classes="panel-title"
                                                IsVisible="{Binding IsWheelCanvas}"
                                                Text="{loc:Tr TouchButton_CentreWheelTitle}" />
-                                    <!-- CT wheel: split the screen into segments and pick the one
-                                         whose layers are edited (a click on empty canvas picks too). -->
+                                    <!-- CT wheel: split the screen into segments and pick the surface
+                                         whose layers are edited - all segments or one segment (a click
+                                         on empty canvas picks that segment). -->
                                     <StackPanel IsVisible="{Binding IsWheelCanvas}" Spacing="6" Margin="0,0,0,10">
                                         <Grid ColumnDefinitions="Auto,*">
                                             <TextBlock Grid.Column="0" Text="{loc:Tr Wheel_SplitMode}"
@@ -762,10 +763,16 @@
                                             <TextBlock Grid.Column="0" Text="{loc:Tr Wheel_Segment}"
                                                        VerticalAlignment="Center" Margin="0,0,10,0" />
                                             <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
-                                                      ItemsSource="{Binding WheelSegmentChoices}"
-                                                      SelectedIndex="{Binding SelectedWheelSegment, Mode=TwoWay}"
+                                                      ItemsSource="{Binding WheelSurfaceChoices}"
+                                                      SelectedIndex="{Binding SelectedWheelSurface, Mode=TwoWay}"
                                                       ToolTip.Tip="{loc:Tr Wheel_SegmentHint}" />
                                         </Grid>
+                                        <!-- A layer on the all-segments surface lies behind the
+                                             segments or over them. -->
+                                        <CheckBox IsVisible="{Binding ShowSharedLayerPlacement}"
+                                                  Content="{loc:Tr Wheel_LayerBehindSegments}"
+                                                  IsChecked="{Binding SelectedLayer.BehindSegments, Mode=TwoWay, FallbackValue=False}"
+                                                  ToolTip.Tip="{loc:Tr Wheel_LayerBehindSegmentsHint}" />
                                     </StackPanel>
                                     <Grid ColumnDefinitions="Auto,*,Auto">
                                         <CheckBox Grid.Column="0" Content="{loc:Tr TouchButton_Background}" Margin="0,0,10,0"

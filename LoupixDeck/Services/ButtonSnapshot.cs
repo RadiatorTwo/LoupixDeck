@@ -78,6 +78,8 @@ public static class ButtonSnapshot
                         rotary.SplitMode = WheelSplitMode.None;
                     if (!snapshot.ContainsKey("Segments"))
                         rotary.Segments = [];
+                    if (!snapshot.ContainsKey("SplitCanvas"))
+                        rotary.SplitCanvas = null;
                     rotary.RewireAfterLoad();
                     break;
             }
@@ -119,7 +121,8 @@ public static class ButtonSnapshot
                        && string.IsNullOrEmpty(rotary.DisplayText)
                        && rotary.Canvas == null
                        && !rotary.IsSplit
-                       && rotary.Segments is not { Count: > 0 };
+                       && rotary.Segments is not { Count: > 0 }
+                       && rotary.SplitCanvas == null;
 
             default:
                 return button == null;

@@ -27,8 +27,8 @@ public static class WheelCanvasDefaults
 
     /// <summary>
     /// A new canvas for segment <paramref name="index"/> of a split wheel: the whole wheel screen
-    /// with a black background and no layers. The user adds text and images in the appearance
-    /// editor; the renderer clips the canvas to the segment.
+    /// without background or layers, so the all-segments surface behind it shows through. The user
+    /// adds text and images in the appearance editor; the renderer clips the canvas to the segment.
     /// </summary>
     public static TouchButton CreateSegment(int index)
     {
@@ -39,6 +39,27 @@ public static class WheelCanvasDefaults
 
     /// <summary>Resets <paramref name="canvas"/> to a segment's default look (see <see cref="CreateSegment"/>).</summary>
     public static void PopulateSegment(TouchButton canvas)
+    {
+        ArgumentNullException.ThrowIfNull(canvas);
+
+        canvas.BackgroundEnabled = false;
+        canvas.BackColor = Colors.Black;
+        canvas.Layers.Clear();
+    }
+
+    /// <summary>
+    /// A new all-segments surface for a split wheel (<see cref="RotaryButton.SplitCanvas"/>): a
+    /// black background and no layers.
+    /// </summary>
+    public static TouchButton CreateSplitShared()
+    {
+        var canvas = new TouchButton(RotaryButton.WheelSplitCanvasIndex);
+        PopulateSplitShared(canvas);
+        return canvas;
+    }
+
+    /// <summary>Resets <paramref name="canvas"/> to the all-segments surface's default look.</summary>
+    public static void PopulateSplitShared(TouchButton canvas)
     {
         ArgumentNullException.ThrowIfNull(canvas);
 

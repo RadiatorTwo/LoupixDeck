@@ -93,6 +93,7 @@ public partial class RotaryButton(int index,string rotaryLeftCommand, string rot
     public void RewireAfterLoad()
     {
         _canvas?.RewireLayerHandlers();
+        SplitCanvas?.RewireLayerHandlers();
         EnsureSegments();
         foreach (var segment in Segments)
             segment?.RewireAfterLoad();
@@ -105,6 +106,20 @@ public partial class RotaryButton(int index,string rotaryLeftCommand, string rot
     /// plus <c>n</c>. Like <see cref="WheelCanvasIndex"/>, only an identifier.
     /// </summary>
     public const int WheelSegmentCanvasIndex = 1001;
+
+    /// <summary><see cref="TouchButton.Index"/> of <see cref="SplitCanvas"/>; only an identifier.</summary>
+    public const int WheelSplitCanvasIndex = 1010;
+
+    /// <summary>
+    /// The layers a split wheel shows on all segments: a canvas the size of the whole wheel screen,
+    /// drawn unclipped, each layer behind the segments or over them
+    /// (<see cref="Layers.LayerBase.BehindSegments"/>). Its background colour, when on, fills the
+    /// screen behind everything. Null until the appearance editor creates it; persisted only when
+    /// set. Not drawn while the wheel is unsplit.
+    /// </summary>
+    [ObservableProperty]
+    [JsonProperty("SplitCanvas", NullValueHandling = NullValueHandling.Ignore)]
+    public partial TouchButton SplitCanvas { get; set; }
 
     /// <summary>
     /// How this wheel mode splits the wheel screen into pressable segments. Only the Loupedeck
@@ -174,8 +189,8 @@ public partial class RotaryButton(int index,string rotaryLeftCommand, string rot
 
     /// <summary>
     /// The layer canvases currently drawn on the wheel screen, each with the segment it belongs to
-    /// (null for the unsplit wheel's own <see cref="Canvas"/>). Canvases of hidden segments and,
-    /// while split, the unsplit canvas are not included.
+    /// (null for the unsplit wheel's own <see cref="Canvas"/> and for <see cref="SplitCanvas"/>).
+    /// Canvases of hidden segments and, while split, the unsplit canvas are not included.
     /// </summary>
     public IReadOnlyList<(TouchButton Canvas, WheelSegment Segment, int Index)> VisibleCanvases()
     {
@@ -183,6 +198,8 @@ public partial class RotaryButton(int index,string rotaryLeftCommand, string rot
             return _canvas == null ? [] : [(_canvas, null, -1)];
 
         var result = new List<(TouchButton, WheelSegment, int)>();
+        if (SplitCanvas is { } shared)
+            result.Add((shared, null, -1));
         var segments = ActiveSegments();
         for (int i = 0; i < segments.Count; i++)
         {

@@ -522,7 +522,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         _suppressWheelSplitChange = true;
         SelectedWheelSplit = WheelSplitOptions.FirstOrDefault(o => o.Mode == wheel.SplitMode);
         _suppressWheelSplitChange = false;
-        RebuildWheelSegmentChoices();
+        RebuildWheelSurfaceChoices();
         OnPropertyChanged(nameof(WheelSplitOptions));
         OnPropertyChanged(nameof(IsWheelSplit));
         OnPropertyChanged(nameof(ShowUseAutomaticLayout));
@@ -535,26 +535,37 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         OnPropertyChanged(nameof(TextSources));
     }
 
-    /// <summary>Segment of a split wheel being edited, or -1 for the whole wheel screen.</summary>
+    /// <summary>
+    /// Surface of the wheel being edited: a segment index of a split wheel, <see cref="SharedSurface"/>
+    /// for the layers shown on all segments, or -1 for the whole screen of an unsplit wheel.
+    /// </summary>
     private int _wheelSegmentIndex = -1;
 
-    /// <summary>The segment being edited, or null for the whole wheel screen.</summary>
+    /// <summary><see cref="_wheelSegmentIndex"/> while the split wheel's all-segments surface is edited.</summary>
+    private const int SharedSurface = -2;
+
+    /// <summary>The segment being edited, or null for the whole wheel screen or the all-segments surface.</summary>
     private WheelSegment EditedSegment =>
         _wheel != null && _wheelSegmentIndex >= 0 && _wheelSegmentIndex < _wheel.ActiveSegments().Count
             ? _wheel.ActiveSegments()[_wheelSegmentIndex]
             : null;
 
+    /// <summary>True while the split wheel's all-segments surface (<see cref="RotaryButton.SplitCanvas"/>) is edited.</summary>
+    private bool IsEditingSharedSurface => IsWheelSplit && _wheelSegmentIndex == SharedSurface;
+
     // ───────── Split wheel ─────────
 
     /// <summary>
-    /// Gives each active segment of a split wheel a canvas to edit; a segment is black until it
-    /// has one. The canvas of an unsplit wheel is owned by the caller (<see cref="EnsureWheelCanvas"/>).
+    /// Gives a split wheel everything the editor edits: a canvas for each active segment (a
+    /// segment shows nothing until it has one) and the all-segments surface. The canvas of an
+    /// unsplit wheel is owned by the caller (<see cref="EnsureWheelCanvas"/>).
     /// </summary>
     public static void EnsureSegmentCanvases(RotaryButton wheel)
     {
         var segments = wheel.ActiveSegments();
         for (int i = 0; i < segments.Count; i++)
             segments[i].Canvas ??= WheelCanvasDefaults.CreateSegment(i);
+        wheel.SplitCanvas ??= WheelCanvasDefaults.CreateSplitShared();
     }
 
     /// <summary>
@@ -572,11 +583,17 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// <summary>The split modes offered for the wheel screen.</summary>
     public IReadOnlyList<WheelSplitOption> WheelSplitOptions { get; private set; } = [];
 
-    /// <summary>True while a split wheel is edited: the segment selector shows.</summary>
+    /// <summary>True while a split wheel is edited: the surface selector shows.</summary>
     public bool IsWheelSplit => IsWheelCanvas && _wheel.IsSplit;
 
     /// <summary>"Use automatic layout" only applies to an unsplit wheel; a split one has no automatic look.</summary>
     public bool ShowUseAutomaticLayout => IsWheelCanvas && !_wheel.IsSplit;
+
+    /// <summary>
+    /// The behind/in-front choice of the selected layer, offered only on the all-segments surface,
+    /// whose layers are drawn either behind the segments or over them.
+    /// </summary>
+    public bool ShowSharedLayerPlacement => IsEditingSharedSurface && SelectedLayer != null;
 
     // Set while ConfigureWheel picks the current option, so that does not count as a change.
     private bool _suppressWheelSplitChange;
@@ -607,9 +624,9 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             canvas = _wheel.Canvas ?? EnsureWheelCanvas?.Invoke();
         }
 
-        // The index first, so the segment choice rebuilt below does not switch canvases itself.
+        // The index first, so the surface choice rebuilt below does not switch canvases itself.
         _wheelSegmentIndex = _wheel.IsSplit ? 0 : -1;
-        RebuildWheelSegmentChoices();
+        RebuildWheelSurfaceChoices();
         OnPropertyChanged(nameof(IsWheelSplit));
         OnPropertyChanged(nameof(ShowUseAutomaticLayout));
         WheelCanvasesChanged?.Invoke();
@@ -618,22 +635,29 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             SwitchEditedCanvas(canvas, _wheel.IsSplit ? 0 : -1);
     }
 
-    /// <summary>The segment names of the current split, in segment order, for the segment selector.</summary>
-    public IReadOnlyList<string> WheelSegmentChoices { get; private set; } = [];
+    /// <summary>
+    /// The surfaces of a split wheel the editor can work on: first "All segments", then the
+    /// segments in segment order.
+    /// </summary>
+    public IReadOnlyList<string> WheelSurfaceChoices { get; private set; } = [];
 
-    /// <summary>The segment being edited (index into <see cref="WheelSegmentChoices"/>).</summary>
+    /// <summary>The selected entry of <see cref="WheelSurfaceChoices"/>: 0 = all segments, n = segment n - 1.</summary>
     [ObservableProperty]
-    public partial int SelectedWheelSegment { get; set; } = -1;
+    public partial int SelectedWheelSurface { get; set; } = -1;
 
-    partial void OnSelectedWheelSegmentChanged(int value)
+    partial void OnSelectedWheelSurfaceChanged(int value)
     {
-        if (!IsWheelSplit || value < 0 || value == _wheelSegmentIndex) return;
+        if (!IsWheelSplit || value < 0) return;
 
-        var segments = _wheel.ActiveSegments();
-        if (value >= segments.Count) return;
+        int index = value == 0 ? SharedSurface : value - 1;
+        if (index == _wheelSegmentIndex) return;
 
         EnsureSegmentCanvases(_wheel);
-        SwitchEditedCanvas(segments[value].Canvas, value);
+        var segments = _wheel.ActiveSegments();
+        if (index == SharedSurface)
+            SwitchEditedCanvas(_wheel.SplitCanvas, SharedSurface);
+        else if (index < segments.Count)
+            SwitchEditedCanvas(segments[index].Canvas, index);
     }
 
     /// <summary>
@@ -652,33 +676,39 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         int index = WheelSplitGeometry.HitTest(_wheel.SplitMode, (int)x, (int)y, DeviceWidth);
         if (index < 0) return false;
 
-        SelectedWheelSegment = index;
+        SelectedWheelSurface = index + 1;
         return true;
     }
 
-    private void RebuildWheelSegmentChoices()
+    private void RebuildWheelSurfaceChoices()
     {
-        WheelSegmentChoices = IsWheelSplit
-            ? Enumerable.Range(0, WheelSplitGeometry.SegmentCount(_wheel.SplitMode))
-                .Select(i => Loc.Tr(WheelSplitGeometry.SegmentNameKey(_wheel.SplitMode, i)))
-                .ToArray()
+        WheelSurfaceChoices = IsWheelSplit
+            ? [Loc.Tr("Wheel_AllSegments"), .. Enumerable.Range(0, WheelSplitGeometry.SegmentCount(_wheel.SplitMode))
+                .Select(i => Loc.Tr(WheelSplitGeometry.SegmentNameKey(_wheel.SplitMode, i)))]
             : [];
-        OnPropertyChanged(nameof(WheelSegmentChoices));
-        SelectedWheelSegment = IsWheelSplit ? Math.Max(_wheelSegmentIndex, 0) : -1;
+        OnPropertyChanged(nameof(WheelSurfaceChoices));
+        SelectedWheelSurface = SurfaceChoiceOf(_wheelSegmentIndex);
     }
+
+    /// <summary>The <see cref="WheelSurfaceChoices"/> entry of an edited surface index.</summary>
+    private int SurfaceChoiceOf(int segmentIndex) => !IsWheelSplit
+        ? -1
+        : segmentIndex == SharedSurface ? 0 : Math.Max(segmentIndex, 0) + 1;
 
     /// <summary>
     /// Makes <paramref name="canvas"/> the edited surface: the wheel's own canvas
-    /// (<paramref name="segmentIndex"/> -1) or a segment's. Edits made so far stay on the canvas
-    /// they were made on; the layer list, selection and preview follow the new one.
+    /// (<paramref name="segmentIndex"/> -1), a segment's, or the all-segments surface
+    /// (<see cref="SharedSurface"/>). Edits made so far stay on the canvas they were made on; the
+    /// layer list, selection and preview follow the new one.
     /// </summary>
     private void SwitchEditedCanvas(TouchButton canvas, int segmentIndex)
     {
         _wheelSegmentIndex = segmentIndex;
         SelectedLayer = null;
         Initialize(canvas);
-        SelectedWheelSegment = segmentIndex;
+        SelectedWheelSurface = SurfaceChoiceOf(segmentIndex);
         OnPropertyChanged(nameof(ButtonLabel));
+        OnPropertyChanged(nameof(ShowSharedLayerPlacement));
     }
 
     /// <summary>Sample value the wheel preview is rendered with, so the arc and value text are visible.</summary>
@@ -787,7 +817,9 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         ? EditedSegment != null
             ? Loc.Tr("Wheel_SegmentTitleFmt", Loc.Tr("TouchButton_CentreWheelTitle"),
                 Loc.Tr(WheelSplitGeometry.SegmentNameKey(_wheel.SplitMode, _wheelSegmentIndex)))
-            : Loc.Tr("TouchButton_CentreWheelTitle")
+            : IsEditingSharedSurface
+                ? Loc.Tr("Wheel_SegmentTitleFmt", Loc.Tr("TouchButton_CentreWheelTitle"), Loc.Tr("Wheel_AllSegments"))
+                : Loc.Tr("TouchButton_CentreWheelTitle")
         : $"Touch Button {ButtonNumber}";
 
     /// <summary>The wheel preview's dial label: <paramref name="label"/>, or a sample when it is empty.</summary>
@@ -806,6 +838,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             if (ReferenceEquals(_selectedLayer, value)) return;
             _selectedLayer = value;
             OnPropertyChanged(nameof(SelectedLayer));
+            OnPropertyChanged(nameof(ShowSharedLayerPlacement));
             OnPropertyChanged(nameof(SelectedImageLayer));
             OnPropertyChanged(nameof(SelectedTextLayer));
             OnPropertyChanged(nameof(SelectedImageCommandChoice));
@@ -1777,6 +1810,8 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             // "Reset" means "back to the stock look", not a blank disc.
             if (IsWheelCanvas && EditedSegment != null)
                 WheelCanvasDefaults.PopulateSegment(b);
+            else if (IsEditingSharedSurface)
+                WheelCanvasDefaults.PopulateSplitShared(b);
             else if (IsWheelCanvas)
                 WheelCanvasDefaults.Populate(b, DeviceWidth);
         }
@@ -1949,9 +1984,10 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             using SKSurface surface = SKSurface.Create(info, frame.Address, frame.RowBytes);
             BitmapHelper.DrawEditorCanvas(surface.Canvas, ButtonData, width, height, DeviceWidth, DeviceHeight,
                 ShowGrid, GridStepDevice, segmentCount, PreviewDial, roundMask: IsWheelCanvas,
-                wheelSplit: EditedSegment != null ? _wheel.SplitMode : Models.WheelSplitMode.None,
-                wheelSegment: _wheelSegmentIndex,
-                wheelSegments: EditedSegment != null ? _wheel.ActiveSegments().Select(s => s.Canvas).ToArray() : null);
+                wheelSplit: IsWheelSplit ? _wheel.SplitMode : Models.WheelSplitMode.None,
+                wheelSegment: IsEditingSharedSurface ? -1 : _wheelSegmentIndex,
+                wheelSegments: IsWheelSplit ? _wheel.ActiveSegments().Select(s => s.Canvas).ToArray() : null,
+                wheelShared: IsWheelSplit ? _wheel.SplitCanvas : null);
         }
 
         EditorPreview = target;
