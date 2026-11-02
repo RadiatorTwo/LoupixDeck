@@ -226,13 +226,6 @@
             <Setter Property="Margin" Value="0,0,8,0" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
-        <Style Selector="Path.zone-fill">
-            <Setter Property="Fill" Value="{DynamicResource AppTextSecondary}" />
-        </Style>
-        <Style Selector="Path.zone-lines">
-            <Setter Property="Stroke" Value="{DynamicResource AppTextMuted}" />
-            <Setter Property="StrokeThickness" Value="1.5" />
-        </Style>
         <Style Selector="Border.sequence-strip.active Path.zone-fill">
             <Setter Property="Fill" Value="{DynamicResource PickerFocusBrush}" />
         </Style>
@@ -264,10 +257,25 @@
                             VerticalAlignment="Center"
                             IsVisible="{Binding IsWheel}">
                     <TextBlock Text="{loc:Tr Wheel_SplitMode}" VerticalAlignment="Center" />
-                    <ComboBox Width="190"
-                              ItemsSource="{Binding SplitOptions}"
-                              SelectedItem="{Binding SelectedSplitOption, Mode=TwoWay}"
-                              ToolTip.Tip="{loc:Tr Wheel_SplitModeHint}" />
+                    <ListBox Classes="zone-picker" VerticalAlignment="Center" Margin="0,4,0,0"
+                             ItemsSource="{Binding SplitOptions}"
+                             SelectedItem="{Binding SelectedSplitOption, Mode=TwoWay}"
+                             ToolTip.Tip="{loc:Tr Wheel_SplitModeHint}">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate DataType="vm:WheelSplitOption">
+                                <Viewbox Width="20" Height="20" ToolTip.Tip="{Binding Label}">
+                                    <Canvas Width="24" Height="24">
+                                        <Path Classes="zone-lines" Data="{Binding Icon}" />
+                                    </Canvas>
+                                </Viewbox>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
                 </StackPanel>
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8"
                             HorizontalAlignment="Right" VerticalAlignment="Center">

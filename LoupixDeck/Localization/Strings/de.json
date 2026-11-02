@@ -1222,6 +1222,7 @@
   "Wheel_SegmentTopRight": "Oben rechts",
   "Wheel_SegmentsMarker": "Segmente",
   "Wheel_SegmentsMarkerHint": "Steht für die Segmente. Ebenen über dieser Zeile liegen vor den Segmenten, Ebenen darunter dahinter. Mit ▲ ▼ verschiebst du eine Ebene auf die andere Seite.",
+  "Wheel_ShowDividers": "Trennlinien zwischen den Segmenten auf dem Rad anzeigen",
   "Wheel_SplitCross": "4 × Kreuz (+)",
   "Wheel_SplitDiagonal": "4 × diagonal (X)",
   "Wheel_SplitHorizontal": "2 × waagerecht (oben / unten)",

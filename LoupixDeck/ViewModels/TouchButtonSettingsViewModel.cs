@@ -1,4 +1,5 @@
 ﻿using LoupixDeck.Localization;
+using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.Input;
@@ -539,6 +540,8 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         _suppressWheelSplitChange = false;
         RebuildWheelSurfaceChoices();
         OnPropertyChanged(nameof(WheelSplitOptions));
+        OnPropertyChanged(nameof(ShowWheelDividers));
+        OnPropertyChanged(nameof(WheelDividerIcon));
         OnPropertyChanged(nameof(IsWheelSplit));
         OnPropertyChanged(nameof(ShowUseAutomaticLayout));
         OnPropertyChanged(nameof(IsWheelCanvas));
@@ -600,6 +603,27 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
     /// <summary>True while a split wheel is edited: the surface selector shows.</summary>
     public bool IsWheelSplit => IsWheelCanvas && _wheel.IsSplit;
+
+    /// <summary>
+    /// Whether the split wheel draws the lines between its segments, on the device and in the
+    /// preview (<see cref="RotaryButton.ShowSplitDividers"/>).
+    /// </summary>
+    public bool ShowWheelDividers
+    {
+        get => _wheel?.ShowSplitDividers ?? true;
+        set
+        {
+            if (_wheel == null || _wheel.ShowSplitDividers == value) return;
+            _wheel.ShowSplitDividers = value;
+            HasEdits = true;
+            OnPropertyChanged(nameof(ShowWheelDividers));
+            UpdateEditorPreview();
+            WheelCanvasesChanged?.Invoke();
+        }
+    }
+
+    /// <summary>Icon of the divider toggle: the current split's dividers.</summary>
+    public Geometry WheelDividerIcon => WheelZoneIcons.Dividers(_wheel?.SplitMode ?? Models.WheelSplitMode.None);
 
     /// <summary>"Use automatic layout" only applies to an unsplit wheel; a split one has no automatic look.</summary>
     public bool ShowUseAutomaticLayout => IsWheelCanvas && !_wheel.IsSplit;
@@ -673,6 +697,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         _wheelSegmentIndex = _wheel.IsSplit ? 0 : -1;
         RebuildWheelSurfaceChoices();
         OnPropertyChanged(nameof(IsWheelSplit));
+        OnPropertyChanged(nameof(WheelDividerIcon));
         OnPropertyChanged(nameof(ShowUseAutomaticLayout));
         WheelCanvasesChanged?.Invoke();
 
@@ -2103,7 +2128,8 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
                 wheelSegment: IsEditingSharedSurface ? -1 : _wheelSegmentIndex,
                 wheelSegments: IsWheelSplit ? _wheel.ActiveSegments().Select(s => s.Canvas).ToArray() : null,
                 wheelShared: IsWheelSplit ? _wheel.SplitCanvas : null,
-                wheelHover: _hoverSegment);
+                wheelHover: _hoverSegment,
+                wheelDividers: _wheel?.ShowSplitDividers ?? true);
         }
 
         EditorPreview = target;

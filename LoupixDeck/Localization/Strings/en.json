@@ -1222,6 +1222,7 @@
   "Wheel_SegmentTopRight": "Top right",
   "Wheel_SegmentsMarker": "Segments",
   "Wheel_SegmentsMarkerHint": "Stands for the segments. Layers above this row are drawn over the segments, layers below it behind them. Move a layer past it with ▲ ▼.",
+  "Wheel_ShowDividers": "Show the lines between the segments on the wheel",
   "Wheel_SplitCross": "4 × cross (+)",
   "Wheel_SplitDiagonal": "4 × diagonal (X)",
   "Wheel_SplitHorizontal": "2 × horizontal (top / bottom)",

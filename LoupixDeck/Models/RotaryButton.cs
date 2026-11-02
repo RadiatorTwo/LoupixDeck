@@ -132,6 +132,15 @@ public partial class RotaryButton(int index,string rotaryLeftCommand, string rot
 
     public bool ShouldSerializeSplitMode() => SplitMode != WheelSplitMode.None;
 
+    /// <summary>
+    /// Whether a split wheel draws the lines between its segments. On by default; written only
+    /// when off, so configs without it load and save unchanged.
+    /// </summary>
+    [ObservableProperty]
+    public partial bool ShowSplitDividers { get; set; } = true;
+
+    public bool ShouldSerializeShowSplitDividers() => !ShowSplitDividers;
+
     partial void OnSplitModeChanged(WheelSplitMode value) => EnsureSegments();
 
     /// <summary>

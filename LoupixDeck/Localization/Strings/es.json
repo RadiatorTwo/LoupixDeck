@@ -1222,6 +1222,7 @@
   "Wheel_SegmentTopRight": "Arriba a la derecha",
   "Wheel_SegmentsMarker": "Segmentos",
   "Wheel_SegmentsMarkerHint": "Representa los segmentos. Las capas sobre esta fila se dibujan encima de los segmentos y las de debajo, detrás. Pasa una capa al otro lado con ▲ ▼.",
+  "Wheel_ShowDividers": "Mostrar las líneas entre los segmentos en la rueda",
   "Wheel_SplitCross": "4 × cruz (+)",
   "Wheel_SplitDiagonal": "4 × diagonal (X)",
   "Wheel_SplitHorizontal": "2 × horizontal (arriba / abajo)",

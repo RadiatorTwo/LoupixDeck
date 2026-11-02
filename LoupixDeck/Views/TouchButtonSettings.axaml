@@ -197,38 +197,6 @@
             <Setter Property="Background" Value="{DynamicResource AppAccentSubtle}" />
         </Style>
 
-        <!-- Split wheel pickers: compact icon toggles (split mode) and icon tabs (surface). -->
-        <Style Selector="ListBox.zone-picker">
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Padding" Value="0" />
-        </Style>
-        <Style Selector="ListBox.zone-picker ListBoxItem">
-            <Setter Property="Padding" Value="8,4" />
-            <Setter Property="Margin" Value="0,0,4,4" />
-            <Setter Property="MinHeight" Value="0" />
-            <Setter Property="CornerRadius" Value="6" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
-        </Style>
-        <Style Selector="ListBox.zone-picker ListBoxItem:selected /template/ ContentPresenter">
-            <Setter Property="Background" Value="{DynamicResource AppAccentSubtle}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource PageActiveBorderBrush}" />
-        </Style>
-        <Style Selector="Path.zone-fill">
-            <Setter Property="Fill" Value="{DynamicResource AppTextSecondary}" />
-        </Style>
-        <Style Selector="Path.zone-lines">
-            <Setter Property="Stroke" Value="{DynamicResource AppTextMuted}" />
-            <Setter Property="StrokeThickness" Value="1.5" />
-        </Style>
-        <Style Selector="ListBox.zone-picker ListBoxItem:selected Path.zone-fill">
-            <Setter Property="Fill" Value="{DynamicResource PickerFocusBrush}" />
-        </Style>
-        <Style Selector="ListBox.zone-picker ListBoxItem:selected Path.zone-lines">
-            <Setter Property="Stroke" Value="{DynamicResource PickerFocusBrush}" />
-        </Style>
-
         <!-- Selection resize handle — size must match TouchButtonSettingsViewModel.HandleSize. -->
         <Style Selector="Rectangle.handle">
             <Setter Property="Width" Value="8" />
@@ -825,6 +793,7 @@
                                          edited is picked in the tab bar above the preview. -->
                                     <StackPanel IsVisible="{Binding IsWheelCanvas}" Spacing="4" Margin="0,0,0,10">
                                         <TextBlock Classes="label" Text="{loc:Tr Wheel_SplitMode}" />
+                                        <StackPanel Orientation="Horizontal">
                                         <ListBox Classes="zone-picker"
                                                  ItemsSource="{Binding WheelSplitOptions}"
                                                  SelectedItem="{Binding SelectedWheelSplit, Mode=TwoWay}">
@@ -843,6 +812,20 @@
                                                 </DataTemplate>
                                             </ListBox.ItemTemplate>
                                         </ListBox>
+                                        <!-- Set apart from the split choice: shows or hides the
+                                             lines between the segments. -->
+                                        <Rectangle Classes="picker-divider" IsVisible="{Binding IsWheelSplit}" />
+                                        <ToggleButton Classes="zone-toggle"
+                                                      IsVisible="{Binding IsWheelSplit}"
+                                                      IsChecked="{Binding ShowWheelDividers, Mode=TwoWay}"
+                                                      ToolTip.Tip="{loc:Tr Wheel_ShowDividers}">
+                                            <Viewbox Width="22" Height="22">
+                                                <Canvas Width="24" Height="24">
+                                                    <Path Classes="zone-lines" Data="{Binding WheelDividerIcon}" />
+                                                </Canvas>
+                                            </Viewbox>
+                                        </ToggleButton>
+                                        </StackPanel>
                                     </StackPanel>
                                     <Grid ColumnDefinitions="Auto,*,Auto">
                                         <CheckBox Grid.Column="0" Content="{loc:Tr TouchButton_Background}" Margin="0,0,10,0"

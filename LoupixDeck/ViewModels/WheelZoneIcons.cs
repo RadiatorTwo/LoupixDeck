@@ -38,6 +38,16 @@ public static class WheelZoneIcons
         _ => Square
     });
 
+    /// <summary>Only the dividers of <paramref name="mode"/>, without the square; empty when unsplit.</summary>
+    public static Geometry Dividers(WheelSplitMode mode) => StreamGeometry.Parse(mode switch
+    {
+        WheelSplitMode.Horizontal => "M2,12 H22",
+        WheelSplitMode.Vertical => "M12,2 V22",
+        WheelSplitMode.Diagonal => "M2,2 L22,22 M22,2 L2,22",
+        WheelSplitMode.Cross => "M2,12 H22 M12,2 V22",
+        _ => "M0,0"
+    });
+
     /// <summary>The square's outline and the dividers of <paramref name="mode"/>.</summary>
     public static Geometry Lines(WheelSplitMode mode) => StreamGeometry.Parse(Square + mode switch
     {

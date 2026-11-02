@@ -1816,7 +1816,8 @@ public static class BitmapHelper
         int wheelSegment = -1,
         IReadOnlyList<TouchButton> wheelSegments = null,
         TouchButton wheelShared = null,
-        int wheelHover = -1)
+        int wheelHover = -1,
+        bool wheelDividers = true)
     {
         ArgumentNullException.ThrowIfNull(touchButton);
 
@@ -1824,7 +1825,7 @@ public static class BitmapHelper
         using var canvas = new SKCanvas(bmp);
         DrawEditorCanvas(canvas, touchButton, canvasWidth, canvasHeight, deviceWidth, deviceHeight,
             drawGrid, gridStepDevice, segmentCount, dial, roundMask, wheelSplit, wheelSegment, wheelSegments,
-            wheelShared, wheelHover);
+            wheelShared, wheelHover, wheelDividers);
         return bmp;
     }
 
@@ -1856,7 +1857,8 @@ public static class BitmapHelper
         int wheelSegment = -1,
         IReadOnlyList<TouchButton> wheelSegments = null,
         TouchButton wheelShared = null,
-        int wheelHover = -1)
+        int wheelHover = -1,
+        bool wheelDividers = true)
     {
         ArgumentNullException.ThrowIfNull(canvas);
         ArgumentNullException.ThrowIfNull(touchButton);
@@ -1903,7 +1905,8 @@ public static class BitmapHelper
                     fillBackground: surface is { BackgroundEnabled: true });
             }
 
-            DrawEditorDividers(canvas, frame, wheelSplit);
+            if (wheelDividers)
+                DrawEditorDividers(canvas, frame, wheelSplit);
             DrawEditorSurface(canvas, shared, frame, dial, area: null, faded: false, fillBackground: false,
                 layer => !layer.BehindSegments);
 
@@ -3471,7 +3474,8 @@ public static class BitmapHelper
                 canvas.Restore();
             }
 
-            WheelSplitGeometry.DrawDividers(canvas, mode, size, WheelDividerColor, Math.Max(1f, size / 120f));
+            if (wheel.ShowSplitDividers)
+                WheelSplitGeometry.DrawDividers(canvas, mode, size, WheelDividerColor, Math.Max(1f, size / 120f));
             if (shared != null)
                 DrawLayers(canvas, shared.Layers.Where(l => l is { BehindSegments: false }), size, size, dial);
             return recording.Finish();
