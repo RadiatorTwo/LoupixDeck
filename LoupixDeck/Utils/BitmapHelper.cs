@@ -1836,8 +1836,9 @@ public static class BitmapHelper
     /// device shows it: the all-segments surface (<paramref name="wheelShared"/>) behind and in
     /// front, the segments (<paramref name="wheelSegments"/>, all canvases in segment order) clipped
     /// to their areas. <paramref name="touchButton"/> is the edited surface: segment
-    /// <paramref name="wheelSegment"/>, outlined, or with -1 the all-segments surface. Everything
-    /// else is faded.</para>
+    /// <paramref name="wheelSegment"/>, outlined, with the rest of the wheel shaded, or with -1 the
+    /// all-segments surface. The composition itself is the device's, so what covers what is the
+    /// same.</para>
     /// </summary>
     public static void DrawEditorCanvas(
         SKCanvas canvas,
@@ -1876,9 +1877,10 @@ public static class BitmapHelper
 
         if (split)
         {
-            // Back to front, like the device: the all-segments surface's background and the layers
-            // behind the segments, the segments, the dividers, the layers in front. Whatever is not
-            // being edited is faded, so the edited surface reads as the active one.
+            // Exactly what the device draws (RenderWheelSegments), back to front: the all-segments
+            // surface's background and the layers behind the segments, the segments, the dividers,
+            // the layers in front. Nothing is see-through that is not see-through on the wheel, so
+            // a segment's background or an opaque layer in front covers here as it does there.
             bool editingShared = wheelSegment < 0;
             TouchButton shared = editingShared ? touchButton : wheelShared;
 
@@ -1890,20 +1892,25 @@ public static class BitmapHelper
                 canvas.DrawRect(frameRect, bgPaint);
             }
 
-            DrawEditorSurface(canvas, shared, frame, dial, area: null, faded: !editingShared, fillBackground: false,
+            DrawEditorSurface(canvas, shared, frame, dial, area: null, faded: false, fillBackground: false,
                 layer => layer.BehindSegments);
 
             for (int i = 0; i < wheelSegments.Count; i++)
             {
                 TouchButton surface = i == wheelSegment ? touchButton : wheelSegments[i];
                 using var area = WheelSplitGeometry.SegmentPath(wheelSplit, i, deviceWidth);
-                DrawEditorSurface(canvas, surface, frame, dial, area, faded: i != wheelSegment,
+                DrawEditorSurface(canvas, surface, frame, dial, area, faded: false,
                     fillBackground: surface is { BackgroundEnabled: true });
             }
 
             DrawEditorDividers(canvas, frame, wheelSplit);
-            DrawEditorSurface(canvas, shared, frame, dial, area: null, faded: !editingShared, fillBackground: false,
+            DrawEditorSurface(canvas, shared, frame, dial, area: null, faded: false, fillBackground: false,
                 layer => !layer.BehindSegments);
+
+            // Editing one segment: the rest of the wheel is shaded, so the segment stands out
+            // without changing what it shows.
+            if (!editingShared)
+                ShadeOutsideSegment(canvas, frame, wheelSplit, wheelSegment);
         }
         else
         {
@@ -3343,6 +3350,20 @@ public static class BitmapHelper
         if (faded)
             canvas.Restore();
 
+        canvas.Restore();
+    }
+
+    /// <summary>Darkens the device frame outside segment <paramref name="index"/>.</summary>
+    private static void ShadeOutsideSegment(SKCanvas canvas, EditorFrame frame, WheelSplitMode mode, int index)
+    {
+        using var area = WheelSplitGeometry.SegmentPath(mode, index, frame.DeviceWidth);
+        using var segment = frame.ToEditor(area);
+
+        canvas.Save();
+        canvas.ClipRect(frame.Rect);
+        canvas.ClipPath(segment, SKClipOperation.Difference, antialias: true);
+        using var shade = new SKPaint { Color = new SKColor(0, 0, 0, 0x90) };
+        canvas.DrawRect(frame.Rect, shade);
         canvas.Restore();
     }
 
