@@ -185,6 +185,21 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         layer.DeviceBaseWidth = DeviceWidth;
         layer.DeviceBaseHeight = DeviceHeight;
         PlaceInEditedSegment(layer);
+
+        // On the all-segments surface a new layer goes behind the segments, on top of the layers
+        // already there (right under the segments row of the list). The canvas keeps the layers
+        // behind the segments first, so that is the index after the last of them.
+        if (IsEditingSharedSurface)
+        {
+            SortSharedLayers();
+            layer.BehindSegments = true;
+            int behind = 0;
+            while (behind < ButtonData.Layers.Count && ButtonData.Layers[behind].BehindSegments)
+                behind++;
+            ButtonData.Layers.Insert(behind, layer);
+            return;
+        }
+
         ButtonData.Layers.Add(layer);
     }
 
@@ -1777,6 +1792,21 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     }
 
     /// <summary>
+    /// Puts the all-segments surface's layers behind the segments first, each side in its paint
+    /// order. Changes nothing that is drawn; it keeps the canvas in the order the list shows.
+    /// </summary>
+    private void SortSharedLayers()
+    {
+        var layers = ButtonData.Layers;
+        var ordered = layers.Where(l => l.BehindSegments).Concat(layers.Where(l => !l.BehindSegments)).ToList();
+        for (int k = 0; k < ordered.Count; k++)
+        {
+            int at = layers.IndexOf(ordered[k]);
+            if (at != k) layers.Move(at, k);
+        }
+    }
+
+    /// <summary>
     /// ▲ / ▼ on the all-segments surface: a step within the layer's side, or across the segments
     /// row onto the other side when the layer is the one next to it. The canvas keeps the order
     /// the list shows: the layers behind the segments first, those in front after them.
@@ -1784,14 +1814,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     private void MoveSharedLayer(LayerBase layer, bool up)
     {
         var layers = ButtonData.Layers;
-
-        // Behind layers first, each side in its paint order; changes nothing that is drawn.
-        var ordered = layers.Where(l => l.BehindSegments).Concat(layers.Where(l => !l.BehindSegments)).ToList();
-        for (int k = 0; k < ordered.Count; k++)
-        {
-            int at = layers.IndexOf(ordered[k]);
-            if (at != k) layers.Move(at, k);
-        }
+        SortSharedLayers();
 
         int i = layers.IndexOf(layer);
         int boundary = layers.Count(l => l.BehindSegments);
