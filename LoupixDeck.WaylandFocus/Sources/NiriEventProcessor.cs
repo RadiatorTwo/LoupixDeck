@@ -22,8 +22,15 @@ public sealed class NiriEventProcessor
     {
         focus = null;
         using JsonDocument document = JsonDocument.Parse(jsonLine);
-        if (!document.RootElement.TryGetProperty("Ok", out JsonElement eventElement))
-            return false; // {"Err": ...}
+        JsonElement eventElement = document.RootElement;
+
+        // The stream opens with the reply to the EventStream request
+        // ({"Ok":"Handled"} or {"Err":...}); the events after it are bare,
+        // e.g. {"WindowFocusChanged":{"id":12}}.
+        if (eventElement.ValueKind != JsonValueKind.Object
+            || eventElement.TryGetProperty("Ok", out _)
+            || eventElement.TryGetProperty("Err", out _))
+            return false;
 
         if (eventElement.TryGetProperty("WindowsChanged", out JsonElement all))
         {

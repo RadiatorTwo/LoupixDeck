@@ -25,7 +25,7 @@ public sealed class NiriFocusSource(TimeSpan? setupTimeout = null) : IFocusSourc
         await stream.WriteAsync("\"EventStream\"\n"u8.ToArray(), cancellationToken);
         using StreamReader reader = new(stream);
 
-        // The stream opens with the full window state, so the first line
+        // The stream opens with niri's reply to the request; the first line
         // doubles as setup — bound it, or a wedged niri hangs us silently.
         string? pending;
         using (SetupPhase setup = new(
