@@ -18,6 +18,8 @@ public sealed partial class WindowsActiveWindowMonitor : IActiveWindowMonitor, I
 {
     public event EventHandler<ActiveWindowInfo> ActiveWindowChanged;
 
+    public ActiveWindowMonitorKind Kind => ActiveWindowMonitorKind.Windows;
+
     private const uint EVENT_SYSTEM_FOREGROUND = 0x0003;
     private const uint WINEVENT_OUTOFCONTEXT = 0x0000;
 

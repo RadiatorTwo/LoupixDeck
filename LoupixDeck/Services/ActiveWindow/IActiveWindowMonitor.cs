@@ -12,13 +12,41 @@ public sealed class ActiveWindowInfo
 }
 
 /// <summary>
+/// Which mechanism backs an <see cref="IActiveWindowMonitor"/>: decided once at
+/// registration from the session type and the detected compositor, and the ground
+/// truth diagnostics follow when reporting.
+/// </summary>
+public enum ActiveWindowMonitorKind
+{
+    /// <summary>Native compositor focus tracking (COSMIC, sway, niri, Hyprland).</summary>
+    Wayland,
+
+    /// <summary>
+    /// An <c>xprop -spy</c> subprocess over X11/XWayland — also the fallback on Wayland
+    /// sessions without a supported compositor.
+    /// </summary>
+    XProp,
+
+    /// <summary>The Windows foreground-hook monitor.</summary>
+    Windows,
+
+    /// <summary>No mechanism; the monitor never reports.</summary>
+    None,
+}
+
+/// <summary>
 /// Watches the OS foreground window and raises <see cref="ActiveWindowChanged"/>
 /// whenever it changes. Per-OS implementations mirror <c>ISystemPowerService</c>:
-/// a real hook on Windows, an <c>xprop -spy</c> subprocess on X11/XWayland, and a
-/// no-op everywhere else (pure Wayland, macOS, …).
+/// native compositor focus tracking or an <c>xprop -spy</c> subprocess on Linux
+/// (the session and detected compositor decide which), a real hook on Windows,
+/// and a no-op everywhere else (macOS, …).
 /// </summary>
 public interface IActiveWindowMonitor
 {
     event EventHandler<ActiveWindowInfo> ActiveWindowChanged;
+
+    /// <summary>The mechanism this monitor actually runs.</summary>
+    ActiveWindowMonitorKind Kind { get; }
+
     void StartMonitoring();
 }

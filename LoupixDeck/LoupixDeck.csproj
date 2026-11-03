@@ -33,6 +33,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\LoupixDeck.PluginSdk\LoupixDeck.PluginSdk.csproj" />
+    <ProjectReference Include="..\LoupixDeck.WaylandFocus\LoupixDeck.WaylandFocus.csproj" />
   </ItemGroup>
 
   <ItemGroup>

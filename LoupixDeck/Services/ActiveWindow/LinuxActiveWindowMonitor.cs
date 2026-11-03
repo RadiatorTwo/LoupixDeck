@@ -10,13 +10,18 @@ namespace LoupixDeck.Services.ActiveWindow;
 /// line by line, the whole loop wrapped in try/catch so a missing <c>xprop</c> or a
 /// vanished X11 connection degrades silently to a no-op instead of crashing.
 ///
-/// Pure Wayland sessions (no DISPLAY) are not covered — there is no portable
-/// foreground-window protocol across GNOME/KDE/wlroots, so we stay a no-op there.
+/// Pure Wayland sessions with a supported focus-IPC compositor are handled by
+/// <see cref="WaylandActiveWindowMonitor"/>; everywhere else this is the monitor:
+/// X11, and Wayland sessions without such a compositor (GNOME, KDE), where it
+/// still covers XWayland windows. Without an X11 display it silently no-ops
+/// (e.g. headless).
 /// </summary>
 [SupportedOSPlatform("linux")]
 public sealed class LinuxActiveWindowMonitor : IActiveWindowMonitor, IDisposable
 {
     public event EventHandler<ActiveWindowInfo> ActiveWindowChanged;
+
+    public ActiveWindowMonitorKind Kind => ActiveWindowMonitorKind.XProp;
 
     private Process _proc;
     private bool _started;
@@ -32,7 +37,7 @@ public sealed class LinuxActiveWindowMonitor : IActiveWindowMonitor, IDisposable
         // we are on a pure Wayland session (or headless) — nothing to spy on.
         if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY")))
         {
-            Console.WriteLine("[AppSwitch] No DISPLAY — active-window monitor disabled (pure Wayland is unsupported).");
+            Console.WriteLine("[AppSwitch] No DISPLAY — active-window monitor disabled (no X11/XWayland windows to spy on).");
             return;
         }
 

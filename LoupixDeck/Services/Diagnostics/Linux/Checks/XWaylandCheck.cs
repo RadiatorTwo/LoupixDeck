@@ -1,14 +1,18 @@
 using LoupixDeck.Localization;
 using LoupixDeck.Models.Diagnostics;
+using LoupixDeck.Services.ActiveWindow;
 
 namespace LoupixDeck.Services.Diagnostics.Linux.Checks;
 
 /// <summary>
-/// On a Wayland session, reports whether an X server is reachable for LinuxActiveWindowMonitor.
-/// Pure Wayland is reported as a warning rather than a failure: it is a supported but limited
-/// configuration, and a user who never switches pages by application loses nothing.
+/// On a Wayland session, reports whether an X server is reachable for the xprop
+/// monitor. The native Wayland monitor needs no X server and makes this check skip
+/// itself; for the xprop monitor an X server (native or XWayland) is what page
+/// switching rests on, and its absence is a warning rather than a failure: it is a
+/// supported but limited configuration, and a user who never switches pages by
+/// application loses nothing.
 /// </summary>
-public sealed class XWaylandCheck : ILinuxDiagnosticCheck
+public sealed class XWaylandCheck(IActiveWindowMonitor monitor) : ILinuxDiagnosticCheck
 {
     public string Id => "session.xwayland";
 
@@ -17,6 +21,13 @@ public sealed class XWaylandCheck : ILinuxDiagnosticCheck
     public Task<DiagnosticCheckResult> RunAsync(CancellationToken cancellationToken)
     {
         string title = DiagnosticCheckTitles.For(Id);
+
+        if (monitor.Kind == ActiveWindowMonitorKind.Wayland)
+        {
+            return Task.FromResult(DiagnosticCheckResult.Skipped(Id, Category, title,
+                Loc.Tr("Diagnostics_XWaylandNotNeeded")));
+        }
+
         string sessionType = LinuxSystemFacts.SessionType();
         string display = LinuxSystemFacts.Display();
 

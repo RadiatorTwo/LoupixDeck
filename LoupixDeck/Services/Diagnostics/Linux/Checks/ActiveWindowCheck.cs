@@ -6,11 +6,14 @@ namespace LoupixDeck.Services.Diagnostics.Linux.Checks;
 
 /// <summary>
 /// Shows what the app currently believes the foreground window is - the value every
-/// app-switching rule is matched against. An empty snapshot is the visible form of "page
-/// switching by application does nothing here", which on pure Wayland is a limitation rather
-/// than a defect.
+/// app-switching rule is matched against. An empty snapshot reads differently per
+/// running monitor: with the native Wayland monitor or a live xprop spy it means
+/// nothing has changed since start, while the xprop monitor on a Wayland session
+/// without a display is the real "page switching cannot work here" state - the
+/// monitor decides which message is true.
 /// </summary>
-public sealed class ActiveWindowCheck(IActiveWindowState state) : ILinuxDiagnosticCheck
+public sealed class ActiveWindowCheck(IActiveWindowState state, IActiveWindowMonitor monitor)
+    : ILinuxDiagnosticCheck
 {
     public string Id => "session.active-window";
 
@@ -23,9 +26,15 @@ public sealed class ActiveWindowCheck(IActiveWindowState state) : ILinuxDiagnost
 
         if (string.IsNullOrWhiteSpace(current?.ProcessName))
         {
-            bool wayland = string.IsNullOrWhiteSpace(LinuxSystemFacts.Display());
+            // The xprop monitor on Wayland without an X server can never see a window:
+            // the feature is genuinely unavailable there. Everywhere else an empty
+            // snapshot is only "quiet since start", so say that instead of claiming a
+            // limitation.
+            bool unavailable = monitor.Kind == ActiveWindowMonitorKind.XProp
+                && LinuxSystemFacts.SessionType() == "wayland"
+                && string.IsNullOrWhiteSpace(LinuxSystemFacts.Display());
 
-            if (wayland)
+            if (unavailable)
             {
                 DiagnosticFix fix = new(FixKind.Manual, Loc.Tr("Diagnostics_FixUseX11Session"),
                     RequiresLogout: true);
@@ -35,8 +44,6 @@ public sealed class ActiveWindowCheck(IActiveWindowState state) : ILinuxDiagnost
                     Loc.Tr("Diagnostics_ValueUnsupported")));
             }
 
-            // X11 is there but nothing has been reported yet: the monitor has not seen a window
-            // change since the app started.
             return Task.FromResult(DiagnosticCheckResult.Warning(Id, Category, title,
                 Loc.Tr("Diagnostics_ActiveWindowNone"), null, null, null,
                 Loc.Tr("Diagnostics_ValueNone")));
