@@ -248,7 +248,7 @@
   "Diagnostics_CommandCopied": "Comando copiado.",
   "Diagnostics_CompositorDetectedFmt": "Compositor {0} detectado: el cambio de página por aplicación funciona de forma nativa.",
   "Diagnostics_CompositorNotApplicable": "No aplica: solo las sesiones Wayland tienen un compositor que detectar.",
-  "Diagnostics_CompositorUnsupported": "No se detectó ningún compositor compatible (COSMIC, sway, niri, Hyprland) en esta sesión; el cambio de página por aplicación funciona en su lugar a través de XWayland con xprop.",
+  "Diagnostics_CompositorUnsupported": "No se detectó ningún compositor compatible (COSMIC, sway, niri, Hyprland) en esta sesión; el cambio de página por aplicación funciona en cambio a través de XWayland con xprop.",
   "Diagnostics_CopyCommand": "Copiar comando",
   "Diagnostics_CopyReport": "Copiar al portapapeles",
   "Diagnostics_CountsFmt": "{0} correctos · {1} advertencia(s) · {2} con error · {3} desconocidos · {4} omitidos",
