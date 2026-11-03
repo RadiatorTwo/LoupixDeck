@@ -30,7 +30,12 @@ public sealed class WaylandActiveWindowMonitor : IActiveWindowMonitor, IDisposab
 {
     public event EventHandler<ActiveWindowInfo> ActiveWindowChanged;
 
-    public ActiveWindowMonitorKind Kind => ActiveWindowMonitorKind.Wayland;
+    // Reports what is really watching: after a fallback that is xprop, so the
+    // diagnostics run the xprop/XWayland checks that explain the degraded session.
+    // _fallback is set from the monitor task, hence the volatile read.
+    public ActiveWindowMonitorKind Kind => Volatile.Read(ref _fallback) is null
+        ? ActiveWindowMonitorKind.Wayland
+        : ActiveWindowMonitorKind.XProp;
 
     private CancellationTokenSource _cts;
     private bool _started;
@@ -120,7 +125,7 @@ public sealed class WaylandActiveWindowMonitor : IActiveWindowMonitor, IDisposab
         Console.WriteLine($"[AppSwitch] {reason} — falling back to xprop for XWayland windows.");
         LinuxActiveWindowMonitor fallback = new();
         fallback.ActiveWindowChanged += ForwardFallback;
-        _fallback = fallback;
+        Volatile.Write(ref _fallback, fallback);
         fallback.StartMonitoring();
     }
 
