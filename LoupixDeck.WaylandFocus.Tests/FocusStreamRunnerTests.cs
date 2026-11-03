@@ -5,7 +5,7 @@ namespace LoupixDeck.WaylandFocus.Tests;
 /// <summary>
 /// Pins the runner's two policies: a stream that never worked is a setup failure with
 /// no retries, a working stream that dies is retried on a capped backoff until the
-/// budget runs out, and cancellation is always the clean exit.
+/// budget for that outage runs out, and cancellation is always the clean exit.
 /// </summary>
 public class FocusStreamRunnerTests
 {
@@ -55,7 +55,8 @@ public class FocusStreamRunnerTests
         Assert.Equal(3, received.Count);
         Assert.Equal("b", received[2]!.AppId);
         Assert.Equal(2, factoryCalls);
-        Assert.Equal([TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2)], delays);
+        // The second stream delivered, so its end is a fresh outage at attempt 1.
+        Assert.Equal([TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1)], delays);
         Assert.Contains(log, line => line.Contains("Wayland monitor active (compositor: fake)."));
         Assert.Contains(log, line => line.Contains("reconnecting in 1s (attempt 1/5)."));
         Assert.Contains(log, line => line.Contains("Wayland monitor reconnected (compositor: fake)."));
@@ -168,7 +169,8 @@ public class FocusStreamRunnerTests
         Assert.Equal(2, factoryCalls);
         // One delay to reach the second source; its completion (the scripted source
         // does not observe the token) queues the next delay, which raises the OCE.
-        Assert.Equal([TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2)], delays);
+        // The second source delivered, so that delay starts over at attempt 1.
+        Assert.Equal([TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1)], delays);
         // The runtime death is named in the reconnect line.
         Assert.Contains(log, line => line.Contains("boom") && line.Contains("reconnecting"));
     }
@@ -182,11 +184,12 @@ public class FocusStreamRunnerTests
         FocusStreamRunner runner = new(
             () =>
             {
-                // Every source reports its initial focus and then ends: a working
-                // stream that never comes back is what exhausts the budget.
+                // The first source works and ends; every rebuilt one is refused before
+                // its first element: a compositor that never comes back.
                 factoryCalls++;
-                return new FakeFocusSource("fake", () => Emit(
-                    new FocusInfo("a", "t", null)));
+                return factoryCalls == 1
+                    ? new FakeFocusSource("fake", () => Emit(new FocusInfo("a", "t", null)))
+                    : new FakeFocusSource("fake", () => throw new IOException("Connection refused"));
             },
             log: null,
             maxAttempts: 2,
@@ -204,6 +207,93 @@ public class FocusStreamRunnerTests
         Assert.Contains("did not come back after 2 attempts", failure.Message);
         Assert.Equal(3, factoryCalls); // initial source + two retries
         Assert.Equal([TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2)], delays);
+    }
+
+    [Fact]
+    public async Task RunAsync_ReconnectFailsBeforeFirstEvent_KeepsRetrying()
+    {
+        List<FocusInfo?> received = [];
+        List<TimeSpan> delays = [];
+        using CancellationTokenSource cts = new();
+        int factoryCalls = 0;
+
+        FocusStreamRunner runner = new(
+            () =>
+            {
+                // Works, ends, is refused once (the compositor is still restarting),
+                // then works again.
+                factoryCalls++;
+                return factoryCalls switch
+                {
+                    1 => new FakeFocusSource("fake", () => Emit(new FocusInfo("a", "one", null))),
+                    2 => new FakeFocusSource("fake", () => throw new IOException("Connection refused")),
+                    _ => new FakeFocusSource("fake", () => Emit(new FocusInfo("b", "two", null))),
+                };
+            },
+            log: null,
+            maxAttempts: 5,
+            backoff: attempt => TimeSpan.FromSeconds(attempt),
+            delay: (wait, ct) =>
+            {
+                delays.Add(wait);
+                ct.ThrowIfCancellationRequested();
+                return Task.CompletedTask;
+            });
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => runner.RunAsync(
+            focus =>
+            {
+                received.Add(focus);
+                if (received.Count >= 2)
+                {
+                    cts.Cancel();
+                }
+            },
+            cts.Token));
+
+        Assert.Equal(["a", "b"], received.Select(focus => focus!.AppId));
+        Assert.Equal(3, factoryCalls);
+        // The refused reconnect counts as attempt 2; the third source delivered again,
+        // so the next outage starts over at attempt 1.
+        Assert.Equal(
+            [TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(1)], delays);
+    }
+
+    [Fact]
+    public async Task RunAsync_DeliveringStreamResetsTheBudget()
+    {
+        List<TimeSpan> delays = [];
+        using CancellationTokenSource cts = new();
+        int factoryCalls = 0;
+
+        FocusStreamRunner runner = new(
+            () =>
+            {
+                // Every source delivers and then ends: separate outages, each healed
+                // at once, so the budget of two must never run out.
+                factoryCalls++;
+                if (factoryCalls > 6)
+                {
+                    cts.Cancel();
+                }
+
+                return new FakeFocusSource("fake", () => Emit(new FocusInfo("a", "t", null)));
+            },
+            log: null,
+            maxAttempts: 2,
+            backoff: attempt => TimeSpan.FromSeconds(attempt),
+            delay: (wait, ct) =>
+            {
+                delays.Add(wait);
+                ct.ThrowIfCancellationRequested();
+                return Task.CompletedTask;
+            });
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => runner.RunAsync(_ => { }, cts.Token));
+
+        Assert.Equal(7, factoryCalls);
+        Assert.All(delays, wait => Assert.Equal(TimeSpan.FromSeconds(1), wait));
     }
 
     [Fact]

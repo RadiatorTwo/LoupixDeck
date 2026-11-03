@@ -7,14 +7,16 @@ namespace LoupixDeck.WaylandFocus;
 /// socket), and COSMIC/sway die with an exception instead — so both shapes are handled
 /// here, at one place:
 /// <list type="bullet">
-/// <item>A source that never produced its initial element failed at setup: a stale
+/// <item>A first source that never produced an element failed at setup: a stale
 /// socket, a compositor without the focus protocol, a wedged handshake. Reconnecting
 /// cannot heal those, so the runner throws <see cref="FocusStreamFailedException"/>
 /// immediately and the caller takes its fallback.</item>
 /// <item>A source that had been working is treated as a transient death: the end is
 /// logged with its reason and the source is rebuilt with a capped exponential backoff.
-/// When the budget runs out the same exception is thrown, and cancellation propagates
-/// untouched as the only clean way out.</item>
+/// A rebuilt source that fails before its first element is one more failed attempt,
+/// not a setup failure: the compositor may simply not be back yet. When the budget
+/// runs out the same exception is thrown, and cancellation propagates untouched as
+/// the only clean way out.</item>
 /// </list>
 /// </summary>
 public sealed class FocusStreamRunner
@@ -59,7 +61,8 @@ public sealed class FocusStreamRunner
     /// </summary>
     public async Task RunAsync(Action<FocusInfo?> onEvent, CancellationToken cancellationToken)
     {
-        int attempt = 0;
+        int attempt = 0;      // failed reconnects since a stream last delivered an element
+        bool everWorked = false; // some stream has delivered at least one element
 
         while (true)
         {
@@ -74,7 +77,7 @@ public sealed class FocusStreamRunner
                     $"the focus source could not be created: {ex.Message}", ex);
             }
 
-            _log?.Invoke(attempt == 0
+            _log?.Invoke(!everWorked
                 ? $"Wayland monitor active (compositor: {source.Compositor})."
                 : $"Wayland monitor reconnected (compositor: {source.Compositor}).");
 
@@ -98,9 +101,9 @@ public sealed class FocusStreamRunner
                 death = ex; // classified below by whether anything was ever yielded
             }
 
-            if (!yielded)
+            if (!yielded && !everWorked)
             {
-                // The initial element never arrived: stale socket, missing protocol or a
+                // The first stream never delivered: stale socket, missing protocol or a
                 // wedged handshake - none of which a reconnect heals, so fail fast and
                 // let the caller take its fallback instead of burning the backoff budget.
                 throw new FocusStreamFailedException(
@@ -112,6 +115,14 @@ public sealed class FocusStreamRunner
 
             // Had been working, so a death is transient in comparison. Normal completion
             // (hyprland/niri seeing their socket close) lands here with death == null.
+            if (yielded)
+            {
+                // The stream (re)connected and delivered: the budget is for one outage,
+                // not for the whole session, so reconnects spread over days never add up.
+                everWorked = true;
+                attempt = 0;
+            }
+
             if (attempt >= _maxAttempts)
             {
                 throw new FocusStreamFailedException(
