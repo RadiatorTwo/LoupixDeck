@@ -319,6 +319,7 @@ Install the [.NET 10 SDK](https://dotnet.microsoft.com/download), then clone the
 
 ```bash
 git clone https://github.com/RadiatorTwo/LoupixDeck.git
+git submodule update --init --recursive
 cd LoupixDeck
 ```
 
@@ -330,6 +331,7 @@ dotnet publish LoupixDeck.csproj -c Release -r linux-x64 --self-contained true \
   /p:PublishTrimmed=false \
   /p:EnableCompressionInSingleFile=true \
   /p:ReadyToRun=true \
+  /p:IncludeNativeLibrariesForSelfExtract=true \
   -o publish/linux-x64
 ```
 
