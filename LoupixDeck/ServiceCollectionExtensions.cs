@@ -1,4 +1,4 @@
-﻿using LoupixDeck.Controllers;
+using LoupixDeck.Controllers;
 using LoupixDeck.Models;
 using LoupixDeck.Registry;
 using LoupixDeck.Services;
@@ -23,6 +23,7 @@ using LoupixDeck.ViewModels;
 using LoupixDeck.ViewModels.Diagnostics;
 using LoupixDeck.ViewModels.Plugins;
 using LoupixDeck.Views;
+using LoupixDeck.WaylandFocus;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LoupixDeck;
@@ -60,6 +61,7 @@ public static class ServiceCollectionExtensions
 
         collection.AddSingleton<ILinuxDiagnosticCheck, DesktopEnvironmentCheck>();
         collection.AddSingleton<ILinuxDiagnosticCheck, SessionTypeCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, CompositorCheck>();
         collection.AddSingleton<ILinuxDiagnosticCheck, XWaylandCheck>();
         collection.AddSingleton<ILinuxDiagnosticCheck, XPropCheck>();
         collection.AddSingleton<ILinuxDiagnosticCheck, ActiveWindowCheck>();
@@ -175,7 +177,7 @@ public static class ServiceCollectionExtensions
             collection.AddSingleton<Services.Updates.IUpdateNotifier, Services.Updates.WindowsUpdateNotifier>();
         else
 #endif
-            collection.AddSingleton<Services.Updates.IUpdateNotifier, Services.Updates.DBusUpdateNotifier>();
+        collection.AddSingleton<Services.Updates.IUpdateNotifier, Services.Updates.DBusUpdateNotifier>();
 
         collection.AddSingleton<ICommandRunner, CommandRunner>();
 
@@ -188,16 +190,35 @@ public static class ServiceCollectionExtensions
         // Monitor power state, for turning the device off with the displays (issue #382).
         collection.AddSingleton(CreatePlatformDisplayStateService());
 
-        // Foreground-window monitor. The Linux monitor needs no #if guard (it only uses
+        // Foreground-window monitor. The Linux monitors need no #if guard (they only use
         // Process + /proc); only the Windows type lives behind #if WINDOWS.
+        // On Linux the session type sets the baseline: X11 sessions keep the xprop spy.
+        // On Wayland the session must also run a compositor whose focus IPC we can talk
+        // to (COSMIC, sway, niri, Hyprland) — those get the native monitor, which sees
+        // native Wayland windows as well as the XWayland ones xprop sees. GNOME and KDE
+        // expose no focus IPC, so they keep the xprop monitor for their XWayland windows.
+        // Session type and compositor are fixed for the process lifetime, so deciding
+        // at registration is safe.
         if (OperatingSystem.IsLinux())
-            collection.AddSingleton<IActiveWindowMonitor, LinuxActiveWindowMonitor>();
+        {
+            if (LinuxSystemFacts.SessionType() == "wayland" &&
+                CompositorDetector.TryDetect(out _))
+            {
+                collection.AddSingleton<IActiveWindowMonitor, WaylandActiveWindowMonitor>();
+            }
+            else
+            {
+                collection.AddSingleton<IActiveWindowMonitor, LinuxActiveWindowMonitor>();
+            }
+        }
 #if WINDOWS
         else if (OperatingSystem.IsWindows())
             collection.AddSingleton<IActiveWindowMonitor, WindowsActiveWindowMonitor>();
 #endif
         else
+        {
             collection.AddSingleton<IActiveWindowMonitor, NoOpActiveWindowMonitor>();
+        }
 
         // In-app clipboard for button/side-display copy/paste (issue #166). Root singleton so a
         // snapshot copied on one device can be pasted onto another.

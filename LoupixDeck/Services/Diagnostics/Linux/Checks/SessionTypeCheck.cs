@@ -1,14 +1,15 @@
 using LoupixDeck.Localization;
 using LoupixDeck.Models.Diagnostics;
+using LoupixDeck.Services.ActiveWindow;
 
 namespace LoupixDeck.Services.Diagnostics.Linux.Checks;
 
 /// <summary>
-/// Reports whether this is an X11, a Wayland or a text session. The session type decides whether
-/// switching pages by the active application can work at all - LinuxActiveWindowMonitor drives
-/// that through xprop and needs an X server, native or XWayland.
+/// Reports whether this is an X11, a Wayland or a text session, and on Wayland which
+/// mechanism page switching by application runs on: natively through a supported focus
+/// compositor, or through XWayland via xprop - the decision registration already made.
 /// </summary>
-public sealed class SessionTypeCheck : ILinuxDiagnosticCheck
+public sealed class SessionTypeCheck(IActiveWindowMonitor monitor) : ILinuxDiagnosticCheck
 {
     public string Id => "session.type";
 
@@ -35,14 +36,28 @@ public sealed class SessionTypeCheck : ILinuxDiagnosticCheck
                 Loc.Tr("Diagnostics_SessionTypeUnknown")));
         }
 
+        if (sessionType == "wayland")
+        {
+            // The registered monitor IS the registration decision, so it says which
+            // mechanism this session ended up with, without re-deriving anything.
+            if (monitor.Kind == ActiveWindowMonitorKind.Wayland)
+            {
+                return Task.FromResult(DiagnosticCheckResult.Pass(Id, Category, title,
+                    Loc.Tr("Diagnostics_SessionWaylandNative"), null, evidence,
+                    "wayland + native"));
+            }
+
+            return Task.FromResult(hasDisplay
+                ? DiagnosticCheckResult.Pass(Id, Category, title,
+                    Loc.Tr("Diagnostics_SessionXWayland"), null, evidence, "wayland + xwayland")
+                : DiagnosticCheckResult.Warning(Id, Category, title,
+                    Loc.Tr("Diagnostics_SessionPureWayland"), null, null, evidence, "wayland"));
+        }
+
         return Task.FromResult(sessionType switch
         {
             "x11" => DiagnosticCheckResult.Pass(Id, Category, title,
                 Loc.Tr("Diagnostics_SessionX11"), null, evidence, "x11"),
-            "wayland" when hasDisplay => DiagnosticCheckResult.Pass(Id, Category, title,
-                Loc.Tr("Diagnostics_SessionXWayland"), null, evidence, "wayland + xwayland"),
-            "wayland" => DiagnosticCheckResult.Warning(Id, Category, title,
-                Loc.Tr("Diagnostics_SessionPureWayland"), null, null, evidence, "wayland"),
             "tty" => DiagnosticCheckResult.Warning(Id, Category, title,
                 Loc.Tr("Diagnostics_SessionTty"), null, null, evidence, "tty"),
             _ => DiagnosticCheckResult.Unknown(Id, Category, title,

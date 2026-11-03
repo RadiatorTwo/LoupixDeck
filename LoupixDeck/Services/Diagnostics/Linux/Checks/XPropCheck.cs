@@ -1,16 +1,18 @@
 using System.Diagnostics;
 using LoupixDeck.Localization;
 using LoupixDeck.Models.Diagnostics;
+using LoupixDeck.Services.ActiveWindow;
 
 namespace LoupixDeck.Services.Diagnostics.Linux.Checks;
 
 /// <summary>
-/// Page switching by application is driven by an <c>xprop -spy</c> subprocess, so the whole
-/// feature rests on one binary being present and runnable. Without an X server there is nothing
-/// for it to talk to, which the XWayland check already reports - this one is only about xprop
-/// itself.
+/// Page switching by application is driven by an <c>xprop -spy</c> subprocess whenever
+/// the xprop monitor runs, so there the whole feature rests on one binary being present
+/// and runnable. The native Wayland monitor does not use xprop at all, and this check
+/// skips itself there rather than reporting a missing binary that nothing needs. Without
+/// an X server there is nothing for xprop to talk to, which the XWayland check reports.
 /// </summary>
-public sealed class XPropCheck : ILinuxDiagnosticCheck
+public sealed class XPropCheck(IActiveWindowMonitor monitor) : ILinuxDiagnosticCheck
 {
     public string Id => "session.xprop";
 
@@ -19,6 +21,12 @@ public sealed class XPropCheck : ILinuxDiagnosticCheck
     public async Task<DiagnosticCheckResult> RunAsync(CancellationToken cancellationToken)
     {
         string title = DiagnosticCheckTitles.For(Id);
+
+        if (monitor.Kind == ActiveWindowMonitorKind.Wayland)
+        {
+            return DiagnosticCheckResult.Skipped(Id, Category, title,
+                Loc.Tr("Diagnostics_XPropNotUsed"));
+        }
 
         if (string.IsNullOrWhiteSpace(LinuxSystemFacts.Display()))
         {
