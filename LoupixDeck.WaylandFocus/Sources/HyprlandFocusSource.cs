@@ -25,9 +25,9 @@ public sealed class HyprlandFocusSource(string? eventSocketPath = null, string? 
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         string socketPath = _eventSocketPath
-            ?? Path.Combine(RuntimeDirectory(), InstanceSignature(), ".socket2.sock");
+            ?? Path.Combine(RuntimeDirectory(), "hypr", InstanceSignature(), ".socket2.sock");
         string commandSocketPath = _commandSocketPath
-            ?? Path.Combine(RuntimeDirectory(), InstanceSignature(), ".socket.sock");
+            ?? Path.Combine(RuntimeDirectory(), "hypr", InstanceSignature(), ".socket.sock");
 
         using Socket socket = new(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
         socket.Connect(new UnixDomainSocketEndPoint(socketPath));
