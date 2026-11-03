@@ -5,10 +5,10 @@ namespace LoupixDeck.WaylandFocus.Tests;
 public class NiriEventProcessorTests
 {
     private const string InitialState = """
-        {"Ok":{"WindowsChanged":{"windows":[
+        {"WindowsChanged":{"windows":[
           {"id":1,"title":"One","app_id":"app.one","pid":111,"is_focused":true},
           {"id":2,"title":"Two","app_id":"app.two","pid":222,"is_focused":false}
-        ]}}}
+        ]}}
         """;
 
     [Fact]
@@ -26,7 +26,7 @@ public class NiriEventProcessorTests
         NiriEventProcessor processor = new();
         processor.Process(InitialState, out _);
 
-        Assert.True(processor.Process("""{"Ok":{"WindowFocusChanged":{"id":2}}}""", out FocusInfo? focus));
+        Assert.True(processor.Process("""{"WindowFocusChanged":{"id":2}}""", out FocusInfo? focus));
         Assert.Equal(new FocusInfo("app.two", "Two", 222), focus);
     }
 
@@ -36,7 +36,7 @@ public class NiriEventProcessorTests
         NiriEventProcessor processor = new();
         processor.Process(InitialState, out _);
 
-        Assert.True(processor.Process("""{"Ok":{"WindowFocusChanged":{"id":null}}}""", out FocusInfo? focus));
+        Assert.True(processor.Process("""{"WindowFocusChanged":{"id":null}}""", out FocusInfo? focus));
         Assert.Null(focus);
     }
 
@@ -45,9 +45,9 @@ public class NiriEventProcessorTests
     {
         NiriEventProcessor processor = new();
         processor.Process(InitialState, out _);
-        Assert.True(processor.Process("""{"Ok":{"WindowFocusChanged":{"id":2}}}""", out _));
+        Assert.True(processor.Process("""{"WindowFocusChanged":{"id":2}}""", out _));
 
-        Assert.False(processor.Process("""{"Ok":{"WindowFocusChanged":{"id":2}}}""", out _));
+        Assert.False(processor.Process("""{"WindowFocusChanged":{"id":2}}""", out _));
     }
 
     [Fact]
@@ -57,9 +57,9 @@ public class NiriEventProcessorTests
         processor.Process(InitialState, out _);
 
         const string changed = """
-            {"Ok":{"WindowOpenedOrChanged":{"window":
+            {"WindowOpenedOrChanged":{"window":
               {"id":1,"title":"One (renamed)","app_id":"app.one","pid":111,"is_focused":true}
-            }}}
+            }}
             """;
         Assert.True(processor.Process(changed, out FocusInfo? focus));
         Assert.Equal("One (renamed)", focus!.Title);
@@ -71,8 +71,16 @@ public class NiriEventProcessorTests
         NiriEventProcessor processor = new();
         processor.Process(InitialState, out _);
 
-        Assert.True(processor.Process("""{"Ok":{"WindowClosed":{"id":1}}}""", out FocusInfo? focus));
+        Assert.True(processor.Process("""{"WindowClosed":{"id":1}}""", out FocusInfo? focus));
         Assert.Null(focus);
+    }
+
+    [Fact]
+    public void HandledReply_IsIgnored()
+    {
+        NiriEventProcessor processor = new();
+
+        Assert.False(processor.Process("""{"Ok":"Handled"}""", out _));
     }
 
     [Fact]
