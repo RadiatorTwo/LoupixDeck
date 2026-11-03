@@ -315,7 +315,7 @@
   "Diagnostics_FixRestartAppForDevice": "Restart LoupixDeck so it picks the device up.",
   "Diagnostics_FixRunInstaller": "Re-run the LoupixDeck installation script. It installs the udev rules and the group membership.",
   "Diagnostics_FixUpdatePlugin": "Install a version of the plugin built for this LoupixDeck release.",
-  "Diagnostics_FixUseX11Session": "Sign in to an X11 session — or a supported Wayland compositor (COSMIC, sway, niri, Hyprland) — if you need page switching by active application.",
+  "Diagnostics_FixUseX11Session": "If you need page switching by active application, sign in to an X11 session or use a supported Wayland compositor (COSMIC, sway, niri, Hyprland).",
   "Diagnostics_GroupEffective": "This session is a member of the \"input\" group.",
   "Diagnostics_GroupMissing": "This user is not a member of the \"input\" group.",
   "Diagnostics_GroupNoSuchGroup": "This system has no \"input\" group. Access is probably granted through ACLs instead.",
