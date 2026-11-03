@@ -74,8 +74,8 @@ public sealed class HyprlandFocusSource(string? eventSocketPath = null, string? 
         using JsonDocument document = JsonDocument.Parse(json);
         foreach (JsonElement client in document.RootElement.EnumerateArray())
         {
-            if (!string.Equals(client.GetProperty("address").GetString(), address,
-                    StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(StripHexPrefix(client.GetProperty("address").GetString()),
+                    StripHexPrefix(address), StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -89,6 +89,15 @@ public sealed class HyprlandFocusSource(string? eventSocketPath = null, string? 
 
         return null;
     }
+
+    /// <summary>
+    /// The event socket sends the window address as bare hex ("55c4f8c5d8f0"), while
+    /// <c>j/clients</c> prefixes it with "0x" - compare them without the prefix.
+    /// </summary>
+    private static string? StripHexPrefix(string? address) =>
+        address is not null && address.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+            ? address[2..]
+            : address;
 
     /// <summary>
     /// One request over Hyprland's command socket: write <c>j/clients</c>, read the

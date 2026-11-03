@@ -20,7 +20,7 @@ public class HyprlandFocusSourceTests
         Task<string> commandReply = ipc.ServeCommandAsync(
             """[{"address":"0xABC","class":"kitty","title":"one — two","pid":4242}]""",
             cts.Token);
-        Task eventFeed = ipc.ServeEventAsync(cts.Token, "activewindowv2>>0xabc");
+        Task eventFeed = ipc.ServeEventAsync(cts.Token, "activewindowv2>>abc");
 
         HyprlandFocusSource source = new(ipc.EventPath, ipc.CommandPath);
         List<FocusInfo?> received = [];
@@ -32,7 +32,8 @@ public class HyprlandFocusSourceTests
 
         FocusInfo? only = Assert.Single(received);
         Assert.NotNull(only);
-        // Case differs on purpose: the address match is case-insensitive, like hyprctl's.
+        // Real formats on purpose: the event sends bare hex, j/clients "0x"-prefixed hex,
+        // and the case differs too - the match ignores both.
         Assert.Equal("kitty", only!.AppId);
         Assert.Equal("one — two", only.Title);
         Assert.Equal(4242, only.Pid);
@@ -52,7 +53,7 @@ public class HyprlandFocusSourceTests
         // the second carries no focus and needs none, so receiving it proves the stream
         // survived the failed lookup.
         Task eventFeed = ipc.ServeEventAsync(
-            cts.Token, "activewindowv2>>0xdead", "activewindowv2>>");
+            cts.Token, "activewindowv2>>dead", "activewindowv2>>");
 
         HyprlandFocusSource source = new(ipc.EventPath, ipc.CommandPath);
         List<FocusInfo?> received = [];

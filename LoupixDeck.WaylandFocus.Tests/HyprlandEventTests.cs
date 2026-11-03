@@ -7,9 +7,9 @@ public class HyprlandEventTests
     [Fact]
     public void ParsesNameAndData()
     {
-        Assert.True(HyprlandEvent.TryParse("activewindowv2>>0x55e1abcd", out HyprlandEvent evt));
+        Assert.True(HyprlandEvent.TryParse("activewindowv2>>55e1abcd", out HyprlandEvent evt));
         Assert.Equal("activewindowv2", evt.Name);
-        Assert.Equal("0x55e1abcd", evt.Data);
+        Assert.Equal("55e1abcd", evt.Data);
     }
 
     [Fact]
