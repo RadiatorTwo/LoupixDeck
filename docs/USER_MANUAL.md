@@ -879,7 +879,7 @@ When you switch profile or workspace by hand, LoupixDeck pauses automatic switch
 
 Companion page targets belong to the selected workspace and are applied after the master changes context. A companion does not evaluate a separate copy of the master's rules. If a saved target no longer exists, the rule editor marks it so you can choose another page or remove the target.
 
-Process matching is case-insensitive, and a trailing `.exe` is ignored. On Linux, foreground process names reported by the kernel can be truncated after 15 characters; current releases also match a longer configured name when its first 15 characters equal that reported value. Profile Rules require X11 or XWayland plus `xprop`; pure Wayland is not supported by the current README.
+Process matching is case-insensitive, and a trailing `.exe` is ignored. On Linux, foreground process names reported by the kernel can be truncated after 15 characters; current releases also match a longer configured name when its first 15 characters equal that reported value. On Wayland, when no process can be matched to the focused window, the reported name falls back to the application's Wayland identifier — an `app_id` such as `org.gnome.Nautilus` — and the rule matches that identifier instead of a process name. Profile Rules need a foreground-window source: X11 or XWayland through `xprop`, or a supported Wayland compositor (COSMIC, sway, niri, Hyprland) through its native focus tracking.
 
 ## Plugins and Integrations
 

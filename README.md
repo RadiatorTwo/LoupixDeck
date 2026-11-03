@@ -201,7 +201,8 @@ LoupixDeck can automatically switch pages when the foreground application change
 | --- | --- |
 | Windows | ✅ Supported |
 | Linux X11 / XWayland | ✅ Supported via `xprop` |
-| Pure Wayland | ❌ Not available—there is no common foreground-window protocol |
+| Linux Wayland (COSMIC, sway, niri, Hyprland) | ✅ Supported via native focus tracking |
+| Linux Wayland (other compositors, without XWayland) | ❌ Not available |
 
 ### Integrations
 
