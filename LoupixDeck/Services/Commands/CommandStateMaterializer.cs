@@ -79,10 +79,12 @@ public sealed class CommandStateMaterializer(
             return StateSyncResult.Materialized;
         }
 
-        // Still the same owner: only keep the command string (parameters may have been edited)
-        // in sync across the generated states.
-        if (ownerKey != null && string.Equals(ownerKey, button.StateOwnerCommand, StringComparison.Ordinal))
+        // Still the same command, only its parameters may have been edited: the declared states
+        // do not depend on them, so keep the states and follow the new command string. Comparing
+        // the whole key would ask the user on every keystroke in a parameter field.
+        if (ownerKey != null && IsSameCommand(ownerKey, button.StateOwnerCommand))
         {
+            button.StateOwnerCommand = ownerKey;
             MirrorCommandToStates(button);
             return StateSyncResult.Unchanged;
         }
@@ -268,6 +270,11 @@ public sealed class CommandStateMaterializer(
     /// second command to the sequence does not look like a different owner.
     /// </summary>
     private static string OwnerKeyOf(string boundCommand) => PluginLayerKey.For(FirstSegment(boundCommand));
+
+    /// <summary>True when both owner keys name the same command, whatever their parameters.</summary>
+    private static bool IsSameCommand(string ownerKey, string storedOwnerKey) =>
+        string.Equals(PluginLayerKey.ParseCommandName(ownerKey), PluginLayerKey.ParseCommandName(storedOwnerKey),
+            StringComparison.Ordinal);
 
     private static string FirstSegment(string boundCommand) =>
         CommandStringParser.SplitChain(boundCommand).FirstOrDefault();
