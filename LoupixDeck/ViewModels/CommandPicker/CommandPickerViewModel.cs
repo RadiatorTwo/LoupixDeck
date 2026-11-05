@@ -246,7 +246,16 @@ public partial class CommandPickerViewModel : ViewModelBase
 
         if (IsSearching)
             ApplyFilter();
+
+        if (SelectedCategory != null)
+            SelectionRestored?.Invoke(this, EventArgs.Empty);
     }
+
+    /// <summary>
+    /// Raised after a rebuild put the selection back. The rebuilt lists start scrolled to the
+    /// top, so the view scrolls the selection back into sight.
+    /// </summary>
+    public event EventHandler SelectionRestored;
 
     /// <summary>
     /// Every row and group node below <paramref name="nodes"/>, keyed by its name path from the
