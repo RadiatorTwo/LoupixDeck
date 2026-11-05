@@ -453,6 +453,10 @@ public class PluginManager : IPluginManager
         ReleaseFullDisplaySessions(pluginId);
         LocalizationManager.Instance.UnregisterPluginStrings(pluginId);
 
+        // An unloaded plugin is no longer "disconnected": its buttons lose the mark.
+        if (PluginAvailability.Forget(pluginId))
+            RedrawTouchPages();
+
         ReplacePlugins(list =>
             list.RemoveAll(p => string.Equals(p.Manifest?.Id, pluginId, StringComparison.OrdinalIgnoreCase)));
 
@@ -592,6 +596,11 @@ public class PluginManager : IPluginManager
             // recognised as plugin commands after the plugin is removed.
             RecordCommands(manifest.Id, commands);
 
+            // A plugin that reported itself unavailable during Initialize gets its mark now that
+            // its commands are known.
+            if (PluginAvailability.RegisterCommands(manifest.Id, commands.Select(c => c.Descriptor?.CommandName)))
+                RedrawTouchPages();
+
             return new LoadedPlugin
             {
                 Manifest = manifest,
@@ -608,6 +617,7 @@ public class PluginManager : IPluginManager
         catch (Exception ex)
         {
             try { context?.Unload(); } catch { /* best effort */ }
+            PluginAvailability.Forget(manifest?.Id);
             return Fail(dir, manifest, $"Load/initialize threw: {ex.Message}");
         }
     }
@@ -911,8 +921,35 @@ public class PluginManager : IPluginManager
             GetFolderGrid,
             // Fire and forget: the refresh runs off the caller's thread and never throws.
             () => _ = RefreshRequirementsAsync(),
-            RefreshButtonStates);
+            RefreshButtonStates,
+            SetAvailable);
+
+        void SetAvailable(bool available)
+        {
+            if (PluginAvailability.Set(manifest.Id, available))
+                RedrawTouchPages();
+        }
     }
+
+    /// <summary>
+    /// Redraws the touch page of every device, so a plugin's availability shows (or clears) on
+    /// its buttons right away. Off the caller's thread: a plugin reports it from its own callbacks.
+    /// </summary>
+    private void RedrawTouchPages() => _ = Task.Run(async () =>
+    {
+        foreach (DeviceHost host in _hostRegistry.Hosts)
+        {
+            try
+            {
+                if (host?.Provider != null)
+                    await host.Provider.GetRequiredService<Controllers.IDeviceController>().RedrawCurrentTouchPage();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"PluginManager: redrawing the touch page failed: {ex.Message}");
+            }
+        }
+    });
 
     /// <summary>Remembers a full-display session handed to a plugin, pruning released ones.</summary>
     private void TrackFullDisplaySession(string pluginId, IFullDisplayRenderSession session)

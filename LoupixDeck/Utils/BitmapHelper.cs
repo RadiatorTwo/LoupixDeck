@@ -1337,6 +1337,7 @@ public static class BitmapHelper
 
             DrawTouchButtonContent(canvas, touchButton, wallpaperToUse, opacityToUse, wallpaperSource, width, height,
                 ShowsFolderBadges(config), value is { } v ? new DialRenderContext(null, v) : null);
+            DrawUnavailableOverlay(canvas, touchButton, width, height);
         }
 
         touchButton.RenderedDisplayValue = value;
@@ -1395,6 +1396,7 @@ public static class BitmapHelper
             if (layers != null)
                 canvas.DrawBitmap(layers, new SKRect(0, 0, layers.Width, layers.Height),
                     new SKRect(0, 0, width, height), SKSamplingOptions.Default, paint: null);
+            DrawUnavailableOverlay(canvas, touchButton, width, height);
         }
 
         touchButton.RenderedDisplayValue = value;
@@ -1486,6 +1488,7 @@ public static class BitmapHelper
             canvas.DrawBitmap(cache.Under, keyRect, SKSamplingOptions.Default);
             DrawLayers(canvas, [animated], width, height, dial);
             canvas.DrawBitmap(cache.Over, keyRect, SKSamplingOptions.Default);
+            DrawUnavailableOverlay(canvas, touchButton, width, height);
         }
 
         touchButton.RenderedDisplayValue = value;
@@ -1573,8 +1576,11 @@ public static class BitmapHelper
         lock (SkiaRenderGate.Sync)
         {
             return RenderPreviewBitmap(width, height, scale, canvas =>
+            {
                 DrawTouchButtonContent(canvas, touchButton, wallpaperToUse, opacityToUse, wallpaperSource, width, height,
-                    ShowsFolderBadges(config), touchButton.ValueContext));
+                    ShowsFolderBadges(config), touchButton.ValueContext);
+                DrawUnavailableOverlay(canvas, touchButton, width, height);
+            });
         }
     }
 
@@ -1690,6 +1696,28 @@ public static class BitmapHelper
         using var paint = new SKPaint();
         paint.Color = new SKColor(0, 0, 0, 160);
         canvas.DrawRect(destRect, paint);
+    }
+
+    /// <summary>
+    /// Dims a key bound to a command of a plugin that reported itself unavailable (see
+    /// <see cref="Services.Plugins.PluginAvailability"/>) and marks it with a "link-off" symbol in
+    /// the bottom-right corner. Drawn over the finished key, so cached parts never hold it.
+    /// Must be called under <see cref="SkiaRenderGate"/>.Sync.
+    /// </summary>
+    private static void DrawUnavailableOverlay(SKCanvas canvas, TouchButton touchButton, int width, int height)
+    {
+        if (touchButton.IsFolderBackSlot || !Services.Plugins.PluginAvailability.IsUnavailable(touchButton.Command))
+            return;
+
+        using var dim = new SKPaint();
+        dim.Color = new SKColor(0, 0, 0, 150);
+        canvas.DrawRect(0, 0, width, height, dim);
+
+        float unit = Math.Min(width, height) / 90f;
+        float size = 24 * unit;
+        float margin = 5 * unit;
+        DrawSymbolGlyph(canvas, "link-off", SKRect.Create(width - size - margin, height - size - margin, size, size),
+            SKColors.White);
     }
 
     /// <summary>
