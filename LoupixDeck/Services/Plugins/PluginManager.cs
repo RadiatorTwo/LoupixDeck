@@ -65,6 +65,13 @@ public interface IPluginManager
     /// worker thread; UI subscribers must marshal to the UI thread.
     /// </summary>
     event Action RequirementsChanged;
+
+    /// <summary>
+    /// Raised with the plugin id when a plugin asks for its dynamic menus to be rebuilt
+    /// (<c>IPluginHost.RequestMenuRefresh</c>). Fires on the plugin's thread; UI subscribers must
+    /// marshal to the UI thread.
+    /// </summary>
+    event Action<string> MenuRefreshRequested;
 }
 
 /// <inheritdoc cref="IPluginManager"/>
@@ -98,6 +105,8 @@ public class PluginManager : IPluginManager
     private readonly SemaphoreSlim _requirementsGate = new(1, 1);
 
     public event Action RequirementsChanged;
+
+    public event Action<string> MenuRefreshRequested;
 
     public PluginManager(IDeviceRouter router, IDeviceHostRegistry hostRegistry,
         PluginStore.IPluginCommandIndex commandIndex)
@@ -922,7 +931,20 @@ public class PluginManager : IPluginManager
             // Fire and forget: the refresh runs off the caller's thread and never throws.
             () => _ = RefreshRequirementsAsync(),
             RefreshButtonStates,
-            SetAvailable);
+            SetAvailable,
+            RequestMenuRefresh);
+
+        void RequestMenuRefresh()
+        {
+            try
+            {
+                MenuRefreshRequested?.Invoke(manifest.Id);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"PluginHost[{manifest.Id}]: a MenuRefreshRequested subscriber threw: {ex.Message}");
+            }
+        }
 
         void SetAvailable(bool available)
         {
