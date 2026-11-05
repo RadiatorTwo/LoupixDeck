@@ -30,6 +30,7 @@ public static class IconPackScanner
         [".jpeg"] = IconEntryKind.RasterFile,
         [".webp"] = IconEntryKind.RasterFile,
         [".bmp"] = IconEntryKind.RasterFile,
+        [".ico"] = IconEntryKind.RasterFile,
         [".svg"] = IconEntryKind.SvgFile
     };
 
