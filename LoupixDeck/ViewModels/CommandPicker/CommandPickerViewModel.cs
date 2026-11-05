@@ -42,6 +42,13 @@ public partial class CommandPickerViewModel : ViewModelBase
 
     private sealed record SearchLeaf(CommandRowViewModel Row, string GroupPath, string GroupIcon);
 
+    // What the user picked and opened, keyed by name path rather than by entry. A full catalogue
+    // refresh clears the source and builds every entry anew, so nothing survives by reference;
+    // these survive it, and the empty source in between, and are put back once the entries return.
+    private string _wantedCategory;
+    private string _wantedCommand;
+    private readonly Dictionary<string, bool> _expansion = new(StringComparer.Ordinal);
+
     /// <summary>Sections shown as the card grid when not searching.</summary>
     public ObservableCollection<CommandSectionViewModel> Sections { get; } = [];
 
@@ -112,14 +119,9 @@ public partial class CommandPickerViewModel : ViewModelBase
         if (category == null || ReferenceEquals(category, SelectedCategory))
             return;
 
-        if (SelectedCategory != null)
-            SelectedCategory.IsSelected = false;
-
-        SelectedCategory = category;
-        category.IsSelected = true;
-
-        // Selecting a different category drops the previous command highlight.
-        SelectCommand(null);
+        _wantedCategory = category.Title;
+        _wantedCommand = null;
+        ApplyCategory(category);
     }
 
     public void SelectCommand(CommandRowViewModel command)
@@ -129,6 +131,29 @@ public partial class CommandPickerViewModel : ViewModelBase
         if (command is { IsSelectable: false })
             return;
 
+        _wantedCommand = command == null || SelectedCategory == null
+            ? null
+            : Walk(SelectedCategory.DetailNodes, SelectedCategory.Title)
+                .FirstOrDefault(item => ReferenceEquals(item.Node, command)).Key;
+        ApplyCommand(command);
+    }
+
+    /// <summary>Shows <paramref name="category"/> without changing what the user asked for.</summary>
+    private void ApplyCategory(CommandCategoryViewModel category)
+    {
+        if (SelectedCategory != null)
+            SelectedCategory.IsSelected = false;
+
+        SelectedCategory = category;
+        category.IsSelected = true;
+
+        // Selecting a different category drops the previous command highlight.
+        ApplyCommand(null);
+    }
+
+    /// <summary>Highlights <paramref name="command"/> without changing what the user asked for.</summary>
+    private void ApplyCommand(CommandRowViewModel command)
+    {
         if (SelectedCommand != null)
             SelectedCommand.IsSelected = false;
 
@@ -162,15 +187,17 @@ public partial class CommandPickerViewModel : ViewModelBase
 
     private void Rebuild()
     {
-        var previousCategory = SelectedCategory?.Title;
-        MenuEntry previousCommand = SelectedCommand?.Entry;
-
-        // Plugin groups fill in asynchronously after the picker opens, and each of them lands here.
-        // The menu entries survive that (groups are merged, not replaced), so the expand state is
-        // keyed by entry and put back — otherwise a group the user just opened snaps shut.
-        Dictionary<MenuEntry, bool> expansion = new(ReferenceEqualityComparer.Instance);
+        // Plugin groups fill in asynchronously after the picker opens, and each of them lands here;
+        // a catalogue refresh replaces every entry. The expand state is kept by name path and put
+        // back — otherwise a group the user just opened snaps shut.
         foreach (var category in Sections.SelectMany(s => s.Categories))
-            CollectExpansion(category.DetailNodes, expansion);
+        {
+            foreach ((string key, object node) in Walk(category.DetailNodes, category.Title))
+            {
+                if (node is CommandGroupNodeViewModel group)
+                    _expansion[key] = group.IsExpanded;
+            }
+        }
 
         UnsubscribeGroups();
         Sections.Clear();
@@ -206,77 +233,70 @@ public partial class CommandPickerViewModel : ViewModelBase
         }
 
         foreach (var category in Sections.SelectMany(s => s.Categories))
-            ApplyExpansion(category.DetailNodes, expansion);
+        {
+            foreach ((string key, object node) in Walk(category.DetailNodes, category.Title))
+            {
+                if (node is CommandGroupNodeViewModel group && _expansion.TryGetValue(key, out bool expanded))
+                    group.IsExpanded = expanded;
+            }
+        }
 
-        RestoreSelection(previousCategory);
-        RestoreCommand(previousCommand);
+        RestoreSelection();
+        RestoreCommand();
 
         if (IsSearching)
             ApplyFilter();
     }
 
-    private static void CollectExpansion(IEnumerable<object> nodes, Dictionary<MenuEntry, bool> into)
-    {
-        foreach (var node in nodes.OfType<CommandGroupNodeViewModel>())
-        {
-            into[node.Group] = node.IsExpanded;
-            CollectExpansion(node.Children, into);
-        }
-    }
-
-    private static void ApplyExpansion(IEnumerable<object> nodes, Dictionary<MenuEntry, bool> expansion)
-    {
-        foreach (var node in nodes.OfType<CommandGroupNodeViewModel>())
-        {
-            if (expansion.TryGetValue(node.Group, out bool expanded))
-                node.IsExpanded = expanded;
-            ApplyExpansion(node.Children, expansion);
-        }
-    }
-
-    /// <summary>Re-highlights the command that was selected before a rebuild, if it is still in the
-    /// selected category.</summary>
-    private void RestoreCommand(MenuEntry entry)
-    {
-        if (entry == null || SelectedCategory == null)
-            return;
-
-        CommandRowViewModel row = FindRow(SelectedCategory.DetailNodes, entry);
-        if (row != null)
-            SelectCommand(row);
-    }
-
-    private static CommandRowViewModel FindRow(IEnumerable<object> nodes, MenuEntry entry)
+    /// <summary>
+    /// Every row and group node below <paramref name="nodes"/>, keyed by its name path from the
+    /// category (<paramref name="path"/>); a row's key also carries its command string, so two
+    /// rows of the same name stay apart.
+    /// </summary>
+    private static IEnumerable<(string Key, object Node)> Walk(IEnumerable<object> nodes, string path)
     {
         foreach (object node in nodes)
         {
             switch (node)
             {
-                case CommandRowViewModel row when ReferenceEquals(row.Entry, entry):
-                    return row;
-                case CommandGroupNodeViewModel group when FindRow(group.Children, entry) is { } nested:
-                    return nested;
+                case CommandRowViewModel row:
+                    yield return ($"{path}/{row.Entry.Name}|{row.Entry.Command}", row);
+                    break;
+                case CommandGroupNodeViewModel group:
+                    string groupPath = $"{path}/{group.Group.Name}";
+                    yield return (groupPath, group);
+                    foreach ((string Key, object Node) child in Walk(group.Children, groupPath))
+                        yield return child;
+                    break;
             }
         }
-
-        return null;
     }
 
-    private void RestoreSelection(string categoryTitle)
+    /// <summary>
+    /// Re-highlights the command the user selected, if the selected category still holds it. If it
+    /// is gone, nothing is highlighted; the groups above it stay open.
+    /// </summary>
+    private void RestoreCommand()
     {
-        CommandCategoryViewModel target = null;
+        if (_wantedCommand == null || SelectedCategory == null)
+            return;
 
-        if (categoryTitle != null)
-        {
-            target = Sections
-                .SelectMany(s => s.Categories)
-                .FirstOrDefault(c => c.Title == categoryTitle);
-        }
+        if (Walk(SelectedCategory.DetailNodes, SelectedCategory.Title)
+                .FirstOrDefault(item => item.Key == _wantedCommand).Node is CommandRowViewModel row)
+            ApplyCommand(row);
+    }
 
-        // Default to the first category so the detail area is never empty on open.
-        target ??= Sections.SelectMany(s => s.Categories).FirstOrDefault();
+    /// <summary>
+    /// Shows the category the user selected. While it is missing (a plugin group still loading, or
+    /// gone) the first category stands in, and the user's choice is kept for the next rebuild.
+    /// </summary>
+    private void RestoreSelection()
+    {
+        IEnumerable<CommandCategoryViewModel> categories = Sections.SelectMany(s => s.Categories);
+        CommandCategoryViewModel target = categories.FirstOrDefault(c => c.Title == _wantedCategory)
+                                          ?? categories.FirstOrDefault();
         if (target != null)
-            SelectCategory(target);
+            ApplyCategory(target);
     }
 
     /// <summary>
