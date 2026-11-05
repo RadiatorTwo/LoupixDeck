@@ -3,6 +3,8 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
 using LoupixDeck.Models;
 using LoupixDeck.ViewModels.CommandPicker;
 
@@ -47,12 +49,57 @@ public partial class CommandPickerView : UserControl
     /// <summary>Raised when a row drag is released (the host decides whether it dropped on target).</summary>
     public event EventHandler<CommandDragEventArgs> CommandDragReleased;
 
+    private CommandPickerViewModel _subscribed;
+
     public CommandPickerView()
     {
         InitializeComponent();
     }
 
     private CommandPickerViewModel ViewModel => DataContext as CommandPickerViewModel;
+
+    protected override void OnDataContextChanged(EventArgs e)
+    {
+        base.OnDataContextChanged(e);
+
+        if (_subscribed != null)
+            _subscribed.SelectionRestored -= OnSelectionRestored;
+        _subscribed = ViewModel;
+        if (_subscribed != null)
+            _subscribed.SelectionRestored += OnSelectionRestored;
+    }
+
+    // ── Keeping the selection in sight ───────────────────────────────────────
+
+    // After a rebuild the rail and the detail list are new and scrolled to the top. Once they are
+    // laid out, scroll the selected category and command back into view.
+    private void OnSelectionRestored(object sender, EventArgs e) =>
+        Dispatcher.UIThread.Post(BringSelectionIntoView, DispatcherPriority.Background);
+
+    private void BringSelectionIntoView()
+    {
+        if (ViewModel is not { } vm)
+            return;
+
+        BringIntoView(vm.SelectedCategory);
+        BringIntoView(vm.SelectedCommand);
+    }
+
+    /// <summary>Scrolls the outermost control showing <paramref name="item"/> into view.</summary>
+    private void BringIntoView(object item)
+    {
+        if (item == null)
+            return;
+
+        foreach (Visual visual in this.GetVisualDescendants())
+        {
+            if (visual is Control control && ReferenceEquals(control.DataContext, item) && control.IsEffectivelyVisible)
+            {
+                control.BringIntoView();
+                return;
+            }
+        }
+    }
 
     // ── Group rail ───────────────────────────────────────────────────────────
 

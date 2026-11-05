@@ -77,7 +77,8 @@ public partial class ActionPanelViewModel : ViewModelBase
     public ActionPanelViewModel(IAppDiscoveryService discovery, ICustomAppStore customApps,
         IAppIconExtractor icons, IMenuTreeBuilder menuTreeBuilder, IDialPresetCatalog dialPresets,
         ICompanionCoordinator companions, IConfigService configService, IMacroManager macros,
-        ICommandRegistry commandRegistry, LoupedeckConfig config, ResolvedDevice device)
+        ICommandRegistry commandRegistry, LoupedeckConfig config, ResolvedDevice device,
+        Services.Plugins.IPluginManager pluginManager = null)
     {
         _commandRegistry = commandRegistry;
         _discovery = discovery;
@@ -102,6 +103,8 @@ public partial class ActionPanelViewModel : ViewModelBase
         _configService.ConfigSaved += OnConfigSaved;
         _macros.MacrosChanged += OnMacrosChanged;
         _commandRegistry.CommandsChanged += OnCommandsChanged;
+        if (pluginManager != null)
+            pluginManager.MenuRefreshRequested += OnPluginMenuRefreshRequested;
     }
 
     // ── Panel state ────────────────────────────────────────────────────────
@@ -359,6 +362,14 @@ public partial class ActionPanelViewModel : ViewModelBase
     // notice - the rebuild has to be forced or a freshly enabled plugin stays missing from the
     // panel until the next restart.
     private void OnCommandsChanged() => ScheduleCatalogueRefresh(force: true);
+
+    // A plugin's dynamic submenus changed (IPluginHost.RequestMenuRefresh). Only a plugin enabled
+    // on this device has a menu here; the debounce timer merges a burst into one rebuild.
+    private void OnPluginMenuRefreshRequested(string pluginId)
+    {
+        if (_config?.EnabledPlugins?.Any(id => string.Equals(id, pluginId, StringComparison.OrdinalIgnoreCase)) == true)
+            ScheduleCatalogueRefresh(force: true);
+    }
 
     private async void OnCatalogueRefreshTick(object sender, EventArgs e)
     {
