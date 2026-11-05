@@ -39,6 +39,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly Services.DialPresets.IDialPresetStore _dialPresetStore;
     private readonly Services.Folders.ICustomFolderService _folders;
     private readonly IPastePluginActivation _pastePlugins;
+    private readonly IButtonStateService _buttonStates;
 
     // Guards the profile/workspace ComboBox selection against feedback loops: set while we
     // push an external activation (context rules, commands, buttons) back into the bound
@@ -306,10 +307,12 @@ public partial class MainWindowViewModel : ViewModelBase
         Services.Folders.ICustomFolderService folders,
         ViewModels.FolderPanel.FolderPanelViewModel folderPanel,
         IDeviceService deviceService,
-        IPastePluginActivation pastePlugins)
+        IPastePluginActivation pastePlugins,
+        IButtonStateService buttonStates = null)
     {
         FolderPanel = folderPanel;
         _pastePlugins = pastePlugins;
+        _buttonStates = buttonStates;
         LoupedeckController = loupedeck;
         _folders = folders;
         _companions = companions;
@@ -959,7 +962,13 @@ public partial class MainWindowViewModel : ViewModelBase
         // A pasted folder link can come from another layout: drop links this layout may not hold
         // (the open folder, one it was opened from, or a folder this workspace does not have).
         if (button is StatefulButton stateful)
+        {
             Services.Folders.FolderReferenceCleaner.CleanButton(stateful, id => !_folders.CanLink(id));
+
+            // The snapshot carries the state that was active when it was copied; a command that
+            // reports per-button states knows which one is right now.
+            _buttonStates?.RefreshState(stateful);
+        }
 
         switch (kind)
         {
