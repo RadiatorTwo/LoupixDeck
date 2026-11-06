@@ -3,6 +3,8 @@ using System.Security.Cryptography;
 using System.Text;
 using Avalonia.Media.Imaging;
 using LoupixDeck.Utils;
+using SkiaSharp;
+using Svg.Skia;
 
 namespace LoupixDeck.Services.AppLauncher;
 
@@ -22,6 +24,10 @@ public sealed class AppIconExtractor : IAppIconExtractor
     /// is generous enough that scrolling never re-decodes.
     /// </summary>
     private const int MaxCachedBitmaps = 512;
+
+    /// <summary>Edge length an SVG icon is rasterized to — larger than any key, so it only ever
+    /// scales down.</summary>
+    private const int SvgRasterSize = 256;
 
     private readonly Lock _sync = new();
     private readonly Dictionary<string, Bitmap> _bitmaps = new(StringComparer.Ordinal);
@@ -85,16 +91,22 @@ public sealed class AppIconExtractor : IAppIconExtractor
         if (app == null)
             return Task.FromResult<string>(null);
 
-        // Steam artwork, a Store logo or an absolute .desktop icon needs no extraction.
-        if (!string.IsNullOrEmpty(app.PreResolvedIcon) && File.Exists(app.PreResolvedIcon))
-            return Task.FromResult(app.PreResolvedIcon);
+        string preResolved = app.PreResolvedIcon;
+        if (!string.IsNullOrEmpty(preResolved) && File.Exists(preResolved))
+        {
+            // Steam artwork, a Store logo or a .desktop icon needs no extraction — unless it is an
+            // SVG, which the picker's bitmap decoder cannot read, so it is rasterized to a PNG.
+            if (!IsSvg(preResolved))
+                return Task.FromResult(preResolved);
 
-        return Task.Run(() => Extract(app, cancellationToken), cancellationToken);
+            return Task.Run(() => Extract(preResolved, cancellationToken), cancellationToken);
+        }
+
+        return Task.Run(() => Extract(app.IconExtractSource, cancellationToken), cancellationToken);
     }
 
-    private string Extract(InstalledApp app, CancellationToken cancellationToken)
+    private string Extract(string source, CancellationToken cancellationToken)
     {
-        string source = app.IconExtractSource;
         if (string.IsNullOrWhiteSpace(source))
             return null;
 
@@ -133,6 +145,9 @@ public sealed class AppIconExtractor : IAppIconExtractor
     /// as a PNG. Returns false when this platform cannot, or the file has no icon.</summary>
     private static bool TryExtract(string source, string destination)
     {
+        if (IsSvg(source))
+            return TryRasterizeSvg(source, destination);
+
 #if WINDOWS
         // This branch only compiles under the WINDOWS constant, but the analyzer needs an explicit
         // OS guard (the same reason Program.cs carries one).
@@ -146,6 +161,47 @@ public sealed class AppIconExtractor : IAppIconExtractor
         // nothing to pull out of an ELF binary.
         return false;
 #endif
+    }
+
+    private static bool IsSvg(string file)
+        => string.Equals(Path.GetExtension(file), ".svg", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Renders an SVG icon to a square PNG of <see cref="SvgRasterSize"/>, centred and
+    /// aspect-fitted. False when the SVG cannot be read.</summary>
+    private static bool TryRasterizeSvg(string source, string destination)
+    {
+        try
+        {
+            using SKSvg svg = new();
+            SKPicture picture = svg.Load(source);
+            if (picture == null)
+                return false;
+
+            SKRect bounds = picture.CullRect;
+            if ((bounds.Width <= 0) || (bounds.Height <= 0))
+                return false;
+
+            float scale = SvgRasterSize / Math.Max(bounds.Width, bounds.Height);
+            using SKBitmap bitmap = new(SvgRasterSize, SvgRasterSize, SKColorType.Bgra8888, SKAlphaType.Premul);
+            using (SKCanvas canvas = new(bitmap))
+            {
+                canvas.Clear(SKColors.Transparent);
+                canvas.Translate((SvgRasterSize - (bounds.Width * scale)) / 2, (SvgRasterSize - (bounds.Height * scale)) / 2);
+                canvas.Scale(scale);
+                canvas.Translate(-bounds.Left, -bounds.Top);
+                canvas.DrawPicture(picture);
+            }
+
+            using SKData png = bitmap.Encode(SKEncodedImageFormat.Png, 100);
+            using FileStream output = File.Create(destination);
+            png.SaveTo(output);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[AppIcon] Cannot rasterize '{source}': {ex.Message}");
+            return false;
+        }
     }
 
     private static Bitmap Decode(string file, int width)

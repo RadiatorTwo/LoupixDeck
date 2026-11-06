@@ -18,6 +18,9 @@ public sealed class LinuxAppDiscoveryService : AppDiscoveryServiceBase
 
     protected override IEnumerable<InstalledApp> Discover(CancellationToken cancellationToken)
     {
+        // Built per pass, so icons of applications installed since the last scan are found.
+        LinuxIconTheme icons = new(DataDirectories().Distinct(StringComparer.Ordinal));
+
         foreach (string directory in ApplicationDirectories())
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -37,14 +40,14 @@ public sealed class LinuxAppDiscoveryService : AppDiscoveryServiceBase
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                InstalledApp app = Read(file);
+                InstalledApp app = Read(file, icons);
                 if (app != null)
                     yield return app;
             }
         }
     }
 
-    private static InstalledApp Read(string file)
+    private static InstalledApp Read(string file, LinuxIconTheme icons)
     {
         DesktopEntry entry;
         try
@@ -82,7 +85,7 @@ public sealed class LinuxAppDiscoveryService : AppDiscoveryServiceBase
             Target = entry.FilePath,
             Source = AppSource.Installed,
             IsGame = entry.Categories.Contains("Game", StringComparer.Ordinal),
-            PreResolvedIcon = AbsoluteIconPath(entry.Icon),
+            PreResolvedIcon = icons.Resolve(entry.Icon),
             IconExtractSource = executable
         };
     }
@@ -164,11 +167,4 @@ public sealed class LinuxAppDiscoveryService : AppDiscoveryServiceBase
 
         return null;
     }
-
-    /// <summary>
-    /// A desktop entry's <c>Icon</c> is either an absolute path or a theme name. Only the absolute
-    /// form is usable without a theme lookup, which the icon extractor does.
-    /// </summary>
-    private static string AbsoluteIconPath(string icon)
-        => !string.IsNullOrWhiteSpace(icon) && Path.IsPathRooted(icon) && File.Exists(icon) ? icon : null;
 }
