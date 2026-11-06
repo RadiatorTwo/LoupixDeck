@@ -19,6 +19,9 @@ public interface IPluginHost
 
     void RequestButtonRefresh(string commandName);
     void RequestRequirementsRefresh();
+    void RefreshButtonStates(string commandName);
+    void SetAvailable(bool available);
+    void RequestMenuRefresh();
     void ExecuteCommand(string command);
     void OpenFolder(IFolderProvider provider);
 
@@ -37,9 +40,17 @@ public interface IPluginHost
 | `CurrentLanguage` / `Tr(english)` | Active language code and plugin-scoped translation of runtime English text, added in SDK 1.24.0. See [Plugin translations](Recent-SDK-Additions#plugin-translations). |
 | `RequestButtonRefresh(commandName)` | Asks the host to re-render every touch button bound to `commandName`. Use after data backing an `IDisplayCommand` changes via push so the user sees the new value immediately instead of at the next poll tick. |
 | `RequestRequirementsRefresh()` | Asks the host to call `IPluginRequirements.GetRequirements()` again. Use when a condition the plugin reports there changes while it runs, so the main window notice appears or clears straight away instead of the next time the Plugins window opens. SDK 1.34 and later; an older host throws `MissingMethodException`. |
+| `RefreshButtonStates(commandName)` | Re-evaluates each button bound to this `IButtonStateCommand`, using its own parameters. Call when cached state data changes; the host does not poll. Added in SDK 1.34. |
+| `SetAvailable(available)` | Reports connection availability for the plugin. Unavailable plugins have dimmed touch keys with a disconnected mark; assignments and command execution remain intact. Added in SDK 1.36. |
+| `RequestMenuRefresh()` | Asks the host to rebuild this plugin's dynamic menus while preserving command-list selection. Bursts are coalesced and rebuilding runs off the caller's thread. Added in SDK 1.36. |
 | `ExecuteCommand(command)` | Runs a command string through the host's command pipeline (`Plugin.Command(arg1,arg2)` syntax). Enables chaining across plugin boundaries — e.g. an action that triggers another plugin's command. |
 | `OpenFolder(provider)` | Pushes a [folder navigation view](Advanced-Folders) onto the touch screen. The host calls `provider.OnEnter()` and starts rendering from `provider.BuildEntries()`. |
 | `RequestFullDisplayRenderer(renderer)` | Takes the **whole display** over and streams raw BGRA frames from your [`IFullDisplayRenderer`](Advanced-Full-Display-Renderer) on the host's animation scheduler. Returns the ownership session, or `null` when the display is already taken. Release it in `Shutdown()`. |
+
+The refresh and availability methods are safe to call from any thread. New host
+members are unavailable on older hosts and can throw `MissingMethodException`;
+declare the required SDK version. See [Recent SDK additions](Recent-SDK-Additions#availability-and-menu-refresh)
+for connection and menu-refresh behavior.
 
 Keep the `IPluginHost` you received in `Initialize` for the plugin's lifetime —
 do not try to access host services from a static field or before `Initialize`

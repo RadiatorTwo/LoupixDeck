@@ -5,7 +5,7 @@ manifest and any runtime dependencies. LoupixDeck v1.28.0 and later can install
 plugins from its curated Plugin Store. Store plugins publish releases from their
 own GitHub repository; they are not bundled with the main application.
 
-LoupixDeck v1.47.0 provides SDK 1.33.0. The recent API additions are documented
+LoupixDeck v1.52.0 provides SDK 1.36.0. The recent API additions are documented
 in [Recent SDK additions](Recent-SDK-Additions). Older plugins keep working;
 publish the SDK version your plugin builds against so the Store can exclude
 hosts that do not provide its newer APIs.
@@ -20,7 +20,7 @@ match the `PluginMetadata` returned by the plugin:
   "id": "myplugin",
   "name": "My Plugin",
   "version": "1.0.0",
-  "sdkVersion": "1.33.0",
+  "sdkVersion": "1.36.0",
   "entryAssembly": "MyPlugin.dll",
   "platform": "All",
   "author": "Example Author",
@@ -211,13 +211,13 @@ adds an entry such as:
   "repository": "example/LoupixDeck.Plugin.MyPlugin",
   "icon": "https://example.com/myplugin.png",
   "platforms": ["Windows", "Linux"],
-  "minSdkVersion": "1.33.0",
+  "minSdkVersion": "1.36.0",
   "commandPrefixes": ["MyPlugin."],
   "release": {
     "version": "1.0.0",
     "tag": "v1.0.0",
     "publishedAt": "2026-09-16T12:00:00Z",
-    "sdkVersion": "1.33.0",
+    "sdkVersion": "1.36.0",
     "releaseNotesUrl": "https://github.com/example/LoupixDeck.Plugin.MyPlugin/releases/tag/v1.0.0",
     "packages": [
       {

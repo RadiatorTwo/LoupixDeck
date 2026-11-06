@@ -22,6 +22,12 @@ The host calls it when building the menu for a specific button type.
 failures as an empty contribution so a slow or offline integration cannot block
 the UI. Catch your own exceptions and log them.
 
+Since SDK 1.36.0, call `host.RequestMenuRefresh()` when external choices change,
+for example when OBS connects or a scene is added. The host rebuilds this
+plugin's contributions off the calling thread, coalesces repeated requests,
+and keeps the selected group, open submenus, and selected command. See
+[Availability and menu refresh](Recent-SDK-Additions#availability-and-menu-refresh).
+
 ## MenuNode
 
 ```csharp

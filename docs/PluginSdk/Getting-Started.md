@@ -21,10 +21,10 @@ cd MyPlugin
 
 ## 2. Reference the SDK
 
-The SDK is published on nuget.org. For LoupixDeck v1.47.0, reference SDK 1.33.0:
+The SDK is published on nuget.org. For LoupixDeck v1.52.0, reference SDK 1.36.0:
 
 ```powershell
-dotnet add package LoupixDeck.PluginSdk --version 1.33.0
+dotnet add package LoupixDeck.PluginSdk --version 1.36.0
 ```
 
 No SDK source checkout or local feed is needed. If you are developing an
