@@ -44,15 +44,16 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
 
     public SimpleButton ButtonData { get; set; }
 
-    /// <summary>Friendly label for the physical button id, displayed 1-based
-    /// (BUTTON0 → "Button 1"). The underlying enum stays 0-based.</summary>
+    /// <summary>Friendly label for the physical button id, displayed 0-based like the enum
+    /// (BUTTON0 → "Button 0"), so it matches the round buttons printed ○, 1, 2, … on the
+    /// Loupedeck Live/CT and the Razer Stream Controller (issue #555).</summary>
     public string ButtonLabel
     {
         get
         {
             var id = ButtonData?.Id.ToString();
             if (id != null && id.StartsWith("BUTTON") && int.TryParse(id["BUTTON".Length..], out var n))
-                return $"Button {n + 1}";
+                return $"Button {n}";
             return id?.Replace("BUTTON", "Button ") ?? "Button";
         }
     }
