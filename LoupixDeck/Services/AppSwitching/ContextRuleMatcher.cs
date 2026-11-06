@@ -72,7 +72,7 @@ public static class ContextRuleMatcher
     /// characters long and <paramref name="ruleProcess"/> is longer, the kernel may have truncated the
     /// real name, so only the rule name's first <see cref="LinuxCommMaxLength"/> characters are
     /// compared. Windows behaviour is unaffected: it never takes this branch.</summary>
-    private static bool ProcessNameMatches(string ruleProcess, string reportedProcess)
+    public static bool ProcessNameMatches(string ruleProcess, string reportedProcess)
     {
         if (string.Equals(ruleProcess, reportedProcess, StringComparison.OrdinalIgnoreCase))
             return true;

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using LoupixDeck.Commands.Base;
+using LoupixDeck.Services.AppActivation;
 using LoupixDeck.Services.AppLauncher;
 using LoupixDeck.Utils;
 
@@ -21,36 +22,49 @@ namespace LoupixDeck.Commands;
 /// Hidden: it is inserted by the application picker, which fills and escapes the target. There is
 /// nothing useful to type here by hand, and a hand-typed path would have to be escaped manually.
 /// </para>
+/// <para>
+/// "Single Instance" (issue #553) focuses the running application instead of starting it again,
+/// and does nothing when it already has focus. "Process Name" says which process that is; empty
+/// means "derive it from the target", which works for executables and desktop entries but not
+/// for launcher URIs. Both are optional, so a command saved with the target alone keeps
+/// launching every time, as before.
+/// </para>
 /// </remarks>
 [Command(
     "System.LaunchApp",
     "Launch Application",
     "Shell",
-    "({Target})",
-    ["Target"],
-    [typeof(string)],
+    "({Target}, {Single Instance}, {Process Name})",
+    ["Target", "Single Instance", "Process Name"],
+    [typeof(string), typeof(bool), typeof(string)],
     Platform = CommandPlatform.All,
     Hidden = true,
     Description = "Start an installed application")]
-public class LaunchAppCommand : IExecutableCommand
+public sealed class LaunchAppCommand(IAppWindowActivator activator) : IExecutableCommand
 {
-    public Task Execute(string[] parameters)
+    public async Task Execute(string[] parameters)
     {
-        if (parameters.Length != 1)
+        if (parameters.Length is < 1 or > 3)
         {
-            Console.WriteLine("Usage: System.LaunchApp(target)");
-            return Task.CompletedTask;
+            Console.WriteLine("Usage: System.LaunchApp(target[, singleInstance[, processName]])");
+            return;
         }
 
         string target = CommandParameterEncoding.Decode(parameters[0]);
         if (string.IsNullOrWhiteSpace(target))
         {
             Console.WriteLine("System.LaunchApp: empty target");
-            return Task.CompletedTask;
+            return;
         }
+
+        bool singleInstance = parameters.Length > 1 && bool.TryParse(parameters[1], out bool flag) && flag;
+        string processName = parameters.Length > 2 ? CommandParameterEncoding.Decode(parameters[2]) : null;
 
         try
         {
+            if (singleInstance && await HandledByRunningInstanceAsync(target, processName))
+                return;
+
             Launch(target);
         }
         catch (Exception ex)
@@ -59,9 +73,43 @@ public class LaunchAppCommand : IExecutableCommand
             // take the button — or the macro chain it sits in — down with it.
             Console.WriteLine($"System.LaunchApp failed for '{target}': {ex.Message}");
         }
-
-        return Task.CompletedTask;
     }
+
+    /// <summary>
+    /// True when the application already runs and was focused, or was left alone because it
+    /// already has focus or cannot be focused here — anything but a reason to start it.
+    /// </summary>
+    private async Task<bool> HandledByRunningInstanceAsync(string target, string processName)
+    {
+        // `open` brings a running bundle forward by itself instead of starting it twice.
+        if (OperatingSystem.IsMacOS() && IsMacBundle(target) && string.IsNullOrWhiteSpace(processName))
+            return false;
+
+        string name = string.IsNullOrWhiteSpace(processName)
+            ? LaunchTargetProcess.Guess(target)
+            : processName.Trim();
+        if (string.IsNullOrEmpty(name))
+        {
+            Console.WriteLine($"System.LaunchApp: no process name for '{target}', launching without the single-instance check.");
+            return false;
+        }
+
+        AppActivationOutcome outcome = await activator.ActivateAsync(name, CancellationToken.None);
+        switch (outcome)
+        {
+            case AppActivationOutcome.NotRunning:
+            case AppActivationOutcome.NoWindow:
+                return false;
+            case AppActivationOutcome.Unsupported:
+                Console.WriteLine($"System.LaunchApp: '{name}' is running but this session cannot focus its window.");
+                return true;
+            default:
+                return true;
+        }
+    }
+
+    private static bool IsMacBundle(string target)
+        => target.TrimEnd('/').EndsWith(".app", StringComparison.OrdinalIgnoreCase);
 
     private static void Launch(string target)
     {
@@ -91,8 +139,7 @@ public class LaunchAppCommand : IExecutableCommand
 
         // A macOS .app is a directory, not an executable, so it cannot be started directly —
         // `open` is what resolves the bundle to the binary inside it.
-        if (OperatingSystem.IsMacOS() &&
-            target.TrimEnd('/').EndsWith(".app", StringComparison.OrdinalIgnoreCase))
+        if (OperatingSystem.IsMacOS() && IsMacBundle(target))
         {
             Start(OpenerFor(target));
             return;

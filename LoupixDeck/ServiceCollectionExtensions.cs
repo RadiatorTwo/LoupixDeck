@@ -3,6 +3,7 @@ using LoupixDeck.Models;
 using LoupixDeck.Registry;
 using LoupixDeck.Services;
 using LoupixDeck.Services.ActiveWindow;
+using LoupixDeck.Services.AppActivation;
 using LoupixDeck.Services.AppLauncher;
 using LoupixDeck.Services.AppSwitching;
 using LoupixDeck.Services.Commands;
@@ -220,6 +221,18 @@ public static class ServiceCollectionExtensions
             collection.AddSingleton<IActiveWindowMonitor, NoOpActiveWindowMonitor>();
         }
 
+        // Focuses a running application for System.LaunchApp's Single Instance option (issue #553).
+        if (OperatingSystem.IsLinux())
+            collection.AddSingleton<IAppWindowActivator, LinuxAppWindowActivator>();
+#if WINDOWS
+        else if (OperatingSystem.IsWindows())
+            collection.AddSingleton<IAppWindowActivator, WindowsAppWindowActivator>();
+#endif
+        else if (OperatingSystem.IsMacOS())
+            collection.AddSingleton<IAppWindowActivator, MacAppWindowActivator>();
+        else
+            collection.AddSingleton<IAppWindowActivator, NoOpAppWindowActivator>();
+
         // In-app clipboard for button/side-display copy/paste (issue #166). Root singleton so a
         // snapshot copied on one device can be pasted onto another.
         collection.AddSingleton<IButtonClipboardService, ButtonClipboardService>();
@@ -304,6 +317,7 @@ public static class ServiceCollectionExtensions
         collection.Forward<IDisplayStateService>(root);
         collection.Forward<IActiveWindowMonitor>(root);
         collection.Forward<IActiveWindowState>(root);
+        collection.Forward<IAppWindowActivator>(root);
         collection.Forward<IMacroConditionEvaluator>(root);
         collection.Forward<IMacroExecutionRegistry>(root);
         collection.Forward<IMacroPromptService>(root);

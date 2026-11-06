@@ -23,6 +23,7 @@ public static class SwayIpcProtocol
     /// </summary>
     public const uint MaxPayloadLength = 32 * 1024 * 1024;
 
+    public const uint RunCommand = 0;
     public const uint Subscribe = 2;
     public const uint GetTree = 4;
 
