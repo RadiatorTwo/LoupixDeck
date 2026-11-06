@@ -106,6 +106,77 @@ public static class LaunchTargetProcess
             return string.Empty;
         }
 
-        return FromExecutable(tokens[index], skipLaunchers: true);
+        return FromExecutable(ResolveProgram(tokens[index]), skipLaunchers: true);
+    }
+
+    /// <summary>
+    /// The binary <paramref name="program"/> ends up running. Packaged browsers in particular put a
+    /// symlink and a shell wrapper in front of it — <c>/usr/bin/thorium-browser</c> links to a script
+    /// that runs <c>exec -a "$0" "$HERE/thorium" "$@"</c>, and the process is called
+    /// <c>thorium</c>. Falls back to <paramref name="program"/> when nothing better is found.
+    /// </summary>
+    internal static string ResolveProgram(string program)
+    {
+        try
+        {
+            string path = Path.IsPathRooted(program) ? program : SearchPath(program);
+            if (path == null || !File.Exists(path))
+                return program;
+
+            path = File.ResolveLinkTarget(path, returnFinalTarget: true)?.FullName ?? path;
+            return ExecTargetOfScript(path) ?? path;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return program;
+        }
+    }
+
+    private static string SearchPath(string program)
+    {
+        string path = Environment.GetEnvironmentVariable("PATH");
+        if (string.IsNullOrEmpty(path))
+            return null;
+
+        return path.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
+            .Select(directory => Path.Combine(directory, program))
+            .FirstOrDefault(File.Exists);
+    }
+
+    /// <summary>
+    /// For a shell script, the program its first usable <c>exec</c> line runs, as a file name.
+    /// Null when the file is no script or no exec line names a program literally — a target held
+    /// only in a variable (<c>exec "$BIN"</c>) cannot be known without running the script.
+    /// </summary>
+    private static string ExecTargetOfScript(string path)
+    {
+        FileInfo file = new(path);
+        if (file.Length is < 2 or > 64 * 1024)
+            return null;
+
+        string[] lines = File.ReadAllLines(path);
+        if (lines.Length == 0 || !lines[0].StartsWith("#!", StringComparison.Ordinal))
+            return null;
+
+        foreach (string line in lines)
+        {
+            string[] words = line.Trim().Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
+            if (words.Length < 2 || words[0] != "exec")
+                continue;
+
+            // Skip exec's own options: -a NAME sets argv[0], -c and -l take no value.
+            int i = 1;
+            while (i < words.Length && words[i].StartsWith('-'))
+                i += words[i] == "-a" ? 2 : 1;
+            if (i >= words.Length)
+                continue;
+
+            string target = words[i].Trim('"', '\'');
+            string name = target[(target.LastIndexOf('/') + 1)..];
+            if (name.Length > 0 && !name.Contains('$') && !Launchers.Contains(name))
+                return name;
+        }
+
+        return null;
     }
 }
