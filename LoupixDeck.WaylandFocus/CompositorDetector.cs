@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using LoupixDeck.WaylandFocus.Activation;
 using LoupixDeck.WaylandFocus.Sources;
 
 namespace LoupixDeck.WaylandFocus;
@@ -18,6 +19,25 @@ public static class CompositorDetector
             "hyprland" => new HyprlandFocusSource(),
             _ => throw new NotSupportedException(
                 $"unsupported compositor '{name}' (supported: cosmic, sway, niri, hyprland)"),
+        };
+    }
+
+    /// <summary>
+    /// Creates the window activator for the detected compositor, or null on desktops without a
+    /// supported focus IPC.
+    /// </summary>
+    public static IWindowActivator? CreateActivator()
+    {
+        if (!TryDetect(out string? name))
+            return null;
+
+        return name switch
+        {
+            "cosmic" => new CosmicWindowActivator(),
+            "sway" => new SwayWindowActivator(),
+            "niri" => new NiriWindowActivator(),
+            "hyprland" => new HyprlandWindowActivator(),
+            _ => null,
         };
     }
 
