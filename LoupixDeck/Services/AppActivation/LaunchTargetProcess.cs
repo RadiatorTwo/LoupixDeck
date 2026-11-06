@@ -171,12 +171,19 @@ public static class LaunchTargetProcess
             if (i >= words.Length)
                 continue;
 
+            // Wrappers redirect their own streams first (Chromium's: `exec < /dev/null`,
+            // `exec > >(exec cat)`); those lines run no program.
             string target = words[i].Trim('"', '\'');
             string name = target[(target.LastIndexOf('/') + 1)..];
-            if (name.Length > 0 && !name.Contains('$') && !Launchers.Contains(name))
+            if (IsProgramName(name) && !Launchers.Contains(name))
                 return name;
         }
 
         return null;
     }
+
+    /// <summary>A literal file name: no redirection, variable, quoting or other shell syntax.</summary>
+    private static bool IsProgramName(string name)
+        => name.Length > 0 && char.IsLetterOrDigit(name[0])
+           && name.All(c => char.IsLetterOrDigit(c) || c is '.' or '_' or '-' or '+');
 }
