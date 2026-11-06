@@ -832,7 +832,7 @@
     {
       "id": "wacom",
       "name": "Wacom",
-      "description": "Display Toggle and Precision Mode for Wacom tablets on Loupedeck keys (macOS only).",
+      "description": "Display Toggle, Precision Mode and Restart Driver for Wacom tablets on Loupedeck keys (macOS only).",
       "author": "web-engineer",
       "repository": "web-engineer/LoupixDeck.Plugin.Wacom",
       "icon": "",
@@ -840,17 +840,17 @@
       "minSdkVersion": "1.30.0",
       "commandPrefixes": [ "Wacom." ],
       "release": {
-        "version": "0.1.0",
-        "tag": "v0.1.0",
-        "publishedAt": "2026-10-12T11:42:33Z",
+        "version": "0.2.0",
+        "tag": "v0.2.0",
+        "publishedAt": "2026-10-30T11:44:18Z",
         "sdkVersion": "1.30.0",
-        "releaseNotesUrl": "https://github.com/web-engineer/LoupixDeck.Plugin.Wacom/releases/tag/v0.1.0",
+        "releaseNotesUrl": "https://github.com/web-engineer/LoupixDeck.Plugin.Wacom/releases/tag/v0.2.0",
         "packages": [
           {
             "platform": "any",
-            "fileName": "wacom-0.1.0-any.zip",
-            "downloadUrl": "https://github.com/web-engineer/LoupixDeck.Plugin.Wacom/releases/download/v0.1.0/wacom-0.1.0-any.zip",
-            "sha256": "f0454e081e3a905386b43a33d5c16270edb2f3b88443f0eaf0823146a549d5b7"
+            "fileName": "wacom-0.2.0-any.zip",
+            "downloadUrl": "https://github.com/web-engineer/LoupixDeck.Plugin.Wacom/releases/download/v0.2.0/wacom-0.2.0-any.zip",
+            "sha256": "baf07552a368f22c8e29ecb6997f4895b4609d3b5c739100d55a120e8d01089a"
           }
         ]
       }
