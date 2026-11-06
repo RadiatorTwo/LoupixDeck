@@ -31,6 +31,8 @@ interfaces, and a few value types. Everything lives in the
 | Type | Page | Purpose |
 |---|---|---|
 | `IDisplayCommand` | [Commands](API-Commands#idisplaycommand) | A command that also renders dynamic text on a touch button. |
+| `IButtonStateCommand` | [Commands](API-Commands#ibuttonstatecommand) | Reports a declared state for each bound button using its own parameters. |
+| `WheelSegmentInfo` / `WheelSplitMode` | [Split-wheel context](Recent-SDK-Additions#split-wheel-context) | Split-wheel layout, segment index and count supplied with a command context. |
 | `IValueDisplayCommand` | [Commands](API-Commands#ivaluedisplaycommand) | A command that reports a value the touch button's own indicator and text layers draw. |
 | `IMenuContributor` | [Dynamic Menus](Advanced-Menus) | Contributes dynamically built submenu entries. |
 | `MenuNode` | [Dynamic Menus](Advanced-Menus#menunode) | Folder or leaf node in a dynamic submenu. |
@@ -65,19 +67,20 @@ interfaces, and a few value types. Everything lives in the
 ```csharp
 public static class SdkInfo
 {
-    public static readonly Version Version = new(1, 33, 0);
+    public static readonly Version Version = new(1, 36, 0);
 }
 ```
 
-Always set `PluginMetadata.SdkVersion = SdkInfo.Version`. The host loads a
-plugin only when `SdkVersion.Major` matches its own — within a major version,
-the contracts are guaranteed source- and binary-compatible.
+Always set `PluginMetadata.SdkVersion = SdkInfo.Version`. The host requires a
+matching SDK major version. Additive releases preserve existing plugins on newer
+hosts; plugins using newer APIs need a host that provides them.
 
-LoupixDeck v1.47.0 provides SDK 1.33.0. See [Recent SDK additions](Recent-SDK-Additions)
+LoupixDeck v1.52.0 provides SDK 1.36.0. See [Recent SDK additions](Recent-SDK-Additions)
 for translations, adjustment values and migrations, per-button identity, button
 layouts and live value layers, folder side strips, wheel rendering/input, and
-architecture-aware packages. A plugin must declare the SDK it builds against.
-SDK 1.33.0 adds packaging support without changing the runtime contract.
+architecture-aware packages. SDK 1.34 to 1.36 also add per-button live states,
+split-wheel context, plugin availability, and menu refreshes. A plugin must
+declare the SDK it builds against so the Store can check host compatibility.
 
 SDK 1.23.0 added `DialPresetDescriptor` and `LoupixPlugin.GetDialPresets()` for
 plugin-provided rotary presets. SDK 1.22.0 added `IPluginHost.FolderGrid` and

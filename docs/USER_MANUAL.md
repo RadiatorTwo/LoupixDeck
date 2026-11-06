@@ -1,6 +1,6 @@
 # LoupixDeck User Manual
 
-This manual is for people who want to use LoupixDeck, not develop plugins for it. It covers LoupixDeck v1.47.0 and is based on the GitHub README, existing docs, application source, and Plugin Store catalogue and manifests. Plugins release independently, so their command names and available features can differ by installed version.
+This manual covers LoupixDeck v1.52.0 for regular users. Plugins release independently, so their command names and available features can differ by installed version.
 
 ## Index
 
@@ -216,7 +216,7 @@ The main window is a live editor for your connected device.
 - On Windows and Linux, the header's `Quit` button asks before exiting. On macOS, use Quit in the application or menu-bar menu instead.
 - On macOS the Dock icon is only shown while the window is open. Closing the window hides it to the menu bar, where the LoupixDeck icon's menu offers `Show` to bring it back and `Quit` to exit.
 
-The header contains `DEVICE`, `PROFILE`, and `WORKSPACE` selectors alongside the action buttons. If only one device is connected, the device selector is hidden. The selectors move onto a second row when the window is too narrow. There is no hamburger menu in v1.47.0.
+The header contains `DEVICE`, `PROFILE`, and `WORKSPACE` selectors alongside the action buttons. If only one device is connected, the device selector is hidden. The selectors move onto a second row when the window is too narrow. Settings, Macros, Plugins, and About have their own header buttons.
 
 Changing profile or workspace from the header changes what the device shows and what the editor is editing. The selectors also update when a rule, command, or device button switches context for you.
 
@@ -246,6 +246,8 @@ When a device is connected, the button at the left of the header opens a side pa
 
 Single-click a panel row to select it. To assign it, first select a compatible touch key, physical LED button, or dial and then double-click the row, or drag the row directly onto the control. An invalid target is outlined in red and is not changed. If the target already has content, LoupixDeck asks before replacing it. Command-picker groups stay expanded when a plugin finishes loading its menu, and the tighter rows keep more entries visible.
 
+The Commands tab includes commands for every button type, including entries that only fit LED buttons or dials. A manual or plugin-requested refresh preserves the selected group, expanded submenus, and selected command, then scrolls them back into view. The panel lists and the folder panel scroll when their content exceeds the window height.
+
 An application assigned to a touch key receives its launch command and, when available, an extracted app icon sized to leave room for a caption. App icons are cached at full resolution and refreshed when their source changes. A catalogue command receives its glyph and name unless it declares its own button layout. Physical LED buttons receive the command, while a dial receives the command and a side-strip label. Side displays themselves are not drop targets. Some catalogue entries are dial-only because they configure all three rotary gestures together.
 
 Assigning **Shell Command** or **Open Website** from the panel first asks for the command line or the web address; cancelling leaves the control unchanged. A touch key is labelled with the program name or the site, for example `notepad` or `youtube.com`. Open Website only opens `http://` and `https://` addresses; an address without a scheme is opened as `https://`.
@@ -253,6 +255,16 @@ Assigning **Shell Command** or **Open Website** from the panel first asks for th
 Right-click an application in the panel to open the active profile whenever that application is in front, or to stop doing so. This is the same link as **Link application…** in the profile menu. An application whose process cannot be detected, such as a Flatpak or a program started through `Update.exe`, shows a disabled entry instead.
 
 On Windows, the Apps tab scans Start Menu shortcuts, Steam libraries—including libraries on other drives—and Epic Games installations. Steam and Epic entries launch through their own launcher. On Linux, it scans XDG desktop entries, including Flatpak and Snap exports. Use the `+` button beside the app search field to add a portable program, script, or shortcut that discovery missed; hand-added entries remain after rescans and restarts. Use the refresh button to scan again.
+
+Linux app icons are resolved through the selected icon theme, its inherited themes, hicolor and pixmaps, then other installed themes. This includes Flatpak icon names and SVG icons, which are converted for display in the picker and on keys.
+
+### Launching one application instance
+
+After assigning an app from the picker or Apps panel, edit its `Launch Application` command and tick `Single Instance`. If a matching application window is already open, the button brings it to the front. Pressing the button while that window has focus does nothing. With the option off, each press launches the target as before; existing buttons keep this behavior.
+
+`Process Name` identifies the application to find. The picker fills it with the program behind a Steam/Epic link, a desktop entry's executable, or a Flatpak id. It also resolves launcher scripts and symlinks where possible. You can correct it if the guessed name does not match the running app. Leaving it empty asks LoupixDeck to derive the name when the button runs; launcher URIs may need an explicit name. If no name can be derived, the target is launched without a single-instance check.
+
+Window activation works on Windows and macOS. On Linux it uses compositor support on Hyprland, sway, niri, COSMIC, and KDE Plasma Wayland, or X11/XWayland. When a running app is found but the session cannot focus its window, LoupixDeck leaves it running without launching another copy. If the process has no window, for example a tray-only app, the launcher can run again to ask that app to show itself. KDE's window-activation support here is separate from its Profile Rules focus-monitor support.
 
 ## Profiles and Workspaces
 
@@ -297,6 +309,8 @@ Connect the device you want to configure, then choose **New profile from templat
 | Home Assistant | Lights, climate, scenes, a sensor, and light-brightness dials; configure the plugin's server address and access token, then replace the example entity ids with your own |
 
 Templates include themed page/folder wallpapers and matching side-display artwork where available. A device without dials, such as the Stream Controller X, gets a layout for its keys instead.
+
+The picker only offers templates whose required plugins are available on the current platform. On macOS, it no longer offers a Media template that depends on the Linux-only MPRIS plugin.
 
 Creating a template enables the plugins it uses for this device. If a required plugin is missing, LoupixDeck offers to open the Plugin Store; its assignments are already kept and enabled so they work after installation. Follow any **Restart required** message before expecting a staged plugin to run. This template workflow enables its required plugins deliberately; installing an unrelated plugin from the store still needs explicit enablement.
 
@@ -398,6 +412,12 @@ Use the built-in commands `Folder Back` to move up one level and `Close All Fold
 
 The folder panel header can hide the folder badge on keys for this workspace. Existing workspaces keep badges enabled. The panel's right-click menu offers the same folder operations without opening an editor.
 
+To copy a folder, right-click it and choose `Copy`. Use `Paste as subfolder` on a destination folder, or paste onto the workspace row to create a top-level copy. The copy includes its name, key layout, and all subfolders. Keys inside it are remapped to open the copied subfolders.
+
+You can paste into another workspace or device. The visible layout adapts to the destination's key count, while keys that do not fit remain saved. Copying a key that opens a folder also carries that folder with it: if the destination workspace lacks the folder, LoupixDeck creates a copy; if it already has it, the key links to that folder without duplicating it.
+
+Pasting keys, dials, or folders can ask once to enable their installed plugins for the destination device. Accept to enable them immediately. Declining still completes the paste, leaving those plugins disabled; it does not install a missing plugin.
+
 ### Plugin folders
 
 Some plugin commands open a temporary folder directly on the device, for example an audio mixer, an OBS scene picker, or a monitoring dashboard. The folder uses the active device's real key layout rather than assuming a 5×3 grid. The bottom-left key is reserved for Back; on 4×3 devices, entries stay within the twelve centre keys and do not overwrite the side strips.
@@ -480,7 +500,7 @@ Touch keys can show values reported by plugin commands through an **Indicator** 
 
 The symbol picker has a source selector for **Curated**, **Material Design Icons (all)**, and **Material Design Light**. The full MDI source includes more than 7,000 icons, with search matching aliases and tags as well as names. The picker remembers the last source used. New symbol layers keep the icon's aspect ratio; existing layers retain their previous appearance. You can also select SVG files directly for ordinary image layers.
 
-To add your own icons, use the picker's add-folder button and select a folder containing SVG or image files. Its pack appears after the built-in sources. Subfolders are scanned recursively; SVG, PNG, JPEG, WebP, and BMP files are supported. Categories come from subfolders or optional per-icon JSON side files containing `categories` and `tags` arrays. Search matches the file name, folder, and tags.
+To add your own icons, use the picker's add-folder button and select a folder containing SVG or image files. Its pack appears after the built-in sources. Subfolders are scanned recursively; SVG, PNG, JPEG, WebP, BMP, and ICO files are supported. ICO files can also be selected for ordinary image layers. Categories come from subfolders or optional per-icon JSON side files containing `categories` and `tags` arrays. Search matches the file name, folder, and tags.
 
 Selecting a pack icon copies it into LoupixDeck's asset store. Moving the source folder or removing the pack from the picker therefore does not break buttons already using it. Removing a pack only removes its registration; it leaves the source folder intact. Single-colour icons take the symbol tint and gradient, while multicolour icons keep their own colours. Change **Keep original colors** in the properties panel to override that choice.
 
@@ -530,9 +550,11 @@ The `Transition after press` setting controls what happens when you press the bu
 
 The transition is applied immediately at press time, using the state that was active for that press. The command sequence then continues running separately. This means a long macro, a macro with a delay, or an endless repeat loop does not keep the old visual state on screen until the command finishes. It also prevents a late transition from undoing a newer press. For example, a start/stop macro pair now changes state and works in two presses, even when one macro keeps running.
 
-Some plugin commands declare the states they need. Assigning one of these commands creates exactly those states, selects the first one, and switches the button to externally controlled state changes. Existing states are reused in order where possible, so layers you already built on them are preserved.
+Some plugin commands declare the states they need. Assigning one creates the declared state structure and switches the button to externally controlled state changes. A plugin that reports per-button state uses that button's parameters, so two keys for different OBS scenes or sources can show different states. State is refreshed on assignment, when the editor closes, and when the plugin reports a change, including for inactive workspaces. Pasted buttons receive their current live state immediately.
 
-While the command manages the states, the state list, names, order, default, transitions, and reset rules are locked and the editor shows `States are managed by the assigned command`. You can still select each state and edit, move, hide, or arrange its layers. Removing or replacing the owning command asks whether to keep the generated states as normal editable states or discard them and return to a single state. Closing that prompt keeps the states.
+A dropped stateful command keeps the artwork created by that drop instead of reusing the previous command's state icons. Dropping a command without declared states keeps the old states as ordinary editable states. A plugin can also fill the starting caption from a parameter, such as the scene name; this becomes normal editable text.
+
+While the command manages the states, the state list, names, order, default, transitions, and reset rules are locked and the editor shows `States are managed by the assigned command`. You can still select each state and edit, move, hide, or arrange its layers. Removing or replacing the owning command asks whether to keep the generated states as normal editable states or discard them and return to a single state. Closing that prompt keeps the states. Editing only the command's parameters does not repeatedly ask to keep or discard states.
 
 ## Commands and Command Sequences
 
@@ -661,13 +683,25 @@ Choose **Edit appearance…** from the wheel's right-click menu or use the brush
 
 Style the indicator's track/fill, thickness, angles, and rounded ends. Text sources include **Own text**, **Wheel label**, **Value**, **Value detail**, and **Dynamic text command**. Dynamic text follows the selected command's update interval and plugin refreshes. An image-command layer can show a rendered command such as **Analog Clock**. GIF, WebP, and video layers play on the wheel; wheel video imports retain up to 30 fps and need `ffmpeg`. Animation pauses while the mode menu, screensaver, or device-off state is active.
 
-**Reset** restores the default appearance layers. **Use automatic layout** removes this mode's custom canvas and returns to the automatic label/value display. Copy/paste and exported profile packages carry the canvas. See [Wheel Screen Appearance](CT_WHEEL_APPEARANCE.md) for detailed layer behavior.
+On an unsplit wheel, **Reset** restores the default appearance layers, and **Use automatic layout** removes this mode's custom canvas to return to the automatic label/value display. On a split wheel, Reset affects the selected surface instead. Copy/paste and exported profile packages carry the canvas. See [Wheel Screen Appearance](CT_WHEEL_APPEARANCE.md) for detailed layer behavior.
 
 A plugin can take over wheel rendering and claim touches or swipes. If it claims a gesture, the normal tap, workspace swipe, or mode menu does not run for that gesture. A renderer that declines or fails falls back to the normal appearance.
+
+#### Split wheel segments
+
+The wheel's `Split screen` selector can divide each mode into horizontal top/bottom halves, vertical left/right halves, four diagonal (X) sectors, or four cross (+) quadrants. Each segment has its own press sequence and appearance. Rotate-left/right commands, swipes, and the mode menu remain shared by the wheel.
+
+Choose a split using the zone icons in the appearance editor. Tabs above the preview select a segment or `All segments`; clicking a segment in the preview selects it too, and hovering shows its hit area. Style segment text, images, animations, and live layers just as on the unsplit canvas. The adjacent divider toggle hides or shows the lines between segments.
+
+The `All segments` surface holds layers spanning the whole wheel, such as a background, ring, or logo. In its layer list, move a layer above or below the `Segments` marker to place it in front of or behind the segments. These shared layers do not have separate press commands. The rotary editor shows both turn sequences at the top and the press/segment sequences beneath them in a grid.
+
+Copy/paste carries the split and its artwork; clearing a wheel mode removes them. A mode with `Not split` behaves like an older unsplit mode. See the [wheel appearance guide](CT_WHEEL_APPEARANCE.md#split-wheel-surfaces) for the surface and reset controls.
 
 ## Physical Buttons
 
 Physical buttons are edited similarly to touch buttons, but without the touch-screen layer editor. Double-click a physical button in the main window, then assign one or more commands.
+
+On Loupedeck Live, Loupedeck CT, and Razer Stream Controller, the settings-window title uses the round-button number printed on the hardware. This is a display label; saved assignments and internal button indices are unchanged.
 
 On devices with round LED buttons, their commands, states, and colours belong to the active profile. Switching profiles repaints that profile's LED row; switching workspaces within the same profile leaves it unchanged. Existing configurations are migrated by copying the former shared LED row into every existing profile. A newly created profile starts with dark LED buttons until you assign them.
 
@@ -937,7 +971,7 @@ From this page you can:
 - Select a plugin and edit its settings if it provides a settings UI.
 - Enable or disable a plugin for the selected device. The choice is saved immediately and refreshes its commands and dial presets live.
 
-The v1.47.0 Plugin Store catalogue includes these integrations. Platform availability is package-specific; a plugin listed for Windows and Linux is not automatically available on macOS.
+The v1.52.0 Plugin Store catalogue includes these integrations. Platform availability is package-specific; check the entry for the operating system you use.
 
 | Plugin | Platform |
 | --- | --- |
@@ -947,10 +981,10 @@ The v1.47.0 Plugin Store catalogue includes these integrations. Platform availab
 | Bluetooth | Windows, Linux |
 | Claude | Windows, Linux, macOS |
 | CoolerControl | Windows, Linux |
-| Discord | Windows, Linux |
-| Elgato Key Lights | Windows, Linux |
+| Discord | Windows, Linux, macOS |
+| Elgato Key Lights | Windows, Linux, macOS |
 | Govee Lights | Windows, Linux, macOS |
-| Home Assistant | Windows, Linux |
+| Home Assistant | Windows, Linux, macOS |
 | HWiNFO | Windows |
 | IME Control | Windows |
 | Kasa Smart Plugs | Windows, Linux, macOS |
@@ -959,11 +993,11 @@ The v1.47.0 Plugin Store catalogue includes these integrations. Platform availab
 | LinuxHwInfo | Linux |
 | MPRIS Media | Linux |
 | Network | Linux |
-| OBS Studio | Windows, Linux |
+| OBS Studio | Windows, Linux, macOS |
 | PowerToys | Windows |
 | Slack | Windows, Linux, macOS |
-| Speedtest | Windows, Linux |
-| SpotifyPremium | Windows, Linux |
+| Speedtest | Windows, Linux, macOS |
+| SpotifyPremium | Windows, Linux, macOS |
 | SteelSeries Sonar | Windows |
 | Stopwatch | Windows, Linux, macOS |
 | Systemd | Linux |
@@ -971,7 +1005,7 @@ The v1.47.0 Plugin Store catalogue includes these integrations. Platform availab
 | Media Session | Windows |
 | Voicemeeter | Windows (x64 only) |
 | Visual Studio Code | Windows, Linux, macOS |
-| VTube Studio | Windows, Linux |
+| VTube Studio | Windows, Linux, macOS |
 | Wacom | macOS |
 | WLED | Windows, Linux, macOS |
 
@@ -979,7 +1013,7 @@ For example, **Stopwatch** puts a timer on a touch key: tap to start/pause and h
 
 Plugins can add commands, dynamic text, settings pages, folders, side-strip providers, or special integration behavior. The exact command names depend on the installed plugin version and what external app or service is configured.
 
-LoupixDeck v1.47.0 provides Plugin SDK 1.33.0. Recent additions include touch-key value layers, per-state initial layouts, folder side strips, wheel rendering/input, and architecture-aware packaging. Existing plugins continue to work without rebuilding; a plugin using newer APIs needs a host that provides them, which the Store's compatibility checks take into account.
+LoupixDeck v1.52.0 provides Plugin SDK 1.36.0. Recent additions cover per-button live states, runtime requirement refreshes, split-wheel context, disconnected-button marks, and dynamic menu refreshes. Existing plugins continue to work without rebuilding; a plugin using newer APIs needs a host that provides them, which the Store's compatibility checks take into account.
 
 The Plugins page only shows plugins that can run on the current operating system. For example, Windows-only plugins are hidden on Linux instead of appearing as disabled rows with controls that cannot work.
 
@@ -994,6 +1028,12 @@ Installing, removing, enabling, disabling, or switching the active version of a 
 A plugin can report unmet system requirements, such as a missing external tool. The installed-plugins page marks it **Needs attention**, shows the requirement and any repair hint, and offers **Check again** to re-evaluate without restarting. Installing or enabling the plugin alone does not satisfy an external requirement.
 
 The main window shows a dismissible notice with a **Details** action. A dismissed requirement notice returns when the set of unmet requirements changes. App updates, plugin updates, and requirements share this notice area. On Linux, Device Doctor rechecks plugin requirements at the start of each run and includes unmet ones as warnings. Plugins that do not report requirements continue to work as before.
+
+A plugin can request another requirement check when its environment changes. Its `Needs attention` status and notice then update while it runs, without waiting for the Plugins window to reopen.
+
+Plugins can also report a lost connection to the app they control. Their touch keys become dimmed with a disconnected symbol and return to normal when the connection recovers. The assignments remain and pressing a marked key still runs its command. This connection mark is separate from a missing or disabled plugin. OBS Studio uses it from plugin version 1.6.0.
+
+Plugins can refresh their dynamic command submenus when scenes, devices, or other choices change. The host rebuilds those entries while preserving the command-panel selection and open submenus. A failed Store update restores the previous plugin version and preserves its saved settings.
 
 ### Media playback
 
@@ -1274,7 +1314,7 @@ Important: Interception is third-party software. It is not bundled with LoupixDe
 
 This page appears only on Linux under `Settings > Diagnostics`. It opens empty and does not inspect or change anything until you select **Run checks**. A normal run is read-only and groups its results into System, Desktop Session, Device Access, Input Injection, Input Recording, Plugins, and Installation.
 
-The checks cover the Linux distribution and architecture, the graphical session, X11/XWayland support, D-Bus, PipeWire, plugin folders, desktop integration, `/dev/uinput`, and access to `/dev/input/event*`. Each attached supported deck is checked separately for its model and USB ids, serial node access, installed udev rule, the process holding its port, its current LoupixDeck connection, and the last connection attempt. Serial numbers shown in the page and report are shortened.
+The checks cover the Linux distribution and architecture, session type, detected compositor, active focus monitor, D-Bus, PipeWire, plugin folders, desktop integration, `/dev/uinput`, and access to `/dev/input/event*`. X11/XWayland and `xprop` checks run only when that focus backend is in use. Each attached supported deck is checked separately for its model and USB ids, serial node access, installed udev rule, the process holding its port, its current LoupixDeck connection, and the last connection attempt. Serial numbers shown in the page and report are shortened.
 
 Plugin requirements are re-evaluated at the start of each run and unmet ones appear as warnings, with any repair hint the plugin supplied. The manifest check uses `plugin.json`; current releases no longer report valid plugins as broken because of the former filename mismatch.
 
@@ -1374,9 +1414,10 @@ Recording needs read access to `/dev/input/event*`. The installer attempts to ha
 
 ### Profile Rules do not work on Linux
 
-- It needs X11 or XWayland.
-- Install `xprop`.
-- Pure Wayland is not currently supported according to the README.
+- Run `Settings > Diagnostics` and check the detected compositor and active focus monitor.
+- Native Wayland focus tracking supports COSMIC, sway, niri, and Hyprland, including native Wayland windows. Its connection reconnects after a compositor restart.
+- GNOME, KDE, and sessions where native tracking cannot connect fall back to `xprop`; only X11/XWayland windows can trigger rules through that backend. Install `xprop` when the diagnostics identify it as the active backend.
+- If a focused app has no matched process name, use its reported Wayland `app_id` in the rule. Check the matching process/title and priority settings too.
 
 ### Wrong profile or workspace keeps opening
 

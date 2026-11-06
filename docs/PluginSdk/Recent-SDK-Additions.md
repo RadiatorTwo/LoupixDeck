@@ -1,6 +1,6 @@
 # Recent SDK additions
 
-LoupixDeck v1.47.0 provides SDK 1.33.0. The following contracts supplement the
+LoupixDeck v1.52.0 provides SDK 1.36.0. The following contracts supplement the
 existing API pages. The SDK targets `net9.0` and `net10.0` and is published on
 nuget.org. All additions preserve existing plugins, but a plugin using a newer
 member needs a host that supplies it. Declare the SDK version you build against
@@ -18,6 +18,9 @@ in `plugin.json`; the Plugin Store checks that version before offering a release
 | 1.31.0 | v1.42.0 | `IFolderSideStripProvider`, `RotaryOverride.Label` and `GetValue` |
 | 1.32.0 | v1.43.0 | Wheel render/input APIs, separate wheel exclusive scope, and the `loupix` plugin tool |
 | 1.33.0 | v1.44.0 | Architecture-aware plugin manifests, release packages, and tool validation; no runtime-contract change |
+| 1.34.0 | v1.48.0 | `IButtonStateCommand`, `RefreshButtonStates`, state-layout caption parameters, and runtime requirement refresh |
+| 1.35.0 | v1.50.0 | `CommandContext.WheelSegment`, `WheelSegmentInfo`, and `WheelSplitMode` |
+| 1.36.0 | v1.51.0 | `IPluginHost.SetAvailable` and `RequestMenuRefresh` |
 
 ## Plugin translations
 
@@ -229,3 +232,62 @@ for an installed mismatch, and picks a matching published package. The reusable
 workflow's `runtimes` input, such as `win-x64 win-arm64`, builds separate packages
 with matching manifest restrictions. See [Packaging & Distribution](Packaging-and-Distribution)
 for catalogue fields and release assets. Existing portable plugins need no rebuild.
+
+## Per-button live states
+
+Implement `IButtonStateCommand.GetButtonState(CommandContext ctx)` on a command
+that declares `CommandDescriptor.States`. Return the name of the state that this
+button should show, or `null` to leave it unchanged when data is not available.
+Use `ctx.Parameters` to distinguish targets such as OBS scenes or sources;
+`ctx.StateName` is the state currently shown. The callback can run on any thread
+and must be fast, synchronous, and free of side effects.
+
+The host asks after binding and when the editor closes. Call
+`host.RefreshButtonStates(Descriptor.CommandName)` after connecting and whenever
+the cached backend data changes. The host evaluates every bound button, including
+those on inactive workspaces, using its own parameters. Older hosts do not know
+the interface; use the older `SetActiveButtonState` path if supporting them.
+
+In a state layout's `ButtonLayerDescriptor.Text`, `{ParameterName}` is replaced
+with that button's parameter when its layers are first created. For example,
+`{SceneName}` becomes the actual scene name. The result is ordinary editable
+text, not a live parameter binding; older hosts display the placeholder literally.
+
+`host.RequestRequirementsRefresh()` is also available from SDK 1.34.0. Call it
+when a requirement reported by `IPluginRequirements` changes while the plugin
+runs, so its notice and `Needs attention` status update without reopening Plugins.
+
+## Split-wheel context
+
+SDK 1.35.0 adds nullable `CommandContext.WheelSegment` with `WheelSegmentInfo`
+fields `Mode`, `Index`, and `Count`. A segment press has target
+`ButtonTargets.RotaryEncoder`, `SourceIndex` 6, and its own `ButtonKey`. Live text
+and image layers on that segment receive the same segment context. Their canvas
+uses full-wheel coordinates and is clipped by the host.
+
+| Mode | Segment indices |
+| --- | --- |
+| Horizontal | 0 top, 1 bottom |
+| Vertical | 0 left, 1 right |
+| Diagonal | 0 top, 1 right, 2 bottom, 3 left |
+| Cross | 0 top-left, 1 top-right, 2 bottom-left, 3 bottom-right |
+
+`Count` is 2 or 4. The segment context is null for an unsplit wheel, shared
+rotate commands, live layers on the all-segments surface, and other controls.
+Branch on this optional context when a command needs to identify its segment;
+keep ordinary rotary handling for shared turns.
+
+## Availability and menu refresh
+
+From SDK 1.36.0, `host.SetAvailable(false)` reports a plugin-wide loss of
+connection to the application it controls. The host dims its touch buttons and
+adds a disconnected mark. Their content and assignments remain, and pressing a
+marked button still executes its command. Call `SetAvailable(true)` when the
+connection recovers. Plugins start available, repeated values do nothing, and
+unloading clears the mark.
+
+`host.RequestMenuRefresh()` rebuilds this plugin's `IMenuContributor` submenus
+when their choices change. It calls `GetMenuNodes` off the caller's thread,
+coalesces bursts, and preserves the user's command-list selection. Both methods
+are safe from any thread. Older 1.x hosts do not provide these methods and calls
+can throw `MissingMethodException`; declare SDK 1.36.0 or newer in the manifest.

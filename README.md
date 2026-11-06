@@ -167,6 +167,7 @@ The header provides direct buttons for Settings, Macros, Plugins and About. The 
 
 - Organize layouts as **Profile → Workspace → Page**
 - Create nested custom folders in the **Folders** panel and drag them onto touch keys
+- Copy folders with their subfolders across workspaces or devices; pasted folder keys carry missing folders with them
 - Navigate with breadcrumbs in the application and an automatic Back button on the device
 - Use plugin-provided dynamic folders for live content such as audio sessions or OBS scenes
 
@@ -179,6 +180,7 @@ The header provides direct buttons for Settings, Macros, Plugins and About. The 
 - Use plugin adjustment commands for a whole dial, with tick-aware turning, a press action and live value indicators on side strips
 - Use independent rotary pages where supported
 - Configure the CT centre wheel per touch page, switch wheel modes with gestures, and edit its round display with live text, images and animation ([wheel guide](docs/USER_MANUAL.md#loupedeck-ct-centre-wheel))
+- Split the CT wheel into two or four separately pressable segments, each with its own commands and artwork
 
 ### Macros and direct input
 
@@ -203,6 +205,10 @@ LoupixDeck can automatically switch pages when the foreground application change
 | Linux X11 / XWayland | ✅ Supported via `xprop` |
 | Linux Wayland (COSMIC, sway, niri, Hyprland) | ✅ Supported via native focus tracking |
 | Linux Wayland (other compositors, without XWayland) | ❌ Not available |
+
+Native focus tracking reconnects after a compositor restart. GNOME, KDE, and sessions where native tracking cannot connect use the `xprop` fallback for XWayland windows. Linux Diagnostics reports which monitor is running.
+
+Application buttons also have a **Single Instance** option: bring a running app to the front instead of starting it again. The picker fills in its **Process Name**, which you can adjust if needed. Window activation supports Windows, macOS, and Linux backends including KDE Plasma Wayland. See [Launch Application](docs/USER_MANUAL.md#launching-one-application-instance) for matching and fallback behavior; window activation and Profile Rules do not have identical compositor support.
 
 ### Integrations
 
@@ -258,6 +264,8 @@ The **Plugin Store** page uses a searchable tile grid and one catalogue request 
 Plugins can ship translations that follow the app's language immediately. Plugins reporting unmet system requirements are marked **Needs attention**, with repair hints and **Check again**; Linux Diagnostics includes those requirements too. App updates, plugin updates and requirements share the main-window notice area. The Store lists installed plugins with updates first.
 
 The Store also checks CPU architecture, chooses matching x64/ARM64 packages, and shows why an installed incompatible plugin is disabled. **Open project page** links to the plugin repository, and Store actions preserve the tile order. See the [current integration catalogue](docs/USER_MANUAL.md#installed-plugins-and-settings) for platform availability, including macOS packages.
+
+Plugin commands can report live state per button and refresh their menus when external choices change. A plugin reporting a lost connection has dimmed touch keys with a disconnected symbol; they return to normal when it reconnects. Pasting content can ask once to enable the installed plugins it needs on the destination device.
 
 Want to create a plugin?
 
@@ -320,14 +328,14 @@ Install the [.NET 10 SDK](https://dotnet.microsoft.com/download), then clone the
 
 ```bash
 git clone https://github.com/RadiatorTwo/LoupixDeck.git
-git submodule update --init --recursive
 cd LoupixDeck
+git submodule update --init --recursive
 ```
 
 ### Linux
 
 ```bash
-dotnet publish LoupixDeck.csproj -c Release -r linux-x64 --self-contained true \
+dotnet publish LoupixDeck/LoupixDeck.csproj -c Release -r linux-x64 --self-contained true \
   /p:PublishSingleFile=true \
   /p:PublishTrimmed=false \
   /p:EnableCompressionInSingleFile=true \
@@ -339,7 +347,7 @@ dotnet publish LoupixDeck.csproj -c Release -r linux-x64 --self-contained true \
 ### Windows
 
 ```powershell
-dotnet publish LoupixDeck.csproj -c Release -r win-x64 --self-contained true `
+dotnet publish LoupixDeck/LoupixDeck.csproj -c Release -r win-x64 --self-contained true `
   /p:PublishSingleFile=true `
   /p:PublishTrimmed=false `
   /p:EnableCompressionInSingleFile=true `

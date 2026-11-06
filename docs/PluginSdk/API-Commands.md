@@ -157,6 +157,23 @@ command's states on a touch key, it fills each state that has no layers yet from
 that layout. It never replaces existing layers. Set the command's `ButtonLayout` to
 `ButtonLayoutMode.None` when every state brings its own.
 
+## IButtonStateCommand
+
+```csharp
+public interface IButtonStateCommand : IPluginCommand
+{
+    string? GetButtonState(CommandContext ctx);
+}
+```
+
+SDK 1.34.0 lets a stateful command return a declared state name for each bound
+button, using that button's parameters and current `StateName`. Return `null`
+when no state is known yet. The host queries on binding, editor close, and
+`host.RefreshButtonStates(commandName)`; it does not poll. Return cached data
+quickly, without side effects, from any thread. See
+[Per-button live states](Recent-SDK-Additions#per-button-live-states) for captions
+and refresh timing.
+
 ## CommandDescriptor
 
 ```csharp
@@ -193,8 +210,12 @@ public sealed class CommandContext
 {
     public required string[]      Parameters { get; init; }
     public required ButtonTargets Target     { get; init; }
+    public int?                   SourceIndex { get; init; }
     public DeviceInfo?            Device     { get; init; }
     public required IPluginHost   Host       { get; init; }
+    public string?               StateName  { get; init; }
+    public string?               ButtonKey  { get; init; }
+    public WheelSegmentInfo?      WheelSegment { get; init; }
 }
 ```
 
@@ -206,6 +227,10 @@ Everything a command needs at execution time.
 | `Target` | Which button type triggered the command. Useful when a single command should behave differently on a rotary encoder vs. a touch button. |
 | `Device` | The active device, or `null` if none. Mirrors `IPluginHost.ActiveDevice`. |
 | `Host` | The plugin's `IPluginHost`. Convenient when a command instance is shared across plugins or when you do not want to capture the host in a closure. |
+| `SourceIndex` | Index of an originating control, or null without one. A CT wheel segment uses the wheel's rotary index, 6. |
+| `StateName` | State currently being rendered or evaluated by `IButtonStateCommand`; null when no state applies. |
+| `ButtonKey` | Opaque runtime identity for a button or wheel segment. It is not a persisted config id. |
+| `WheelSegment` | SDK 1.35.0: segment mode, zero-based index, and count when executing/rendering a split-wheel segment. Null on shared turn commands, an unsplit wheel, and the all-segments canvas. See [Split-wheel context](Recent-SDK-Additions#split-wheel-context). |
 
 ## ButtonTargets
 
