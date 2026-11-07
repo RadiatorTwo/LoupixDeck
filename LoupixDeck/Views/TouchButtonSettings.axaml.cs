@@ -463,6 +463,19 @@ public partial class TouchButtonSettings : Window
     {
         UpdateDragGhost(e);
 
+        // Over the preview the drop appends to the sequence of the key, or of the strip's tap zone
+        // under the pointer; that zone is framed on the preview and its strip lights up below.
+        if (PreviewSlotUnderPointer(e) is { } preview)
+        {
+            ShowPreviewDropZone(preview.Zone);
+            foreach (var (zone, list) in SlotStrips())
+                zone.Classes.Set("drop-active", ReferenceEquals(list.DataContext, preview.Slot));
+            HideDropMarker();
+            return;
+        }
+
+        PreviewDropZone.IsVisible = false;
+
         var target = StripUnderPointer(e);
         foreach (var (zone, _) in SlotStrips())
             zone.Classes.Set("drop-active", target.HasValue && ReferenceEquals(zone, target.Value.Zone));
@@ -473,18 +486,62 @@ public partial class TouchButtonSettings : Window
             HideDropMarker();
     }
 
+    /// <summary>
+    /// The sequence a drop on the preview goes to, and the part of the preview it stands for (in
+    /// <c>EditorRoot</c> coordinates): the key's own sequence and the whole frame, or on a FreeDraw
+    /// strip the tap zone under the pointer. Null when the pointer is not over the visible frame.
+    /// </summary>
+    private (CommandSequenceSlot Slot, Rect Zone)? PreviewSlotUnderPointer(PointerEventArgs e)
+    {
+        if (DataContext is not TouchButtonSettingsViewModel vm || vm.CommandSlots.Count == 0 || !vm.ShowCommandArea)
+            return null;
+
+        // Only the part of the canvas the scroll viewer actually shows takes a drop.
+        var view = e.GetPosition(PreviewScroll);
+        if (view.X < 0 || view.Y < 0 || view.X > PreviewScroll.Bounds.Width || view.Y > PreviewScroll.Bounds.Height)
+            return null;
+
+        var pos = e.GetPosition(EditorRoot);
+        var frame = new Rect(vm.FrameOffsetX, vm.FrameOffsetY, vm.FrameWidth, vm.FrameHeight);
+        if (!frame.Contains(pos))
+            return null;
+
+        if (!vm.IsSegmentCommandMode)
+            return (vm.CommandSlots[0], frame);
+
+        // The strip's sequences are its tap zones, top to bottom, in equal thirds.
+        var count = vm.CommandSlots.Count;
+        var height = frame.Height / count;
+        var segment = Math.Clamp((int)((pos.Y - frame.Y) / height), 0, count - 1);
+        return (vm.CommandSlots[segment], new Rect(frame.X, frame.Y + (segment * height), frame.Width, height));
+    }
+
+    private void ShowPreviewDropZone(Rect zone)
+    {
+        Canvas.SetLeft(PreviewDropZone, zone.X);
+        Canvas.SetTop(PreviewDropZone, zone.Y);
+        PreviewDropZone.Width = zone.Width;
+        PreviewDropZone.Height = zone.Height;
+        PreviewDropZone.IsVisible = true;
+    }
+
     /// <summary>Hides the drag ghost, the insertion marker and every strip highlight.</summary>
     private void ClearSlotDropUi()
     {
         HideDragGhost();
         HideDropMarker();
+        PreviewDropZone.IsVisible = false;
         foreach (var (zone, _) in SlotStrips())
             zone.Classes.Set("drop-active", false);
     }
 
     private void Picker_CommandDragReleased(object sender, CommandDragEventArgs e)
     {
-        if (_pickerDragEntry != null && StripUnderPointer(e.Pointer) is { } target &&
+        if (_pickerDragEntry != null && PreviewSlotUnderPointer(e.Pointer) is { } preview)
+        {
+            preview.Slot.InsertCommandAt(_pickerDragEntry, preview.Slot.Commands.Count);
+        }
+        else if (_pickerDragEntry != null && StripUnderPointer(e.Pointer) is { } target &&
             target.List.DataContext is CommandSequenceSlot slot)
         {
             slot.InsertCommandAt(_pickerDragEntry, FindDropIndex(target.List, e.Pointer));
@@ -542,10 +599,12 @@ public partial class TouchButtonSettings : Window
 
     private void AppList_PointerReleased(object sender, PointerReleasedEventArgs e)
     {
-        if (_appDragging && _appDragRow != null && DataContext is TouchButtonSettingsViewModel vm &&
-            StripUnderPointer(e) is { } target && target.List.DataContext is CommandSequenceSlot slot)
+        if (_appDragging && _appDragRow != null && DataContext is TouchButtonSettingsViewModel vm)
         {
-            _ = vm.InsertApplicationAsync(_appDragRow.App, slot, FindDropIndex(target.List, e));
+            if (PreviewSlotUnderPointer(e) is { } preview)
+                _ = vm.InsertApplicationAsync(_appDragRow.App, preview.Slot);
+            else if (StripUnderPointer(e) is { } target && target.List.DataContext is CommandSequenceSlot slot)
+                _ = vm.InsertApplicationAsync(_appDragRow.App, slot, FindDropIndex(target.List, e));
         }
 
         if (_appDragging)

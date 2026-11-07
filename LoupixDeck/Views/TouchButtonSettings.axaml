@@ -698,6 +698,13 @@
                                        Source="{Binding EditorPreview}" />
                                 <Canvas Width="{Binding EditorCanvasWidth}"
                                         Height="{Binding EditorCanvasHeight}" Background="Transparent">
+                                    <!-- Drop zone while a command or an application is dragged over
+                                         the preview: the whole key, or the tap zone of a FreeDraw
+                                         strip under the pointer. Placed from code-behind. -->
+                                    <Rectangle Name="PreviewDropZone"
+                                               Stroke="#4DA3FF" StrokeThickness="2"
+                                               Fill="#334DA3FF"
+                                               IsHitTestVisible="False" IsVisible="False" />
                                     <Rectangle Stroke="#CC5B9BD5"
                                                StrokeThickness="1"
                                                StrokeDashArray="4,3"
