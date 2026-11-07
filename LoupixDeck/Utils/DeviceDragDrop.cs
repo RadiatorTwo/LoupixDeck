@@ -86,6 +86,10 @@ public sealed class DeviceDragDrop
     private Button _targetButton;
     private LoupedeckButton _targetModel;
 
+    // Tap zone (0 top .. 2 bottom) under the pointer while a panel row is over a FreeDraw side
+    // display, whose drop goes into that zone's command queue; -1 everywhere else.
+    private int _targetSegment = -1;
+
     public DeviceDragDrop(Control root, Canvas overlay, Border ghost, Image ghostImage,
         Border dropHighlight, Func<MainWindowViewModel> resolveVm)
     {
@@ -198,6 +202,7 @@ public sealed class DeviceDragDrop
         PanelItemViewModel item = _panelItem;
         bool dragged = _dragging;
         LoupedeckButton target = _targetModel;
+        int segment = _targetSegment;
         Reset();
 
         MainWindowViewModel vm = _resolveVm();
@@ -205,7 +210,11 @@ public sealed class DeviceDragDrop
 
         // A press that never became a drag is a click, which only selects the row. Assigning it to
         // the selected button takes a double-click (PanelAssignToSelection).
-        if (dragged && target != null)
+        if (!dragged || target == null) return;
+
+        if (segment >= 0)
+            _ = vm.AssignPanelItemToSegmentAsync(item, target, segment);
+        else
             _ = vm.AssignPanelItemAsync(item, target);
     }
 
@@ -368,6 +377,18 @@ public sealed class DeviceDragDrop
         (Button button, LoupedeckButton model) = FindButton(_root.InputHitTest(pos) as Visual);
         _targetButton = button;
         _targetModel = model;
+        _targetSegment = -1;
+
+        if (_panelItem == null || button == null || _resolveVm()?.IsStripSegmentTarget(model) != true)
+            return;
+
+        // The strip is shown upright, so its three tap zones stack from top to bottom.
+        Point? local = _root.TranslatePoint(pos, button);
+        double height = button.Bounds.Height;
+        if (local == null || height <= 0) return;
+
+        int count = RotaryButtonPage.StripSegmentCount;
+        _targetSegment = Math.Clamp((int)(local.Value.Y * count / height), 0, count - 1);
     }
 
     private void UpdateChrome()
@@ -379,10 +400,11 @@ public sealed class DeviceDragDrop
         if (_panelItem != null)
         {
             // A panel row always overwrites its target, so the only thing the ring has to say is
-            // whether this button accepts the row at all.
-            op = (_targetButton != null) && (vm?.CanAssignPanelItem(_panelItem, _targetModel) == true)
-                ? DropOperation.Copy
-                : DropOperation.None;
+            // whether this button (or tap zone) accepts the row at all.
+            bool accepts = _targetSegment >= 0
+                ? vm?.CanAssignPanelItemToSegment(_panelItem, _targetModel) == true
+                : vm?.CanAssignPanelItem(_panelItem, _targetModel) == true;
+            op = (_targetButton != null) && accepts ? DropOperation.Copy : DropOperation.None;
         }
         else
         {
@@ -403,10 +425,20 @@ public sealed class DeviceDragDrop
         else
         {
             Size size = OnScreenSize(_targetButton);
+            double top = topLeft.Value.Y;
+            double height = size.Height;
+
+            // Over a tap zone the ring frames that zone only.
+            if (_targetSegment >= 0)
+            {
+                height = size.Height / RotaryButtonPage.StripSegmentCount;
+                top += height * _targetSegment;
+            }
+
             Canvas.SetLeft(_dropHighlight, topLeft.Value.X);
-            Canvas.SetTop(_dropHighlight, topLeft.Value.Y);
+            Canvas.SetTop(_dropHighlight, top);
             _dropHighlight.Width = size.Width;
-            _dropHighlight.Height = size.Height;
+            _dropHighlight.Height = height;
             _dropHighlight.BorderBrush = BrushFor(op);
             _dropHighlight.IsVisible = true;
         }
@@ -570,6 +602,7 @@ public sealed class DeviceDragDrop
         _external = false;
         _targetButton = null;
         _targetModel = null;
+        _targetSegment = -1;
         _copy = false;
 
         _ghostImage.Source = null;

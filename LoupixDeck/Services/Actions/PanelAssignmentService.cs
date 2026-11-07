@@ -41,6 +41,22 @@ public interface IPanelAssignmentService
     /// usable.
     /// </summary>
     Task<bool> AssignAsync(PanelItemViewModel item, LoupedeckButton target, string parameterValue);
+
+    /// <summary>
+    /// True when <paramref name="item"/> can go into one tap zone of a FreeDraw side strip: an
+    /// application, or a single command a touch key can run.
+    /// </summary>
+    bool CanAssignToStripSegment(PanelItemViewModel item);
+
+    /// <summary>
+    /// Puts <paramref name="item"/> into tap zone <paramref name="segment"/> (0 top .. 2 bottom) of
+    /// <paramref name="page"/>'s FreeDraw strip: the zone's command is replaced, and the item's icon
+    /// is added to the strip canvas, centred in that zone. The other zones and every existing layer
+    /// are left alone. <paramref name="parameterValue"/> is the value an item reported by
+    /// <see cref="NeedsParameter"/> needs, and null otherwise. Returns false when nothing was written.
+    /// </summary>
+    Task<bool> AssignToStripSegmentAsync(PanelItemViewModel item, RotaryButtonPage page, int segment,
+        string parameterValue = null);
 }
 
 /// <inheritdoc cref="IPanelAssignmentService"/>
@@ -130,18 +146,7 @@ public sealed class PanelAssignmentService(
 
         // Resolve and import the icon before the button is touched, so a failed extraction cannot
         // leave it half-applied — the same order the button editor's app assignment uses.
-        string relative = null;
-        try
-        {
-            string iconFile = await appIcons.GetIconFileAsync(app);
-            if (!string.IsNullOrEmpty(iconFile) && File.Exists(iconFile))
-                relative = assetService.Import(iconFile);
-        }
-        catch (Exception ex)
-        {
-            // Without an icon the button still launches the application, so this is not fatal.
-            Console.WriteLine($"[ActionPanel] Icon for '{app.Name}' could not be imported: {ex.Message}");
-        }
+        string relative = await ImportIconAsync(app);
 
         Models.Layers.ImageLayer layer = AppAssignment.ApplyToTouchButton(
             touch, app, relative, replaceLayers: true, layerName: app.Name, keySizePx: _geometry.KeySize);
@@ -150,6 +155,110 @@ public sealed class PanelAssignmentService(
             layer.CachedImage = assetService.Load(relative);
 
         ReconcileStates(touch);
+        return true;
+    }
+
+    /// <summary>Extracts and imports <paramref name="app"/>'s icon. Returns its asset path, or null
+    /// when there is none — the launch command works without it, so a failure is not fatal.</summary>
+    private async Task<string> ImportIconAsync(InstalledApp app)
+    {
+        try
+        {
+            string iconFile = await appIcons.GetIconFileAsync(app);
+            if (!string.IsNullOrEmpty(iconFile) && File.Exists(iconFile))
+                return assetService.Import(iconFile);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ActionPanel] Icon for '{app.Name}' could not be imported: {ex.Message}");
+        }
+
+        return null;
+    }
+
+    // ── Side-strip tap zones ───────────────────────────────────────────────
+
+    public bool CanAssignToStripSegment(PanelItemViewModel item) => item switch
+    {
+        AppPanelItemViewModel => true,
+        // A tap zone runs one command chain; a rotary group or a preset fills a dial.
+        ActionPanelItemViewModel { Entry.IsCommandGroup: true } => false,
+        // The button editor offers a strip's tap zones the touch-key catalogue, so the panel does too.
+        ActionPanelItemViewModel action => Supports(action, ButtonTargets.TouchButton),
+        _ => false
+    };
+
+    public async Task<bool> AssignToStripSegmentAsync(PanelItemViewModel item, RotaryButtonPage page,
+        int segment, string parameterValue = null)
+    {
+        if (page?.StripCanvas is not { } canvas || segment < 0 || segment >= RotaryButtonPage.StripSegmentCount
+            || !CanAssignToStripSegment(item) || NeedsParameter(item, out _) != (parameterValue != null))
+            return false;
+
+        int width = _geometry.StripWidth;
+        int height = _geometry.PanelHeight;
+        int segmentHeight = height / RotaryButtonPage.StripSegmentCount;
+        if (width <= 0 || segmentHeight <= 0)
+            return false;
+
+        // Layer positions are offsets from the canvas centre; this one is the zone's centre.
+        int offsetY = (int)Math.Round(((segment + 0.5) * height / RotaryButtonPage.StripSegmentCount) - (height / 2.0));
+
+        string command;
+        List<Models.Layers.LayerBase> layers;
+
+        if (item is AppPanelItemViewModel appItem)
+        {
+            InstalledApp app = appItem.App;
+            command = AppAssignment.BuildLaunchCommand(app);
+            if (string.IsNullOrEmpty(command))
+                return false;
+
+            string relative = await ImportIconAsync(app);
+            layers = [];
+            if (!string.IsNullOrEmpty(relative))
+            {
+                layers.Add(new Models.Layers.ImageLayer
+                {
+                    Name = app.Name,
+                    AssetRelativePath = relative,
+                    Scale = AppAssignment.DefaultIconScaleFor(Math.Min(width, segmentHeight)),
+                    CachedImage = assetService.Load(relative)
+                });
+            }
+        }
+        else
+        {
+            ActionPanelItemViewModel action = (ActionPanelItemViewModel)item;
+            string label = action.Title;
+            ButtonLayoutDescriptor layout = null;
+
+            if (parameterValue != null)
+            {
+                if (!PanelParameterPrompts.TryBuild(action.Entry.Command, parameterValue, out command, out label))
+                    return false;
+            }
+            else
+            {
+                command = commandBuilder.CreateCommandFromMenuEntry(action.Entry);
+                layout = commandRegistry.Get(action.Entry.Command)?.Info?.ButtonLayout;
+            }
+
+            if (string.IsNullOrEmpty(command))
+                return false;
+
+            layers = ActionAssignment.CreateLayers(label, action.SymbolId, width, segmentHeight, layout, assetService);
+        }
+
+        page.SetStripSegmentCommand(segment, command);
+
+        foreach (Models.Layers.LayerBase layer in layers)
+        {
+            layer.PositionY += offsetY;
+            canvas.Layers.Add(layer);
+        }
+
+        canvas.RewireLayerHandlers();
         return true;
     }
 

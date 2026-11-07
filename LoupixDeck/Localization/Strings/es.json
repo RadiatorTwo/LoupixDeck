@@ -134,6 +134,7 @@
   "Confirm_Ok": "Aceptar",
   "Confirm_Overwrite": "Sobrescribir",
   "Confirm_OverwriteButtonMessage": "Este botón ya tiene una configuración. ¿Quieres sobrescribirla?",
+  "Confirm_OverwriteSegmentMessage": "Esta zona de toque ya tiene un comando. ¿Quieres sobrescribirlo?",
   "Confirm_OverwriteButtonTitle": "¿Sobrescribir?",
   "Confirm_Remove": "Quitar",
   "Confirm_RemovePluginMessage": "¿Eliminar «{0}»? Esto borra la carpeta del plugin y no se puede deshacer.",

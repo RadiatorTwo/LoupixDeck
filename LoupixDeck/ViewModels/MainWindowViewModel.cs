@@ -1221,6 +1221,66 @@ public partial class MainWindowViewModel : ViewModelBase
     public Task AssignPanelItemToSelectionAsync(ViewModels.ActionPanel.PanelItemViewModel item)
         => _selectedButton == null ? Task.CompletedTask : AssignPanelItemAsync(item, _selectedButton);
 
+    /// <summary>
+    /// True when <paramref name="target"/> is a side display whose current page is in FreeDraw, so a
+    /// panel drop lands in one of its three tap zones instead of on the display as a whole.
+    /// </summary>
+    public bool IsStripSegmentTarget(LoupedeckButton target)
+        => Classify(target) == ButtonKind.SideDisplay
+           && LoupedeckController.PageManager.GetCurrentRotaryPage(SideOf((TouchButton)target))
+               is { StripMode: StripMode.FreeDraw };
+
+    /// <summary>True when a panel row can be dropped into a tap zone of <paramref name="target"/>.</summary>
+    public bool CanAssignPanelItemToSegment(ViewModels.ActionPanel.PanelItemViewModel item, LoupedeckButton target)
+        => IsStripSegmentTarget(target) && _panelAssignment.CanAssignToStripSegment(item);
+
+    /// <summary>
+    /// Puts a panel row into tap zone <paramref name="segment"/> (0 top .. 2 bottom) of a FreeDraw
+    /// side display. Only that zone's command is replaced, confirmed first when it has one; the
+    /// row's icon is added to the strip, so each zone can carry its own application.
+    /// </summary>
+    public async Task AssignPanelItemToSegmentAsync(ViewModels.ActionPanel.PanelItemViewModel item,
+        LoupedeckButton target, int segment)
+    {
+        if (!CanAssignPanelItemToSegment(item, target))
+            return;
+
+        RotarySide side = SideOf((TouchButton)target);
+        if (EnsureStripCanvas(side, out RotaryButtonPage page) == null)
+            return;
+
+        if (!string.IsNullOrEmpty(page.GetStripSegmentCommand(segment)) && !await ConfirmOverwriteSegment())
+            return;
+
+        string value = null;
+        if (_panelAssignment.NeedsParameter(item, out Services.Actions.PanelParameterPrompt prompt))
+        {
+            value = await AskPanelParameterAsync(item, prompt);
+            if (value == null)
+                return;
+        }
+
+        // Wired first, so the new layers repaint the strip through the canvas's ItemChanged.
+        LoupedeckController.RegisterStripCanvas(page);
+        if (!await _panelAssignment.AssignToStripSegmentAsync(item, page, segment, value))
+            return;
+
+        LoupedeckController.SaveConfig();
+        await LoupedeckController.RefreshSideStrip(side);
+        SelectButton(target);
+    }
+
+    private async Task<bool> ConfirmOverwriteSegment()
+    {
+        DialogResult result = await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
+            vm.Configure(
+                Loc.Tr("Confirm_OverwriteSegmentMessage"),
+                title: Loc.Tr("Confirm_OverwriteButtonTitle"),
+                confirmText: Loc.Tr("Confirm_Overwrite"),
+                cancelText: Loc.Tr("Confirm_Cancel")));
+        return result.IsConfirmed;
+    }
+
     // ─────────────────────────── Dial context menu ───────────────────────────
 
     /// <summary>Backs the dial section of the device button context menu: the command catalogue a

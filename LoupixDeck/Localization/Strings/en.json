@@ -134,6 +134,7 @@
   "Confirm_Ok": "OK",
   "Confirm_Overwrite": "Overwrite",
   "Confirm_OverwriteButtonMessage": "This button already contains a configuration. Do you want to overwrite it?",
+  "Confirm_OverwriteSegmentMessage": "This tap zone already has a command. Do you want to overwrite it?",
   "Confirm_OverwriteButtonTitle": "Overwrite?",
   "Confirm_Remove": "Remove",
   "Confirm_RemovePluginMessage": "Remove '{0}'? This deletes the plugin's folder and cannot be undone.",

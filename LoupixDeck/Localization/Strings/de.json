@@ -134,6 +134,7 @@
   "Confirm_Ok": "OK",
   "Confirm_Overwrite": "Überschreiben",
   "Confirm_OverwriteButtonMessage": "Diese Taste ist bereits belegt. Soll sie überschrieben werden?",
+  "Confirm_OverwriteSegmentMessage": "Diese Tippzone ist bereits belegt. Soll sie überschrieben werden?",
   "Confirm_OverwriteButtonTitle": "Überschreiben?",
   "Confirm_Remove": "Entfernen",
   "Confirm_RemovePluginMessage": "„{0}“ entfernen? Dabei wird der Ordner des Plugins gelöscht; das lässt sich nicht rückgängig machen.",
