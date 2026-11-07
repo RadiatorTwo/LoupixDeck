@@ -71,6 +71,13 @@ public partial class TouchButtonSettings : Window
     // and per-strip drop marker and inserts on release over a strip.
     private MenuEntry _pickerDragEntry;
 
+    // An application row pressed in the Apps tab: armed on press, dragging once the pointer moved
+    // past the threshold, inserted into the sequence strip it is released over.
+    private const double AppDragThreshold = 5;
+    private ViewModels.AppRowViewModel _appDragRow;
+    private Point _appDragStart;
+    private bool _appDragging;
+
     protected override void OnOpened(EventArgs e)
     {
         base.OnOpened(e);
@@ -134,6 +141,16 @@ public partial class TouchButtonSettings : Window
         PickerControl.CommandDragStarted += Picker_CommandDragStarted;
         PickerControl.CommandDragMoved += Picker_CommandDragMoved;
         PickerControl.CommandDragReleased += Picker_CommandDragReleased;
+
+        // Apps tab → sequence-strip assignment, the same gesture as the command picker's.
+        AppListBox.AddHandler(PointerPressedEvent, AppList_PointerPressed, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AppListBox.AddHandler(PointerMovedEvent, AppList_PointerMoved, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AppListBox.AddHandler(PointerReleasedEvent, AppList_PointerReleased, RoutingStrategies.Tunnel, handledEventsToo: true);
+        // Only the list's own capture counts: a row losing the press capture to the list is the drag starting.
+        AppListBox.AddHandler(PointerCaptureLostEvent, (_, e) =>
+        {
+            if (ReferenceEquals(e.Source, AppListBox)) EndAppDrag();
+        }, RoutingStrategies.Bubble, handledEventsToo: true);
 
         DataContextChanged += (_, _) =>
         {
@@ -438,16 +455,31 @@ public partial class TouchButtonSettings : Window
         if (_pickerDragEntry == null)
             return;
 
-        UpdateDragGhost(e.Pointer);
+        UpdateSlotDropUi(e.Pointer);
+    }
 
-        var target = StripUnderPointer(e.Pointer);
+    /// <summary>Moves the drag ghost and highlights the sequence strip (and insertion point) under the pointer.</summary>
+    private void UpdateSlotDropUi(PointerEventArgs e)
+    {
+        UpdateDragGhost(e);
+
+        var target = StripUnderPointer(e);
         foreach (var (zone, _) in SlotStrips())
             zone.Classes.Set("drop-active", target.HasValue && ReferenceEquals(zone, target.Value.Zone));
 
         if (target.HasValue)
-            UpdateDropMarker(target.Value.List, FindDropIndex(target.Value.List, e.Pointer));
+            UpdateDropMarker(target.Value.List, FindDropIndex(target.Value.List, e));
         else
             HideDropMarker();
+    }
+
+    /// <summary>Hides the drag ghost, the insertion marker and every strip highlight.</summary>
+    private void ClearSlotDropUi()
+    {
+        HideDragGhost();
+        HideDropMarker();
+        foreach (var (zone, _) in SlotStrips())
+            zone.Classes.Set("drop-active", false);
     }
 
     private void Picker_CommandDragReleased(object sender, CommandDragEventArgs e)
@@ -459,10 +491,75 @@ public partial class TouchButtonSettings : Window
         }
 
         _pickerDragEntry = null;
-        HideDragGhost();
-        HideDropMarker();
-        foreach (var (zone, _) in SlotStrips())
-            zone.Classes.Set("drop-active", false);
+        ClearSlotDropUi();
+    }
+
+    // Double-click or drag an application from the Apps tab into a sequence strip.
+
+    private void AppList_DoubleTapped(object sender, TappedEventArgs e)
+    {
+        if (DataContext is TouchButtonSettingsViewModel vm && AppRowUnder(e.Source as Visual) is { } row)
+            _ = vm.InsertApplicationAsync(row.App);
+    }
+
+    private static ViewModels.AppRowViewModel AppRowUnder(Visual source)
+        => source?.FindAncestorOfType<ListBoxItem>(includeSelf: true)?.DataContext as ViewModels.AppRowViewModel;
+
+    private void AppList_PointerPressed(object sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(AppListBox).Properties.IsLeftButtonPressed || e.ClickCount > 1) return;
+
+        _appDragRow = AppRowUnder(e.Source as Visual);
+        _appDragStart = e.GetPosition(this);
+        _appDragging = false;
+    }
+
+    private void AppList_PointerMoved(object sender, PointerEventArgs e)
+    {
+        if (_appDragRow == null) return;
+
+        if (!e.GetCurrentPoint(AppListBox).Properties.IsLeftButtonPressed)
+        {
+            EndAppDrag();
+            return;
+        }
+
+        if (!_appDragging)
+        {
+            var pos = e.GetPosition(this);
+            if (Math.Abs(pos.X - _appDragStart.X) < AppDragThreshold &&
+                Math.Abs(pos.Y - _appDragStart.Y) < AppDragThreshold)
+                return;
+
+            // Captured so the moves keep coming once the pointer leaves the list for a strip.
+            _appDragging = true;
+            e.Pointer.Capture(AppListBox);
+            ShowDragGhost(_appDragRow.Name);
+        }
+
+        UpdateSlotDropUi(e);
+    }
+
+    private void AppList_PointerReleased(object sender, PointerReleasedEventArgs e)
+    {
+        if (_appDragging && _appDragRow != null && DataContext is TouchButtonSettingsViewModel vm &&
+            StripUnderPointer(e) is { } target && target.List.DataContext is CommandSequenceSlot slot)
+        {
+            _ = vm.InsertApplicationAsync(_appDragRow.App, slot, FindDropIndex(target.List, e));
+        }
+
+        if (_appDragging)
+            e.Pointer.Capture(null);
+        EndAppDrag();
+    }
+
+    private void EndAppDrag()
+    {
+        if (_appDragging)
+            ClearSlotDropUi();
+
+        _appDragRow = null;
+        _appDragging = false;
     }
 
     private void ShowDragGhost(string label)

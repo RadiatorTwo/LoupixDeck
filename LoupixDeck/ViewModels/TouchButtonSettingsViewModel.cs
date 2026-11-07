@@ -361,11 +361,10 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             OnPropertyChanged(nameof(SelectedStripProvider));
 
             OnPropertyChanged(nameof(IsSegmentCommandMode));
-            OnPropertyChanged(nameof(ShowButtonSection));
             OnPropertyChanged(nameof(ShowCommandArea));
 
             // A tab that disappears under the selection would leave the panel blank.
-            if (!ShowCommandArea && RightTabIndex == CommandsTabIndex)
+            if (!ShowCommandArea && RightTabIndex is CommandsTabIndex or AppsTabIndex)
                 RightTabIndex = 0;
 
             // The bottom area shows a single command sequence for a normal button / non-FreeDraw
@@ -518,7 +517,6 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         OnPropertyChanged(nameof(SelectedStripProvider));
         OnPropertyChanged(nameof(IsSegmentCommandMode));
         OnPropertyChanged(nameof(ShowButtonSection));
-        OnPropertyChanged(nameof(ShowKeyOptions));
         OnPropertyChanged(nameof(ShowCommandArea));
     }
 
@@ -563,7 +561,6 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         OnPropertyChanged(nameof(IsWheelCanvas));
         OnPropertyChanged(nameof(ShowStatesSection));
         OnPropertyChanged(nameof(ShowButtonSection));
-        OnPropertyChanged(nameof(ShowKeyOptions));
         OnPropertyChanged(nameof(ShowCommandArea));
         OnPropertyChanged(nameof(ShowParametersTab));
         OnPropertyChanged(nameof(ButtonLabel));
@@ -878,7 +875,6 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     public IAsyncRelayCommand ApplyTemplateCommand => field ??= Relay.Create<ButtonTemplate>(ApplyTemplate);
     public IAsyncRelayCommand AddSymbolLayerCommand => field ??= Relay.Create(AddSymbolLayer);
 
-    public IAsyncRelayCommand AssignApplicationCommand => field ??= Relay.Create(AssignApplication);
     public IRelayCommand RemoveLayerCommand => field ??= Relay.Create(RemoveSelectedLayer);
     public IRelayCommand MoveLayerUpCommand => field ??= Relay.Create(MoveSelectedLayerUp);
     public IRelayCommand MoveLayerDownCommand => field ??= Relay.Create(MoveSelectedLayerDown);
@@ -1042,10 +1038,20 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     public int RightTabIndex
     {
         get;
-        set => SetProperty(ref field, value);
+        set
+        {
+            if (!SetProperty(ref field, value)) return;
+
+            // The scan runs the first time the tab is opened, not with every editor.
+            if (value == AppsTabIndex && !_appsLoading)
+            {
+                _appsLoading = true;
+                _ = AppList.InitializeAsync();
+            }
+        }
     }
 
-    private const int ParametersTabIndex = 2;
+    private const int ParametersTabIndex = 3;
 
     private void RefreshParameterSegments()
     {
@@ -1207,19 +1213,16 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// </summary>
     public bool ShowStatesSection => !IsStripCanvas && !IsWheelCanvas;
 
-    /// <summary>The Button block (assign app, run while off, vibration): a wheel canvas has none of
-    /// these, and a Segmented or PluginOverride strip has no command to assign.</summary>
-    public bool ShowButtonSection => !IsWheelCanvas && (!IsStripCanvas || IsSegmentCommandMode);
+    /// <summary>The Button block ("Run while device is off", vibration): grid keys only. The strip
+    /// canvas is never pressed as a key and a wheel canvas has neither, so no flag would be read.</summary>
+    public bool ShowButtonSection => !IsStripCanvas && !IsWheelCanvas;
 
-    /// <summary>"Run while device is off" and vibration: grid keys only. The strip canvas is never
-    /// pressed as a key, so neither flag is read for it.</summary>
-    public bool ShowKeyOptions => !IsStripCanvas && !IsWheelCanvas;
-
-    /// <summary>The Commands tab and the command-sequence strip: hidden for a wheel canvas, and for a
-    /// Segmented or PluginOverride strip, which runs no user command.</summary>
+    /// <summary>The Commands and Apps tabs and the command-sequence strip: hidden for a wheel canvas,
+    /// and for a Segmented or PluginOverride strip, which runs no user command.</summary>
     public bool ShowCommandArea => !IsWheelCanvas && (!IsStripCanvas || IsSegmentCommandMode);
 
     private const int CommandsTabIndex = 1;
+    private const int AppsTabIndex = 2;
 
     /// <summary>
     /// Whether the edited state paints its background color. Off leaves the button transparent
@@ -1472,8 +1475,10 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         DeviceGeometry geometry,
         Services.Companion.ICommandLockService commandLock,
         IButtonTemplateService buttonTemplates,
+        AppPickerViewModel appList,
         IButtonStateService buttonStates = null)
     {
+        AppList = appList;
         _buttonStates = buttonStates;
         _commandLock = commandLock;
         _buttonTemplates = buttonTemplates;
@@ -1729,63 +1734,67 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     }
 
     /// <summary>
-    /// Picks an installed application and assigns it to this button: its launch command plus its
-    /// icon as the button image.
+    /// The installed applications listed in the Apps tab: the same list the application picker shows,
+    /// scanned the first time the tab is opened.
+    /// </summary>
+    public AppPickerViewModel AppList { get; }
+
+    private bool _appsLoading;
+
+    /// <summary>
+    /// Adds the launch command of <paramref name="app"/> to <paramref name="slot"/> (the active
+    /// sequence when null) at <paramref name="index"/> (the end when negative), the way a command from
+    /// the Commands tab is added.
     /// </summary>
     /// <remarks>
-    /// The icon is resolved <em>before</em> anything on the button is written, so a failed
-    /// extraction cannot leave the button half-applied. Replacing existing layers is confirmed
-    /// first — the user may have built the artwork by hand.
+    /// The application's icon comes along when the sequence was empty: on a grid key only while the
+    /// key has no layers yet, so hand-made artwork is never covered; on a FreeDraw strip as a layer
+    /// centred in that sequence's tap zone, so each of the three zones can show its own application.
+    /// Nothing is replaced and nothing is asked.
     /// </remarks>
-    private async Task AssignApplication()
+    public async Task InsertApplicationAsync(Services.AppLauncher.InstalledApp app, CommandSequenceSlot slot = null,
+        int index = -1)
     {
-        if (ButtonData == null) return;
+        slot ??= ActiveSlot;
+        if (app == null || slot == null || ButtonData == null) return;
 
-        AppPickerRequest request = new();
-        DialogResult result = await _dialogService.ShowDialogAsync<AppPickerViewModel, DialogResult>(
-            vm => vm.Initialize(request));
+        string command = Services.AppLauncher.AppAssignment.BuildLaunchCommand(app);
+        bool wasEmpty = slot.Commands.Count == 0;
+        if (!slot.InsertRawAt(command, index < 0 ? slot.Commands.Count : index)) return;
 
-        if (result is not { IsConfirmed: true } || request.SelectedApp == null) return;
+        int segment = IsSegmentCommandMode ? CommandSlots.IndexOf(slot) : -1;
+        bool addIcon = wasEmpty && CanEditCanvas && (segment >= 0 || ButtonData.Layers.Count == 0);
+        if (!addIcon) return;
 
-        Services.AppLauncher.InstalledApp app = request.SelectedApp;
-
-        // Resolve and import the icon up front: extraction is file IO and P/Invoke, and must not
-        // run while the button is being mutated.
+        // Resolved before the button is touched: extraction is file IO and P/Invoke.
         string relative = null;
-        string iconFile = await _appIcons.GetIconFileAsync(app);
-        if (!string.IsNullOrEmpty(iconFile) && File.Exists(iconFile))
-            relative = _assetService.Import(iconFile);
-
-        bool replaceLayers = false;
-        if (ButtonData.Layers.Count > 0 && !string.IsNullOrEmpty(relative))
+        try
         {
-            replaceLayers = !await ConfirmDialogHelper.AskKeepDiscardAsync(
-                WindowHelper.GetMainWindow(),
-                Loc.Tr("Confirm_AssignApplicationTitle"),
-                Loc.Tr("Confirm_AssignApplicationMessage", app.Name),
-                Loc.Tr("Confirm_Keep"),
-                Loc.Tr("Confirm_Replace"));
+            string iconFile = await _appIcons.GetIconFileAsync(app);
+            if (!string.IsNullOrEmpty(iconFile) && File.Exists(iconFile))
+                relative = _assetService.Import(iconFile);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ButtonEditor] Icon for '{app.Name}' could not be imported: {ex.Message}");
         }
 
-        // Resolved before the layer exists: GetUniqueLayerName searches the collection, so asking
-        // after the layer is in it would always collide with the layer itself. Replacing clears the
-        // collection first, so there is nothing left to collide with.
-        string layerName = replaceLayers ? app.Name : GetUniqueLayerName(app.Name);
+        if (string.IsNullOrEmpty(relative)) return;
 
-        // The short edge of the surface being edited, mirroring what the renderer resolves a
-        // fitted layer against — a grid key here, or the strip canvas when editing one.
-        int keySize = Math.Min(DeviceWidth, DeviceHeight);
+        // The surface the icon is fitted to: a grid key, or one tap zone of the strip.
+        int zoneHeight = segment >= 0 ? DeviceHeight / RotaryButtonPage.StripSegmentCount : DeviceHeight;
+        int keySize = Math.Min(DeviceWidth, zoneHeight);
 
-        ImageLayer layer = Services.AppLauncher.AppAssignment.ApplyToTouchButton(
-            ButtonData, app, relative, replaceLayers, layerName, keySize);
+        ImageLayer layer = Services.AppLauncher.AppAssignment.AddIconLayer(
+            ButtonData, app, relative, replaceLayers: false, GetUniqueLayerName(app.Name), keySize);
+        if (layer == null) return;
 
-        if (layer != null)
-        {
-            layer.CachedImage = _assetService.Load(relative);
-            SelectedLayer = layer;
-        }
+        // Layer positions are offsets from the canvas centre; this one is the zone's centre.
+        if (segment >= 0)
+            layer.PositionY = (int)Math.Round(((segment + 0.5) * zoneHeight) - (DeviceHeight / 2.0));
 
-        BuildCommandSlots();
+        layer.CachedImage = _assetService.Load(relative);
+        SelectedLayer = layer;
         UpdateEditorPreview();
     }
 
@@ -2237,6 +2246,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             slot.Cleanup();
 
         CommandPicker.Cleanup();
+        AppList.StopLoading();
     }
 
     private void OnStripProvidersChanged()

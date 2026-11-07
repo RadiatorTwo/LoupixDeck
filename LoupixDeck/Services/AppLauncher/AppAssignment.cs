@@ -58,6 +58,19 @@ public static class AppAssignment
             return null;
 
         button.Command = BuildLaunchCommand(app);
+        return AddIconLayer(button, app, iconRelativePath, replaceLayers, layerName, keySizePx);
+    }
+
+    /// <summary>
+    /// Adds <paramref name="app"/>'s icon as an image layer to <paramref name="button"/> and leaves its
+    /// command alone. Used where the launch command lives elsewhere, such as a side-strip tap zone.
+    /// Returns the created layer, or null when no icon was available.
+    /// </summary>
+    public static ImageLayer AddIconLayer(TouchButton button, InstalledApp app,
+        string iconRelativePath, bool replaceLayers, string layerName, int keySizePx)
+    {
+        if (button == null || app == null)
+            return null;
 
         if (string.IsNullOrEmpty(iconRelativePath))
         {
