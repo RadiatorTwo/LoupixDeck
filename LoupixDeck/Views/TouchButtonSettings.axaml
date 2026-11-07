@@ -27,6 +27,7 @@
 
     <Window.Resources>
         <conv:TransitionKindLabelConverter x:Key="TransitionKindLabel" />
+        <conv:StripModeLabelConverter x:Key="StripModeLabel" />
         <conv:TextSourceLabelConverter x:Key="TextSourceLabel" />
         <conv:EnumToBooleanConverter x:Key="EnumToBoolean" />
 
@@ -234,14 +235,20 @@
 
                         <StackPanel Grid.Row="0">
                             <!-- Side-strip (Razer) mode picker — only when editing a strip
-                                 canvas. Segmented locks the canvas (the strip shows the dial
-                                 labels); FreeDraw unlocks layer editing. -->
+                                 canvas. Dial labels (Segmented) locks the canvas; Tap zones
+                                 (FreeDraw) unlocks layer editing. -->
                             <StackPanel IsVisible="{Binding IsStripCanvas}" Margin="0,0,0,12">
                                 <TextBlock Classes="panel-title" Text="{loc:Tr TouchButton_SideStrip}" />
                                 <TextBlock Classes="label" Text="{loc:Tr TouchButton_Mode}" Margin="0,0,0,2" />
                                 <ComboBox ItemsSource="{Binding AvailableStripModes}"
                                           SelectedItem="{Binding StripMode, Mode=TwoWay}"
-                                          HorizontalAlignment="Stretch" />
+                                          HorizontalAlignment="Stretch">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="models:StripMode">
+                                            <TextBlock Text="{Binding Converter={StaticResource StripModeLabel}}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
                                 <TextBlock Classes="hint" Margin="0,4,0,0" TextWrapping="Wrap"
                                            Text="{loc:Tr TouchButton_SwitchToFreeDrawToEdit}"
                                            IsVisible="{Binding IsDrawDisabledHintVisible}" />
