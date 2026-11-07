@@ -277,6 +277,7 @@
                                     Margin="0,0,0,8"
                                     Command="{Binding AssignApplicationCommand}"
                                     ToolTip.Tip="{loc:Tr TouchButton_PickAnInstalledApplicationSets}" />
+                            <StackPanel IsVisible="{Binding ShowKeyOptions}">
                             <CheckBox Content="{loc:Tr TouchButton_RunWhileDeviceIsOff}"
                                       IsChecked="{Binding ButtonData.EnableWhenOff}"
                                       Margin="0,0,0,4" />
@@ -290,6 +291,7 @@
                                 <ComboBox ItemsSource="{Binding VibrationPatterns}"
                                           SelectedItem="{Binding SelectedVibrationPattern}"
                                           HorizontalAlignment="Stretch" />
+                            </StackPanel>
                             </StackPanel>
                             </StackPanel>
                         </StackPanel>

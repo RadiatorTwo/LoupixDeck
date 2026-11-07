@@ -361,6 +361,12 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             OnPropertyChanged(nameof(SelectedStripProvider));
 
             OnPropertyChanged(nameof(IsSegmentCommandMode));
+            OnPropertyChanged(nameof(ShowButtonSection));
+            OnPropertyChanged(nameof(ShowCommandArea));
+
+            // A tab that disappears under the selection would leave the panel blank.
+            if (!ShowCommandArea && RightTabIndex == CommandsTabIndex)
+                RightTabIndex = 0;
 
             // The bottom area shows a single command sequence for a normal button / non-FreeDraw
             // strip, and three (top/middle/bottom) for a FreeDraw strip — rebuild for the new mode.
@@ -448,6 +454,13 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             return;
         }
 
+        // A Segmented or PluginOverride strip never runs the canvas command, so it gets no slot.
+        if (IsStripCanvas && !IsSegmentCommandMode)
+        {
+            RefreshParameterSegments();
+            return;
+        }
+
         if (IsSegmentCommandMode && _stripPage != null)
         {
             for (var i = 0; i < RotaryButtonPage.StripSegmentCount; i++)
@@ -504,6 +517,9 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         OnPropertyChanged(nameof(AvailableStripProviders));
         OnPropertyChanged(nameof(SelectedStripProvider));
         OnPropertyChanged(nameof(IsSegmentCommandMode));
+        OnPropertyChanged(nameof(ShowButtonSection));
+        OnPropertyChanged(nameof(ShowKeyOptions));
+        OnPropertyChanged(nameof(ShowCommandArea));
     }
 
     private RotaryButton _wheel;
@@ -547,6 +563,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         OnPropertyChanged(nameof(IsWheelCanvas));
         OnPropertyChanged(nameof(ShowStatesSection));
         OnPropertyChanged(nameof(ShowButtonSection));
+        OnPropertyChanged(nameof(ShowKeyOptions));
         OnPropertyChanged(nameof(ShowCommandArea));
         OnPropertyChanged(nameof(ShowParametersTab));
         OnPropertyChanged(nameof(ButtonLabel));
@@ -1190,11 +1207,19 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// </summary>
     public bool ShowStatesSection => !IsStripCanvas && !IsWheelCanvas;
 
-    /// <summary>The Button block (assign app, run while off, vibration): a wheel canvas has none of these.</summary>
-    public bool ShowButtonSection => !IsWheelCanvas;
+    /// <summary>The Button block (assign app, run while off, vibration): a wheel canvas has none of
+    /// these, and a Segmented or PluginOverride strip has no command to assign.</summary>
+    public bool ShowButtonSection => !IsWheelCanvas && (!IsStripCanvas || IsSegmentCommandMode);
 
-    /// <summary>The Commands tab and the command-sequence strip: hidden for a wheel canvas.</summary>
-    public bool ShowCommandArea => !IsWheelCanvas;
+    /// <summary>"Run while device is off" and vibration: grid keys only. The strip canvas is never
+    /// pressed as a key, so neither flag is read for it.</summary>
+    public bool ShowKeyOptions => !IsStripCanvas && !IsWheelCanvas;
+
+    /// <summary>The Commands tab and the command-sequence strip: hidden for a wheel canvas, and for a
+    /// Segmented or PluginOverride strip, which runs no user command.</summary>
+    public bool ShowCommandArea => !IsWheelCanvas && (!IsStripCanvas || IsSegmentCommandMode);
+
+    private const int CommandsTabIndex = 1;
 
     /// <summary>
     /// Whether the edited state paints its background color. Off leaves the button transparent
