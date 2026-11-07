@@ -1794,9 +1794,15 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         layer.DeviceBaseWidth = DeviceWidth;
         layer.DeviceBaseHeight = DeviceHeight;
 
-        // Layer positions are offsets from the canvas centre; this one is the zone's centre.
+        // In a tap zone the icon gets the strip size, fitted against the canvas's short edge the way
+        // the renderer resolves it. Layer positions are offsets from the canvas centre; this one is
+        // the zone's centre.
         if (segment >= 0)
+        {
+            layer.Scale = Services.AppLauncher.AppAssignment.IconScaleFor(
+                Services.AppLauncher.AppAssignment.StripIconSizePx, Math.Min(DeviceWidth, DeviceHeight));
             layer.PositionY = (int)Math.Round(((segment + 0.5) * zoneHeight) - (DeviceHeight / 2.0));
+        }
 
         layer.CachedImage = _assetService.Load(relative);
         SelectedLayer = layer;

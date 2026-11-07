@@ -222,7 +222,8 @@ public sealed class PanelAssignmentService(
                 {
                     Name = app.Name,
                     AssetRelativePath = relative,
-                    Scale = AppAssignment.DefaultIconScaleFor(Math.Min(width, segmentHeight)),
+                    // Fitted against the canvas's short edge, which is what the renderer resolves.
+                    Scale = AppAssignment.IconScaleFor(AppAssignment.StripIconSizePx, Math.Min(width, height)),
                     CachedImage = assetService.Load(relative)
                 });
             }

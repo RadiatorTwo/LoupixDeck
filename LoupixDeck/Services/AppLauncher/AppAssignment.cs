@@ -27,8 +27,22 @@ public static class AppAssignment
     /// edited — key size is per-device and user-calibratable. Clamped to 1.0 so a key smaller than
     /// 64px gets a full-bleed icon instead of one hanging over the edge.
     /// </remarks>
-    public static double DefaultIconScaleFor(int keySizePx)
-        => keySizePx <= 0 ? 1.0 : Math.Clamp(DefaultIconSizePx / (double)keySizePx, 0.05, 1.0);
+    public static double DefaultIconScaleFor(int keySizePx) => IconScaleFor(DefaultIconSizePx, keySizePx);
+
+    /// <summary>
+    /// Rendered size of an app icon placed in one tap zone of a side strip, in device pixels: about
+    /// three quarters of the 60px strip width, so the icon keeps a margin instead of filling the
+    /// strip edge to edge.
+    /// </summary>
+    public const int StripIconSizePx = 47;
+
+    /// <summary>
+    /// Converts an icon size in device pixels into the <c>Scale</c> of a fitted image layer on a
+    /// surface whose short edge is <paramref name="surfaceSizePx"/>, clamped like
+    /// <see cref="DefaultIconScaleFor"/>.
+    /// </summary>
+    public static double IconScaleFor(int iconSizePx, int surfaceSizePx)
+        => surfaceSizePx <= 0 ? 1.0 : Math.Clamp(iconSizePx / (double)surfaceSizePx, 0.05, 1.0);
 
     /// <summary>Builds the command string that launches <paramref name="app"/>, with the target
     /// escaped so it survives <see cref="CommandStringParser"/>. Single Instance starts off — the
