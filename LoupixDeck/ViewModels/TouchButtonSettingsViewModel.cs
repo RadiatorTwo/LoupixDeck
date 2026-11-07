@@ -1789,6 +1789,11 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             ButtonData, app, relative, replaceLayers: false, GetUniqueLayerName(app.Name), keySize);
         if (layer == null) return;
 
+        // Stamped like every layer the editor adds, so the size fields report real device pixels
+        // instead of the 90px key default.
+        layer.DeviceBaseWidth = DeviceWidth;
+        layer.DeviceBaseHeight = DeviceHeight;
+
         // Layer positions are offsets from the canvas centre; this one is the zone's centre.
         if (segment >= 0)
             layer.PositionY = (int)Math.Round(((segment + 0.5) * zoneHeight) - (DeviceHeight / 2.0));
