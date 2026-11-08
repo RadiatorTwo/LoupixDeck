@@ -17,7 +17,7 @@ public interface IRunningIndicatorManager
 
 /// <summary>
 /// Keeps the running dot of the current page's application keys up to date (issue #568):
-/// green while the launched program runs, blue while one of its windows has focus.
+/// green while the launched program runs, orange while one of its windows has focus.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -30,7 +30,7 @@ public interface IRunningIndicatorManager
 /// <para>
 /// The price of not polling: a program started outside LoupixDeck that never takes focus, such as
 /// one autostarting into the tray, gets its dot at the next of those events rather than at once.
-/// On macOS no focus changes are reported, so the dot never turns blue there.
+/// On macOS no focus changes are reported, so the dot never turns orange there.
 /// </para>
 /// <para>All state is touched on the UI thread only.</para>
 /// </remarks>

@@ -1726,7 +1726,7 @@ public static class BitmapHelper
 
     /// <summary>
     /// Draws the running dot of an application key (issue #568) in the bottom-left corner: green
-    /// while the launched program runs, blue while it has focus. Drawn over the finished key like
+    /// while the launched program runs, orange while it has focus. Drawn over the finished key like
     /// <see cref="DrawUnavailableOverlay"/>, so no cached part holds a stale dot.
     /// Must be called under <see cref="SkiaRenderGate"/>.Sync.
     /// </summary>
@@ -1735,13 +1735,12 @@ public static class BitmapHelper
         SKColor color;
         switch (touchButton.RunningIndicator)
         {
-            // Vivid colours far apart in brightness as well as hue: a small dot on a key LCD loses
-            // subtle differences, so a bright green and a deep blue stay distinct at a glance.
+            // Vivid colours far apart in hue: a small dot on a key LCD loses subtle differences.
             case RunningIndicatorState.Running:
                 color = new SKColor(0x00, 0xFF, 0x3C);
                 break;
             case RunningIndicatorState.Active:
-                color = new SKColor(0x10, 0x4B, 0xFF);
+                color = new SKColor(0xFF, 0x91, 0x00);
                 break;
             default:
                 return;
@@ -1751,34 +1750,30 @@ public static class BitmapHelper
 
         float unit = Math.Min(width, height) / 90f;
         float radius = 6 * unit;
-        float ringWidth = Math.Max(1.5f, 2f * unit);
-        // Inset from the corner so the dot sits on the key rather than in its very edge.
+        float ring = Math.Max(1.5f, 2f * unit);
+        float edge = Math.Max(1f, unit);
+        float outer = radius + ring + edge;
+
+        // Inset from the corner so the dot sits on the key rather than in its very edge. The
+        // centre is snapped to a pixel centre, so the rim is antialiased the same on every side.
         float margin = 12 * unit;
-        float centerX = margin + radius;
-        float centerY = height - margin - radius;
+        float centerX = MathF.Floor(margin + outer) + 0.5f;
+        float centerY = MathF.Floor(height - margin - outer) + 0.5f;
 
-        using var fill = new SKPaint();
-        fill.Color = color;
-        fill.IsAntialias = true;
-        fill.Style = SKPaintStyle.Fill;
+        // Filled discs stacked from the outside in, rather than strokes: each edge is antialiased
+        // once against a solid colour, where overlapping thin strokes blend into a frayed rim.
+        // The white ring sets the colour apart from the key; the dark edge keeps the ring
+        // visible on a light key.
+        using var paint = new SKPaint();
+        paint.IsAntialias = true;
+        paint.Style = SKPaintStyle.Fill;
 
-        // A white ring sets the colour apart from the key, so green and blue are told apart at a
-        // glance; a thin dark edge around it keeps the ring visible on a light key.
-        using var ring = new SKPaint();
-        ring.Color = SKColors.White;
-        ring.IsAntialias = true;
-        ring.Style = SKPaintStyle.Stroke;
-        ring.StrokeWidth = ringWidth;
-
-        using var edge = new SKPaint();
-        edge.Color = new SKColor(0, 0, 0, 200);
-        edge.IsAntialias = true;
-        edge.Style = SKPaintStyle.Stroke;
-        edge.StrokeWidth = Math.Max(1f, unit);
-
-        canvas.DrawCircle(centerX, centerY, radius, fill);
-        canvas.DrawCircle(centerX, centerY, radius + (ringWidth / 2), ring);
-        canvas.DrawCircle(centerX, centerY, radius + ringWidth + (edge.StrokeWidth / 2), edge);
+        paint.Color = new SKColor(0, 0, 0, 200);
+        canvas.DrawCircle(centerX, centerY, outer, paint);
+        paint.Color = SKColors.White;
+        canvas.DrawCircle(centerX, centerY, radius + ring, paint);
+        paint.Color = color;
+        canvas.DrawCircle(centerX, centerY, radius, paint);
     }
 
     /// <summary>
