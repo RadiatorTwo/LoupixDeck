@@ -1748,8 +1748,10 @@ public static class BitmapHelper
         if (touchButton.IsFolderBackSlot) return;
 
         float unit = Math.Min(width, height) / 90f;
-        float radius = 5 * unit;
-        float margin = 7 * unit;
+        float radius = 6 * unit;
+        float ringWidth = Math.Max(1.5f, 2f * unit);
+        // Inset from the corner so the dot sits on the key rather than in its very edge.
+        float margin = 12 * unit;
         float centerX = margin + radius;
         float centerY = height - margin - radius;
 
@@ -1758,15 +1760,23 @@ public static class BitmapHelper
         fill.IsAntialias = true;
         fill.Style = SKPaintStyle.Fill;
 
-        // A dark ring keeps the dot readable on a light or same-coloured key.
-        using var outline = new SKPaint();
-        outline.Color = new SKColor(0, 0, 0, 180);
-        outline.IsAntialias = true;
-        outline.Style = SKPaintStyle.Stroke;
-        outline.StrokeWidth = Math.Max(1f, 1.5f * unit);
+        // A white ring sets the colour apart from the key, so green and blue are told apart at a
+        // glance; a thin dark edge around it keeps the ring visible on a light key.
+        using var ring = new SKPaint();
+        ring.Color = SKColors.White;
+        ring.IsAntialias = true;
+        ring.Style = SKPaintStyle.Stroke;
+        ring.StrokeWidth = ringWidth;
+
+        using var edge = new SKPaint();
+        edge.Color = new SKColor(0, 0, 0, 200);
+        edge.IsAntialias = true;
+        edge.Style = SKPaintStyle.Stroke;
+        edge.StrokeWidth = Math.Max(1f, unit);
 
         canvas.DrawCircle(centerX, centerY, radius, fill);
-        canvas.DrawCircle(centerX, centerY, radius, outline);
+        canvas.DrawCircle(centerX, centerY, radius + (ringWidth / 2), ring);
+        canvas.DrawCircle(centerX, centerY, radius + ringWidth + (edge.StrokeWidth / 2), edge);
     }
 
     /// <summary>
