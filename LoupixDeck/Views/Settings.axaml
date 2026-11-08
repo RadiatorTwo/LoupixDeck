@@ -126,6 +126,16 @@
                         </Grid>
                     </Button>
 
+                    <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=LayerDefaults}"
+                            Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.LayerDefaults}">
+                        <Grid ColumnDefinitions="6,Auto,*">
+                            <Border Grid.Column="0" Classes="nav-accent" />
+                            <!-- mdi-layers -->
+                            <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF0328;" Margin="6,0,0,0"/>
+                            <TextBlock Grid.Column="2" Classes="nav-label" Text="{loc:Tr Settings_LayerDefaults}" />
+                        </Grid>
+                    </Button>
+
                     <TextBlock Classes="section-header" Text="{loc:Tr Settings_APP}" />
                     <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=About}"
                             Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.About}">
@@ -335,6 +345,56 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- Startup card -->
+                    <Border Classes="card">
+                        <StackPanel>
+                            <TextBlock Classes="card-title" Text="{loc:Tr Settings_Startup}" />
+                            <CheckBox Content="{loc:Tr Settings_StartWithWindows}"
+                                      IsVisible="{Binding IsWindows}"
+                                      HorizontalAlignment="Left" Margin="0,0,0,10"
+                                      IsChecked="{Binding StartWithWindows, Mode=TwoWay}" />
+                            <TextBlock Classes="label" Text="{loc:Tr Settings_StartupTouchPage}" />
+                            <ComboBox Width="200" Margin="0,6,0,0"
+                                      ItemsSource="{Binding TouchPages}"
+                                      SelectedIndex="{Binding Config.StartupTouchPageIndex, Mode=TwoWay}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate DataType="m:TouchButtonPage">
+                                        <TextBlock Text="{Binding PageName}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Window card -->
+                    <Border Classes="card">
+                        <StackPanel>
+                            <TextBlock Classes="card-title" Text="{loc:Tr Settings_Window}" />
+                            <TextBlock Classes="label" Text="{loc:Tr Settings_CloseButtonBehavior}" />
+                            <RadioButton GroupName="closeBehavior" Content="{loc:Tr Settings_MinimizeToTray}"
+                                         HorizontalAlignment="Left" Margin="0,6,0,0"
+                                         IsChecked="{Binding CloseButtonBehavior, Mode=TwoWay,
+                                                     Converter={StaticResource EnumToBooleanConverter},
+                                                     ConverterParameter={x:Static m:CloseButtonBehavior.MinimizeToTray}}" />
+                            <RadioButton GroupName="closeBehavior" Content="{loc:Tr Settings_QuitApplication}"
+                                         HorizontalAlignment="Left" Margin="0,4,0,0"
+                                         IsChecked="{Binding CloseButtonBehavior, Mode=TwoWay,
+                                                     Converter={StaticResource EnumToBooleanConverter},
+                                                     ConverterParameter={x:Static m:CloseButtonBehavior.Quit}}" />
+                            <TextBlock Classes="hint" Margin="0,6,0,0"
+                                       Text="{loc:Tr Settings_ChooseQuitOnDesktopsWithout}" />
+                            <CheckBox Content="{loc:Tr Settings_StartMinimizedToTray}"
+                                      HorizontalAlignment="Left" Margin="0,10,0,0"
+                                      IsChecked="{Binding StartMinimizedToTray, Mode=TwoWay}" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- ====== Layer defaults ====== -->
+                <!-- Global like the language: the look new layers start with (issue #564). -->
+                <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=LayerDefaults}">
+                    <TextBlock Classes="page-title" Text="{loc:Tr Settings_LayerDefaults}" />
+
                     <!-- Default font for new text layers; global like the language. -->
                     <Border Classes="card">
                         <StackPanel>
@@ -462,50 +522,6 @@
                                        Text="{loc:Tr Settings_IconDefaultsHint}" />
                             <TextBlock Classes="hint" Margin="0,4,0,0" TextWrapping="Wrap"
                                        Text="{loc:Tr Settings_LayerDefaultsHint}" />
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Startup card -->
-                    <Border Classes="card">
-                        <StackPanel>
-                            <TextBlock Classes="card-title" Text="{loc:Tr Settings_Startup}" />
-                            <CheckBox Content="{loc:Tr Settings_StartWithWindows}"
-                                      IsVisible="{Binding IsWindows}"
-                                      HorizontalAlignment="Left" Margin="0,0,0,10"
-                                      IsChecked="{Binding StartWithWindows, Mode=TwoWay}" />
-                            <TextBlock Classes="label" Text="{loc:Tr Settings_StartupTouchPage}" />
-                            <ComboBox Width="200" Margin="0,6,0,0"
-                                      ItemsSource="{Binding TouchPages}"
-                                      SelectedIndex="{Binding Config.StartupTouchPageIndex, Mode=TwoWay}">
-                                <ComboBox.ItemTemplate>
-                                    <DataTemplate DataType="m:TouchButtonPage">
-                                        <TextBlock Text="{Binding PageName}" />
-                                    </DataTemplate>
-                                </ComboBox.ItemTemplate>
-                            </ComboBox>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Window card -->
-                    <Border Classes="card">
-                        <StackPanel>
-                            <TextBlock Classes="card-title" Text="{loc:Tr Settings_Window}" />
-                            <TextBlock Classes="label" Text="{loc:Tr Settings_CloseButtonBehavior}" />
-                            <RadioButton GroupName="closeBehavior" Content="{loc:Tr Settings_MinimizeToTray}"
-                                         HorizontalAlignment="Left" Margin="0,6,0,0"
-                                         IsChecked="{Binding CloseButtonBehavior, Mode=TwoWay,
-                                                     Converter={StaticResource EnumToBooleanConverter},
-                                                     ConverterParameter={x:Static m:CloseButtonBehavior.MinimizeToTray}}" />
-                            <RadioButton GroupName="closeBehavior" Content="{loc:Tr Settings_QuitApplication}"
-                                         HorizontalAlignment="Left" Margin="0,4,0,0"
-                                         IsChecked="{Binding CloseButtonBehavior, Mode=TwoWay,
-                                                     Converter={StaticResource EnumToBooleanConverter},
-                                                     ConverterParameter={x:Static m:CloseButtonBehavior.Quit}}" />
-                            <TextBlock Classes="hint" Margin="0,6,0,0"
-                                       Text="{loc:Tr Settings_ChooseQuitOnDesktopsWithout}" />
-                            <CheckBox Content="{loc:Tr Settings_StartMinimizedToTray}"
-                                      HorizontalAlignment="Left" Margin="0,10,0,0"
-                                      IsChecked="{Binding StartMinimizedToTray, Mode=TwoWay}" />
                         </StackPanel>
                     </Border>
                 </StackPanel>

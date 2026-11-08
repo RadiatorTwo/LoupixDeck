@@ -857,6 +857,7 @@
   "Settings_IconDefaultsEnabled": "Neue Symbol- und Bildebenen mit diesen Werten anlegen",
   "Settings_IconSizePercent": "Größe (% der Taste)",
   "Settings_PositionFromCentre": "Position von der Tastenmitte (X, Y)",
+  "Settings_LayerDefaults": "Ebenen-Standards",
   "Settings_LayerDefaultsHint": "Gilt, wenn eine Ebene entsteht: im Tasten-Editor hinzugefügt, durch Ziehen einer Aktion oder App auf eine Taste, oder durch eine Layout-Vorlage angeordnet. Die Position gilt nur für eine Ebene, die im Tasten-Editor einzeln hinzugefügt wird. Vorhandene Ebenen behalten ihr Aussehen.",
   "Settings_IconDefaultsHint": "Farbe, Verlauf, Kontur und Schatten gelten für Symbole. Bilder übernehmen Größe und Position.",
   "Settings_AutomaticSwitching": "Automatischer Wechsel",
