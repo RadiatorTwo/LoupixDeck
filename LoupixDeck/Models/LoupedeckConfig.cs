@@ -130,6 +130,10 @@ public partial class LoupedeckConfig : ObservableObject
     /// </summary>
     public string ThemeVariant { get; set; } = "Dark";
 
+    /// <summary>
+    /// Legacy per-device choice. It is global now (<c>WindowSettings</c>, in ui-settings.json); the
+    /// device configs on disk seed it once, and it is kept so older config files load unchanged.
+    /// </summary>
     public CloseButtonBehavior CloseButtonBehavior { get; set; } = CloseButtonBehavior.MinimizeToTray;
     /// <summary>
     /// Legacy per-device flag. It is global now (<c>WindowSettings</c>, in ui-settings.json); the

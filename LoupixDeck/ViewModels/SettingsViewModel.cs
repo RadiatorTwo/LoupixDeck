@@ -141,6 +141,13 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         set { _autostart.SetEnabled(value); OnPropertyChanged(); }
     }
 
+    /// <summary>What the close button does. Global (WindowSettings), not part of this device's config.</summary>
+    public CloseButtonBehavior CloseButtonBehavior
+    {
+        get => WindowSettings.CloseButtonBehavior;
+        set { WindowSettings.CloseButtonBehavior = value; OnPropertyChanged(); }
+    }
+
     /// <summary>Start hidden in the tray. Global (WindowSettings), not part of this device's config.</summary>
     public bool StartMinimizedToTray
     {

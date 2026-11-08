@@ -1,4 +1,5 @@
 using System.Text.Json;
+using LoupixDeck.Models;
 
 namespace LoupixDeck.Utils;
 
@@ -12,6 +13,7 @@ namespace LoupixDeck.Utils;
 public static class WindowSettings
 {
     private const string StartMinimizedKey = "StartMinimizedToTray";
+    private const string CloseButtonKey = "CloseButtonBehavior";
 
     /// <summary>Start hidden, with only the tray icon.</summary>
     public static bool StartMinimizedToTray
@@ -19,18 +21,42 @@ public static class WindowSettings
         get
         {
             if (!UiSettingsStore.Contains(StartMinimizedKey))
-                UiSettingsStore.Set(StartMinimizedKey, AnyDeviceConfigHas(StartMinimizedKey, JsonValueKind.True));
+                UiSettingsStore.Set(StartMinimizedKey, AnyDeviceConfigHas(StartMinimizedKey, v => v.ValueKind == JsonValueKind.True));
             return UiSettingsStore.GetBool(StartMinimizedKey, false);
         }
         set => UiSettingsStore.Set(StartMinimizedKey, value);
     }
 
+    /// <summary>What the close (X) button does.</summary>
+    public static CloseButtonBehavior CloseButtonBehavior
+    {
+        get
+        {
+            if (!UiSettingsStore.Contains(CloseButtonKey))
+            {
+                // Quit is the deliberate choice (the default leaves the app unreachable without a
+                // tray), so it wins when any device had it.
+                bool quit = AnyDeviceConfigHas(CloseButtonKey, IsQuit);
+                UiSettingsStore.Set(CloseButtonKey, (quit ? CloseButtonBehavior.Quit : CloseButtonBehavior.MinimizeToTray).ToString());
+            }
+            return Enum.TryParse(UiSettingsStore.GetString(CloseButtonKey), out CloseButtonBehavior behavior)
+                ? behavior
+                : CloseButtonBehavior.MinimizeToTray;
+        }
+        set => UiSettingsStore.Set(CloseButtonKey, value.ToString());
+    }
+
+    // Device configs store the enum as its number; accept the name as well.
+    private static bool IsQuit(JsonElement value) =>
+        (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out int number) && number == (int)CloseButtonBehavior.Quit)
+        || (value.ValueKind == JsonValueKind.String && string.Equals(value.GetString(), nameof(CloseButtonBehavior.Quit), StringComparison.OrdinalIgnoreCase));
+
     /// <summary>
     /// Migration from the per-device field: true when any device config on disk, connected or
-    /// not, holds <paramref name="kind"/> for <paramref name="key"/>. Reads the files rather than
+    /// not, has a <paramref name="key"/> value that matches <paramref name="match"/>. Reads the files rather than
     /// the loaded configs because at start-up only the devices that have enumerated are loaded.
     /// </summary>
-    private static bool AnyDeviceConfigHas(string key, JsonValueKind kind)
+    private static bool AnyDeviceConfigHas(string key, Func<JsonElement, bool> match)
     {
         try
         {
@@ -41,7 +67,7 @@ public static class WindowSettings
                     using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(path));
                     if (doc.RootElement.ValueKind == JsonValueKind.Object
                         && doc.RootElement.TryGetProperty(key, out JsonElement value)
-                        && (value.ValueKind == kind))
+                        && match(value))
                         return true;
                 }
                 catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
