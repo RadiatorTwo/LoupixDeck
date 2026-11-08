@@ -126,6 +126,16 @@
                         </Grid>
                     </Button>
 
+                    <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=LayerDefaults}"
+                            Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.LayerDefaults}">
+                        <Grid ColumnDefinitions="6,Auto,*">
+                            <Border Grid.Column="0" Classes="nav-accent" />
+                            <!-- mdi-layers -->
+                            <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF0328;" Margin="6,0,0,0"/>
+                            <TextBlock Grid.Column="2" Classes="nav-label" Text="{loc:Tr Settings_LayerDefaults}" />
+                        </Grid>
+                    </Button>
+
                     <TextBlock Classes="section-header" Text="{loc:Tr Settings_APP}" />
                     <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=About}"
                             Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.About}">
@@ -335,25 +345,6 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Default font for new text layers; global like the language. -->
-                    <Border Classes="card">
-                        <StackPanel>
-                            <TextBlock Classes="card-title" Text="{loc:Tr Settings_TextLayers}" />
-                            <TextBlock Classes="label" Text="{loc:Tr Settings_DefaultFont}" />
-                            <ComboBox Margin="0,4,0,0" MinWidth="240"
-                                      ItemsSource="{Binding FontChoices}"
-                                      SelectedItem="{Binding SelectedDefaultFontChoice, Mode=TwoWay}">
-                                <ComboBox.ItemTemplate>
-                                    <DataTemplate x:DataType="utils:FontChoice">
-                                        <TextBlock Text="{Binding Title}" />
-                                    </DataTemplate>
-                                </ComboBox.ItemTemplate>
-                            </ComboBox>
-                            <TextBlock Classes="hint" Margin="0,8,0,0"
-                                       Text="{loc:Tr Settings_DefaultFontHint}" />
-                        </StackPanel>
-                    </Border>
-
                     <!-- Startup card -->
                     <Border Classes="card">
                         <StackPanel>
@@ -395,6 +386,142 @@
                             <CheckBox Content="{loc:Tr Settings_StartMinimizedToTray}"
                                       HorizontalAlignment="Left" Margin="0,10,0,0"
                                       IsChecked="{Binding StartMinimizedToTray, Mode=TwoWay}" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- ====== Layer defaults ====== -->
+                <!-- Global like the language: the look new layers start with (issue #564). -->
+                <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=LayerDefaults}">
+                    <TextBlock Classes="page-title" Text="{loc:Tr Settings_LayerDefaults}" />
+
+                    <!-- Default font for new text layers; global like the language. -->
+                    <Border Classes="card">
+                        <StackPanel>
+                            <TextBlock Classes="card-title" Text="{loc:Tr Settings_TextLayers}" />
+                            <TextBlock Classes="label" Text="{loc:Tr Settings_DefaultFont}" />
+                            <ComboBox Margin="0,4,0,0" MinWidth="240"
+                                      ItemsSource="{Binding FontChoices}"
+                                      SelectedItem="{Binding SelectedDefaultFontChoice, Mode=TwoWay}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="utils:FontChoice">
+                                        <TextBlock Text="{Binding Title}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <TextBlock Classes="hint" Margin="0,8,0,0"
+                                       Text="{loc:Tr Settings_DefaultFontHint}" />
+
+                            <!-- Size, position and style new text layers start with (issue #564). -->
+                            <CheckBox Content="{loc:Tr Settings_TextDefaultsEnabled}" Margin="0,16,0,0"
+                                      IsChecked="{Binding TextDefaults.Enabled, Mode=TwoWay}" />
+                            <Grid ColumnDefinitions="Auto,12,Auto,12,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+                                  RowSpacing="8" Margin="0,8,0,0" IsEnabled="{Binding TextDefaults.Enabled}">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" VerticalAlignment="Center"
+                                           Text="{loc:Tr TouchButton_Size}" />
+                                <NumericUpDown Grid.Row="0" Grid.Column="2" Width="120" Minimum="4" Maximum="80"
+                                               Increment="1" FormatString="0"
+                                               Value="{Binding TextDefaults.TextSize, Mode=TwoWay}" />
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" VerticalAlignment="Center"
+                                           Text="{loc:Tr Settings_PositionFromCentre}" />
+                                <NumericUpDown Grid.Row="1" Grid.Column="2" Width="120" Minimum="-90" Maximum="90"
+                                               Increment="1" FormatString="0"
+                                               Value="{Binding TextDefaults.PositionX, Mode=TwoWay}" />
+                                <NumericUpDown Grid.Row="1" Grid.Column="4" Width="120" Minimum="-90" Maximum="90"
+                                               Increment="1" FormatString="0"
+                                               Value="{Binding TextDefaults.PositionY, Mode=TwoWay}" />
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" VerticalAlignment="Center"
+                                           Text="{loc:Tr TouchButton_Color}" />
+                                <ColorPicker Grid.Row="2" Grid.Column="2" Width="120" HorizontalAlignment="Left"
+                                             Color="{Binding TextDefaults.TextColor, Mode=TwoWay}" />
+
+                                <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="5" Orientation="Horizontal"
+                                            Spacing="16">
+                                    <CheckBox Content="{loc:Tr TouchButton_Bold}"
+                                              IsChecked="{Binding TextDefaults.Bold, Mode=TwoWay}" />
+                                    <CheckBox Content="{loc:Tr TouchButton_Italic}"
+                                              IsChecked="{Binding TextDefaults.Italic, Mode=TwoWay}" />
+                                </StackPanel>
+
+                                <CheckBox Grid.Row="4" Grid.Column="0" Content="{loc:Tr TouchButton_Outline}"
+                                          IsChecked="{Binding TextDefaults.Outlined, Mode=TwoWay}" />
+                                <ColorPicker Grid.Row="4" Grid.Column="2" Width="120" HorizontalAlignment="Left"
+                                             IsEnabled="{Binding TextDefaults.Outlined}"
+                                             Color="{Binding TextDefaults.OutlineColor, Mode=TwoWay}" />
+                            </Grid>
+                            <TextBlock Classes="hint" Margin="0,8,0,0" TextWrapping="Wrap"
+                                       Text="{loc:Tr Settings_LayerDefaultsHint}" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Size, position and style new symbol and image layers start with (issue #564). -->
+                    <Border Classes="card">
+                        <StackPanel>
+                            <TextBlock Classes="card-title" Text="{loc:Tr Settings_IconLayers}" />
+                            <CheckBox Content="{loc:Tr Settings_IconDefaultsEnabled}"
+                                      IsChecked="{Binding IconDefaults.Enabled, Mode=TwoWay}" />
+                            <Grid ColumnDefinitions="Auto,12,Auto,12,Auto"
+                                  RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                                  RowSpacing="8" Margin="0,8,0,0" IsEnabled="{Binding IconDefaults.Enabled}">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" VerticalAlignment="Center"
+                                           Text="{loc:Tr Settings_IconSizePercent}" />
+                                <NumericUpDown Grid.Row="0" Grid.Column="2" Width="120" Minimum="5" Maximum="100"
+                                               Increment="1" FormatString="0"
+                                               Value="{Binding IconDefaults.SizePercent, Mode=TwoWay}" />
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" VerticalAlignment="Center"
+                                           Text="{loc:Tr Settings_PositionFromCentre}" />
+                                <NumericUpDown Grid.Row="1" Grid.Column="2" Width="120" Minimum="-90" Maximum="90"
+                                               Increment="1" FormatString="0"
+                                               Value="{Binding IconDefaults.PositionX, Mode=TwoWay}" />
+                                <NumericUpDown Grid.Row="1" Grid.Column="4" Width="120" Minimum="-90" Maximum="90"
+                                               Increment="1" FormatString="0"
+                                               Value="{Binding IconDefaults.PositionY, Mode=TwoWay}" />
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" VerticalAlignment="Center"
+                                           Text="{loc:Tr TouchButton_Tint}" />
+                                <ColorPicker Grid.Row="2" Grid.Column="2" Width="120" HorizontalAlignment="Left"
+                                             Color="{Binding IconDefaults.Tint, Mode=TwoWay}" />
+
+                                <CheckBox Grid.Row="3" Grid.Column="0" Content="{loc:Tr TouchButton_GradientFill}"
+                                          IsChecked="{Binding IconDefaults.UseGradient, Mode=TwoWay}" />
+                                <StackPanel Grid.Row="3" Grid.Column="2" Grid.ColumnSpan="3" Orientation="Horizontal"
+                                            Spacing="8" IsEnabled="{Binding IconDefaults.UseGradient}">
+                                    <TextBlock Classes="label" VerticalAlignment="Center" Text="{loc:Tr TouchButton_From}" />
+                                    <ColorPicker Width="100" Color="{Binding IconDefaults.GradientStartColor, Mode=TwoWay}" />
+                                    <TextBlock Classes="label" VerticalAlignment="Center" Text="{loc:Tr TouchButton_To}" />
+                                    <ColorPicker Width="100" Color="{Binding IconDefaults.GradientEndColor, Mode=TwoWay}" />
+                                </StackPanel>
+
+                                <TextBlock Grid.Row="4" Grid.Column="0" Classes="label" VerticalAlignment="Center"
+                                           Text="{loc:Tr TouchButton_Angle}" />
+                                <NumericUpDown Grid.Row="4" Grid.Column="2" Width="120" Minimum="0" Maximum="360"
+                                               Increment="5" FormatString="0"
+                                               IsEnabled="{Binding IconDefaults.UseGradient}"
+                                               Value="{Binding IconDefaults.GradientAngle, Mode=TwoWay}" />
+
+                                <CheckBox Grid.Row="5" Grid.Column="0" Content="{loc:Tr TouchButton_Outline}"
+                                          IsChecked="{Binding IconDefaults.Outlined, Mode=TwoWay}" />
+                                <ColorPicker Grid.Row="5" Grid.Column="2" Width="120" HorizontalAlignment="Left"
+                                             IsEnabled="{Binding IconDefaults.Outlined}"
+                                             Color="{Binding IconDefaults.OutlineColor, Mode=TwoWay}" />
+
+                                <TextBlock Grid.Row="6" Grid.Column="0" Classes="label" VerticalAlignment="Center"
+                                           Text="{loc:Tr TouchButton_Width}" />
+                                <NumericUpDown Grid.Row="6" Grid.Column="2" Width="120" Minimum="0.5" Maximum="20"
+                                               Increment="0.5" FormatString="0.0"
+                                               IsEnabled="{Binding IconDefaults.Outlined}"
+                                               Value="{Binding IconDefaults.OutlineWidth, Mode=TwoWay}" />
+
+                                <CheckBox Grid.Row="7" Grid.Column="0" Content="{loc:Tr TouchButton_Shadow}"
+                                          IsChecked="{Binding IconDefaults.Shadow, Mode=TwoWay}" />
+                            </Grid>
+                            <TextBlock Classes="hint" Margin="0,8,0,0" TextWrapping="Wrap"
+                                       Text="{loc:Tr Settings_IconDefaultsHint}" />
+                            <TextBlock Classes="hint" Margin="0,4,0,0" TextWrapping="Wrap"
+                                       Text="{loc:Tr Settings_LayerDefaultsHint}" />
                         </StackPanel>
                     </Border>
                 </StackPanel>

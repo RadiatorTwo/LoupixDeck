@@ -699,11 +699,74 @@ public partial class TouchButtonSettings : Window
             vm.ClearWheelHover();
     }
 
+    /// <summary>Right-click on a row of the layer list: selects that layer and opens its menu.</summary>
+    private void LayerList_ContextRequested(object sender, ContextRequestedEventArgs e)
+    {
+        if (DataContext is not TouchButtonSettingsViewModel vm) return;
+
+        if ((e.Source as Visual)?.FindAncestorOfType<ListBoxItem>(includeSelf: true)?.DataContext is not LayerBase layer)
+            return;
+
+        vm.SelectedLayer = layer;
+        e.Handled = ShowLayerMenu(vm, (Control)sender);
+    }
+
+    /// <summary>
+    /// The context menu of the selected layer, shared by the layer list and the preview: take it as the
+    /// default for new layers, move it up or down, delete it. Opens nothing without a selected layer.
+    /// </summary>
+    private static bool ShowLayerMenu(TouchButtonSettingsViewModel vm, Control target)
+    {
+        if (!vm.HasSelectedLayer || !vm.CanEditCanvas) return false;
+
+        MenuFlyout menu = new();
+
+        if (vm.CanUseLayerAsDefault)
+        {
+            MenuItem useAsDefault = new()
+            {
+                Header = Loc.Tr("TouchButton_UseAsLayerDefault"),
+                Command = vm.UseLayerAsDefaultCommand
+            };
+            ToolTip.SetTip(useAsDefault, Loc.Tr("TouchButton_UseAsLayerDefaultHint"));
+            menu.Items.Add(useAsDefault);
+            menu.Items.Add(new Separator());
+        }
+
+        menu.Items.Add(new MenuItem { Header = Loc.Tr("TouchButton_MoveLayerUp"), Command = vm.MoveLayerUpCommand });
+        menu.Items.Add(new MenuItem { Header = Loc.Tr("TouchButton_MoveLayerDown"), Command = vm.MoveLayerDownCommand });
+        menu.Items.Add(new Separator());
+        menu.Items.Add(new MenuItem
+        {
+            Header = Loc.Tr("TouchButton_DeleteLayer"),
+            Command = vm.RemoveLayerCommand,
+            IsEnabled = vm.CanDeleteSelectedLayer
+        });
+
+        menu.ShowAt(target, showAtPointer: true);
+        return true;
+    }
+
     private void Editor_PointerPressed(object sender, PointerPressedEventArgs e)
     {
         if (DataContext is not TouchButtonSettingsViewModel vm || vm.ButtonData == null) return;
 
         var pos = e.GetPosition(EditorRoot);
+
+        // Right-click selects the layer under the pointer and opens its menu instead of dragging it.
+        if (e.GetCurrentPoint(EditorRoot).Properties.IsRightButtonPressed)
+        {
+            LayerBase hit = vm.SelectedLayer != null &&
+                            IsInside(pos, vm.SelectionLeft, vm.SelectionTop, vm.SelectionWidth, vm.SelectionHeight)
+                ? vm.SelectedLayer
+                : HitTestLayer(vm, pos);
+            if (hit == null) return;
+
+            vm.SelectedLayer = hit;
+            ShowLayerMenu(vm, EditorRoot);
+            e.Handled = true;
+            return;
+        }
 
         // 1) Handle hit-test — only meaningful for layers that show handles
         //    (suppressed for text layers via ScaleHandlesVisible).

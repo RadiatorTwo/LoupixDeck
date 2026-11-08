@@ -440,6 +440,7 @@
                              minimum, so the list keeps its own scrolling. -->
                         <controls:FillRemainingDecorator Grid.Row="5" Name="LayerListHost" MinHeight="120">
                             <ListBox IsEnabled="{Binding CanEditCanvas}"
+                                     ContextRequested="LayerList_ContextRequested"
                                      ItemsSource="{Binding LayerListItems}"
                                      SelectedItem="{Binding SelectedLayer, Mode=TwoWay}"
                                      Background="{DynamicResource AppSurfaceLow}"
@@ -1430,6 +1431,11 @@
                                     </DataTemplate>
                                 </ContentControl.DataTemplates>
                                     </ContentControl>
+
+                                    <!-- Confirms the layer context menu's "Use as default for new layers". -->
+                                    <TextBlock Classes="hint" Margin="0,12,0,0" TextWrapping="Wrap"
+                                               Text="{loc:Tr TouchButton_UsedAsLayerDefault}"
+                                               IsVisible="{Binding LayerDefaultTaken}" />
                                 </StackPanel>
                             </Border>
                         </StackPanel>

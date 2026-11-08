@@ -980,9 +980,28 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             OnPropertyChanged(nameof(HasSelectedLayer));
             OnPropertyChanged(nameof(ShowStateProperties));
             OnPropertyChanged(nameof(SelectedLayerDialHint));
+            OnPropertyChanged(nameof(CanUseLayerAsDefault));
+            LayerDefaultTaken = false;
             UpdateSelectionBounds();
         }
     }
+
+    /// <summary>
+    /// True for a text, symbol or image layer on a key. The defaults are laid out for a key, so a
+    /// layer on a side strip does not offer them.
+    /// </summary>
+    public bool CanUseLayerAsDefault => !IsStripCanvas && _selectedLayer is TextLayer or SymbolLayer or ImageLayer;
+
+    /// <summary>Takes the selected layer's size, position and style as the defaults for new layers (Settings).</summary>
+    public IRelayCommand UseLayerAsDefaultCommand => field ??= Relay.Create(() =>
+    {
+        if (CanUseLayerAsDefault && LayerDefaults.TakeFrom(_selectedLayer, DeviceWidth, DeviceHeight))
+            LayerDefaultTaken = true;
+    });
+
+    /// <summary>True right after the selected layer was taken as the default, so the editor can say so.</summary>
+    [ObservableProperty]
+    public partial bool LayerDefaultTaken { get; set; }
 
     public ImageLayer SelectedImageLayer => _selectedLayer as ImageLayer;
     public TextLayer SelectedTextLayer => _selectedLayer as TextLayer;
@@ -1593,6 +1612,8 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         };
 
         ApplyInitialStripHeightFit(layer, layer.CachedImage?.Width ?? 0, layer.CachedImage?.Height ?? 0);
+        if (!IsStripCanvas)
+            LayerDefaults.ApplyToNewIcon(layer, DeviceWidth, DeviceHeight);
 
         AddLayer(layer);
         SelectedLayer = layer;
@@ -1707,6 +1728,11 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             BoxWidth = box,
             BoxHeight = box
         };
+
+        // The defaults from Settings are laid out for a key, not for a side strip.
+        if (!IsStripCanvas)
+            LayerDefaults.ApplyToNewText(layer, DeviceWidth, DeviceHeight);
+
         AddLayer(layer);
         SelectedLayer = layer;
     }
@@ -1743,6 +1769,9 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
         SymbolLayer layer = await _buttonTemplates.PickSymbolLayerAsync(ButtonData.Layers);
         if (layer == null) return;
+
+        if (!IsStripCanvas)
+            LayerDefaults.ApplyToNewIcon(layer, DeviceWidth, DeviceHeight);
 
         AddLayer(layer);
         SelectedLayer = layer;
@@ -1856,6 +1885,10 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             layer.Scale = Services.AppLauncher.AppAssignment.IconScaleFor(
                 Services.AppLauncher.AppAssignment.StripIconSizePx, Math.Min(DeviceWidth, DeviceHeight));
             layer.PositionY = (int)Math.Round(((segment + 0.5) * zoneHeight) - (DeviceHeight / 2.0));
+        }
+        else if (!IsStripCanvas)
+        {
+            LayerDefaults.ApplyToNewIcon(layer, DeviceWidth, DeviceHeight);
         }
 
         layer.CachedImage = _assetService.Load(relative);
