@@ -247,6 +247,7 @@ public partial class App : Application
                     ShowWhenConnected(shell, host, vm);
 
                     host.Provider.GetRequiredService<IDynamicTextManager>().Start();
+                    host.Provider.GetRequiredService<Services.ProcessWatch.IRunningIndicatorManager>().Start();
                     host.Provider.GetRequiredService<Services.Animation.IButtonAnimationManager>().Start();
                     host.Provider.GetRequiredService<Services.Animation.ISideDisplayAnimationManager>().Start();
                     host.Provider.GetRequiredService<Services.Animation.IWheelAnimationManager>().Start();
@@ -394,6 +395,7 @@ public partial class App : Application
         // tab waits for the link exactly as it does at startup.
         ShowWhenConnected(_shell, host, vm);
         provider.GetRequiredService<IDynamicTextManager>().Start();
+        provider.GetRequiredService<Services.ProcessWatch.IRunningIndicatorManager>().Start();
         provider.GetRequiredService<Services.Animation.IButtonAnimationManager>().Start();
         provider.GetRequiredService<Services.Animation.ISideDisplayAnimationManager>().Start();
         provider.GetRequiredService<Services.Animation.IWheelAnimationManager>().Start();
@@ -415,6 +417,7 @@ public partial class App : Application
         catch (Exception ex) { Console.WriteLine($"[HotPlug] controller shutdown failed: {ex.Message}"); }
 
         (host.Provider.GetService(typeof(IDynamicTextManager)) as IDisposable)?.Dispose();
+        (host.Provider.GetService(typeof(Services.ProcessWatch.IRunningIndicatorManager)) as IDisposable)?.Dispose();
         (host.Provider.GetService(typeof(Services.Animation.IButtonAnimationManager)) as IDisposable)?.Dispose();
         (host.Provider.GetService(typeof(Services.Animation.ISideDisplayAnimationManager)) as IDisposable)?.Dispose();
         (host.Provider.GetService(typeof(Services.Animation.IWheelAnimationManager)) as IDisposable)?.Dispose();

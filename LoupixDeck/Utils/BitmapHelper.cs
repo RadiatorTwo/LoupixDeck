@@ -1338,6 +1338,7 @@ public static class BitmapHelper
             DrawTouchButtonContent(canvas, touchButton, wallpaperToUse, opacityToUse, wallpaperSource, width, height,
                 ShowsFolderBadges(config), value is { } v ? new DialRenderContext(null, v) : null);
             DrawUnavailableOverlay(canvas, touchButton, width, height);
+            DrawRunningIndicator(canvas, touchButton, width, height);
         }
 
         touchButton.RenderedDisplayValue = value;
@@ -1397,6 +1398,7 @@ public static class BitmapHelper
                 canvas.DrawBitmap(layers, new SKRect(0, 0, layers.Width, layers.Height),
                     new SKRect(0, 0, width, height), SKSamplingOptions.Default, paint: null);
             DrawUnavailableOverlay(canvas, touchButton, width, height);
+            DrawRunningIndicator(canvas, touchButton, width, height);
         }
 
         touchButton.RenderedDisplayValue = value;
@@ -1489,6 +1491,7 @@ public static class BitmapHelper
             DrawLayers(canvas, [animated], width, height, dial);
             canvas.DrawBitmap(cache.Over, keyRect, SKSamplingOptions.Default);
             DrawUnavailableOverlay(canvas, touchButton, width, height);
+            DrawRunningIndicator(canvas, touchButton, width, height);
         }
 
         touchButton.RenderedDisplayValue = value;
@@ -1580,6 +1583,7 @@ public static class BitmapHelper
                 DrawTouchButtonContent(canvas, touchButton, wallpaperToUse, opacityToUse, wallpaperSource, width, height,
                     ShowsFolderBadges(config), touchButton.ValueContext);
                 DrawUnavailableOverlay(canvas, touchButton, width, height);
+                DrawRunningIndicator(canvas, touchButton, width, height);
             });
         }
     }
@@ -1718,6 +1722,58 @@ public static class BitmapHelper
         float margin = 5 * unit;
         DrawSymbolGlyph(canvas, "link-off", SKRect.Create(width - size - margin, height - size - margin, size, size),
             SKColors.White);
+    }
+
+    /// <summary>
+    /// Draws the running dot of an application key (issue #568) in the bottom-left corner: green
+    /// while the launched program runs, orange while it has focus. Drawn over the finished key like
+    /// <see cref="DrawUnavailableOverlay"/>, so no cached part holds a stale dot.
+    /// Must be called under <see cref="SkiaRenderGate"/>.Sync.
+    /// </summary>
+    private static void DrawRunningIndicator(SKCanvas canvas, TouchButton touchButton, int width, int height)
+    {
+        SKColor color;
+        switch (touchButton.RunningIndicator)
+        {
+            // Vivid colours far apart in hue: a small dot on a key LCD loses subtle differences.
+            case RunningIndicatorState.Running:
+                color = new SKColor(0x00, 0xFF, 0x3C);
+                break;
+            case RunningIndicatorState.Active:
+                color = new SKColor(0xFF, 0x91, 0x00);
+                break;
+            default:
+                return;
+        }
+
+        if (touchButton.IsFolderBackSlot) return;
+
+        float unit = Math.Min(width, height) / 90f;
+        float radius = 6 * unit;
+        float ring = Math.Max(1.5f, 2f * unit);
+        float edge = Math.Max(1f, unit);
+        float outer = radius + ring + edge;
+
+        // Inset from the corner so the dot sits on the key rather than in its very edge. The
+        // centre is snapped to a pixel centre, so the rim is antialiased the same on every side.
+        float margin = 12 * unit;
+        float centerX = MathF.Floor(margin + outer) + 0.5f;
+        float centerY = MathF.Floor(height - margin - outer) + 0.5f;
+
+        // Filled discs stacked from the outside in, rather than strokes: each edge is antialiased
+        // once against a solid colour, where overlapping thin strokes blend into a frayed rim.
+        // The white ring sets the colour apart from the key; the dark edge keeps the ring
+        // visible on a light key.
+        using var paint = new SKPaint();
+        paint.IsAntialias = true;
+        paint.Style = SKPaintStyle.Fill;
+
+        paint.Color = new SKColor(0, 0, 0, 200);
+        canvas.DrawCircle(centerX, centerY, outer, paint);
+        paint.Color = SKColors.White;
+        canvas.DrawCircle(centerX, centerY, radius + ring, paint);
+        paint.Color = color;
+        canvas.DrawCircle(centerX, centerY, radius, paint);
     }
 
     /// <summary>

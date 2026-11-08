@@ -2,6 +2,7 @@ using System.Diagnostics;
 using LoupixDeck.Commands.Base;
 using LoupixDeck.Services.AppActivation;
 using LoupixDeck.Services.AppLauncher;
+using LoupixDeck.Services.ProcessWatch;
 using LoupixDeck.Utils;
 
 namespace LoupixDeck.Commands;
@@ -29,43 +30,56 @@ namespace LoupixDeck.Commands;
 /// for launcher URIs. Both are optional, so a command saved with the target alone keeps
 /// launching every time, as before.
 /// </para>
+/// <para>
+/// "Show Running Indicator" (issue #568) has no effect on what a press does: it tells
+/// <c>RunningIndicatorManager</c> to draw a dot on the key while the application runs.
+/// </para>
 /// </remarks>
 [Command(
-    "System.LaunchApp",
+    LaunchAppCommand.CommandName,
     "Launch Application",
     "Shell",
-    "({Target}, {Single Instance}, {Process Name})",
-    ["Target", "Single Instance", "Process Name"],
-    [typeof(string), typeof(bool), typeof(string)],
+    "({Target}, {Single Instance}, {Process Name}, {Show Running Indicator})",
+    ["Target", "Single Instance", "Process Name", "Show Running Indicator"],
+    [typeof(string), typeof(bool), typeof(string), typeof(bool)],
     Platform = CommandPlatform.All,
     Hidden = true,
     Description = "Start an installed application")]
-public sealed class LaunchAppCommand(IAppWindowActivator activator) : IExecutableCommand
+public sealed class LaunchAppCommand(IAppWindowActivator activator, IProcessWatcher processWatcher)
+    : IExecutableCommand
 {
+    public const string CommandName = "System.LaunchApp";
+
     public async Task Execute(string[] parameters)
     {
-        if (parameters.Length is < 1 or > 3)
+        if (parameters.Length is < 1 or > 4)
         {
-            Console.WriteLine("Usage: System.LaunchApp(target[, singleInstance[, processName]])");
+            Console.WriteLine("Usage: System.LaunchApp(target[, singleInstance[, processName[, showRunningIndicator]]])");
             return;
         }
 
-        string target = CommandParameterEncoding.Decode(parameters[0]);
+        LaunchAppSpec spec = LaunchAppSpec.FromParameters(parameters);
+        string target = spec.Target;
         if (string.IsNullOrWhiteSpace(target))
         {
             Console.WriteLine("System.LaunchApp: empty target");
             return;
         }
 
-        bool singleInstance = parameters.Length > 1 && bool.TryParse(parameters[1], out bool flag) && flag;
-        string processName = parameters.Length > 2 ? CommandParameterEncoding.Decode(parameters[2]) : null;
+        string processName = spec.ProcessName;
 
         try
         {
-            if (singleInstance && await HandledByRunningInstanceAsync(target, processName))
+            if (spec.SingleInstance && await HandledByRunningInstanceAsync(target, processName))
                 return;
 
             Launch(target);
+
+            // An application that starts minimized never takes focus, so the running indicator
+            // would not learn about it from a focus change; tell it once instead.
+            string watched = spec.ResolveProcessName();
+            if (!string.IsNullOrEmpty(watched))
+                processWatcher.NotifyLaunched(watched);
         }
         catch (Exception ex)
         {
@@ -85,9 +99,7 @@ public sealed class LaunchAppCommand(IAppWindowActivator activator) : IExecutabl
         if (OperatingSystem.IsMacOS() && IsMacBundle(target) && string.IsNullOrWhiteSpace(processName))
             return false;
 
-        string name = string.IsNullOrWhiteSpace(processName)
-            ? LaunchTargetProcess.Guess(target)
-            : processName.Trim();
+        string name = LaunchAppSpec.ResolveProcessName(target, processName);
         if (string.IsNullOrEmpty(name))
         {
             Console.WriteLine($"System.LaunchApp: no process name for '{target}', launching without the single-instance check.");

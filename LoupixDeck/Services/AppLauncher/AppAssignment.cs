@@ -45,14 +45,15 @@ public static class AppAssignment
         => surfaceSizePx <= 0 ? 1.0 : Math.Clamp(iconSizePx / (double)surfaceSizePx, 0.05, 1.0);
 
     /// <summary>Builds the command string that launches <paramref name="app"/>, with the target
-    /// escaped so it survives <see cref="CommandStringParser"/>. Single Instance starts off — the
-    /// button keeps launching every time until the user ticks it — but the process name is filled
+    /// escaped so it survives <see cref="CommandStringParser"/>. Single Instance and the running
+    /// indicator start off — the button keeps launching every time and shows no dot until the
+    /// user ticks them — but the process name is filled
     /// in now, while discovery still knows the executable behind a launcher URI.</summary>
     public static string BuildLaunchCommand(InstalledApp app)
     {
         string processName = LaunchTargetProcess.Guess(app.Target, app.IconExtractSource);
         return $"System.LaunchApp({CommandParameterEncoding.Encode(app.Target)}, False, " +
-               $"{CommandParameterEncoding.Encode(processName)})";
+               $"{CommandParameterEncoding.Encode(processName)}, False)";
     }
 
     /// <summary>
