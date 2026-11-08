@@ -1430,6 +1430,17 @@
                                     </DataTemplate>
                                 </ContentControl.DataTemplates>
                                     </ContentControl>
+
+                                    <!-- Takes this layer's look as the defaults for new layers (Settings > Layer defaults). -->
+                                    <StackPanel IsVisible="{Binding CanUseLayerAsDefault}" Margin="0,12,0,0">
+                                        <Button Classes="toolbar" HorizontalAlignment="Stretch"
+                                                Content="{loc:Tr TouchButton_UseAsLayerDefault}"
+                                                ToolTip.Tip="{loc:Tr TouchButton_UseAsLayerDefaultHint}"
+                                                Command="{Binding UseLayerAsDefaultCommand}" />
+                                        <TextBlock Classes="hint" Margin="0,4,0,0" TextWrapping="Wrap"
+                                                   Text="{loc:Tr TouchButton_UsedAsLayerDefault}"
+                                                   IsVisible="{Binding LayerDefaultTaken}" />
+                                    </StackPanel>
                                 </StackPanel>
                             </Border>
                         </StackPanel>

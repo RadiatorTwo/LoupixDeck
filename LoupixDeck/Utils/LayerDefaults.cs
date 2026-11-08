@@ -153,6 +153,70 @@ public static class LayerDefaults
     }
 
     /// <summary>
+    /// Takes the size, position and style of <paramref name="layer"/>, drawn on a key of the given size,
+    /// as the defaults for new layers of its kind, and turns those defaults on. A text layer also sets
+    /// the default font; an image layer only the size and position, as it has no style.
+    /// </summary>
+    /// <returns>False for a layer kind that has no defaults.</returns>
+    public static bool TakeFrom(LayerBase layer, int keyWidthPx, int keyHeightPx)
+    {
+        double scaleX = ScaleFactor(keyWidthPx);
+        double scaleY = ScaleFactor(keyHeightPx);
+
+        switch (layer)
+        {
+            case TextLayer source:
+            {
+                TextLayerDefaults text = Text;
+                text.TextSize = Math.Max(1, (int)Math.Round(source.TextSize / scaleY));
+                text.PositionX = (int)Math.Round(source.PositionX / scaleX);
+                text.PositionY = (int)Math.Round(source.PositionY / scaleY);
+                text.TextColor = source.TextColor;
+                text.Bold = source.Bold;
+                text.Italic = source.Italic;
+                text.Outlined = source.Outlined;
+                text.OutlineColor = source.OutlineColor;
+                text.Enabled = true;
+                if (!string.IsNullOrEmpty(source.FontFamily))
+                    TextFontSettings.DefaultFamily = source.FontFamily;
+                return true;
+            }
+
+            case SymbolLayer or ImageLayer:
+            {
+                IconLayerDefaults icon = Icon;
+                double shortEdge = Math.Min(keyWidthPx, keyHeightPx);
+                double size = shortEdge > 0
+                    && BitmapHelper.GetLayerDeviceRect(layer, keyWidthPx, keyHeightPx) is { Width: > 0, Height: > 0 } drawn
+                    ? Math.Max(drawn.Width, drawn.Height) / shortEdge
+                    : Math.Max(layer.EffectiveScaleX, layer.EffectiveScaleY);
+                icon.SizePercent = Math.Clamp((int)Math.Round(size * 100), 5, 100);
+                icon.PositionX = (int)Math.Round(layer.PositionX / scaleX);
+                icon.PositionY = (int)Math.Round(layer.PositionY / scaleY);
+
+                if (layer is SymbolLayer symbol)
+                {
+                    icon.Tint = symbol.Tint;
+                    icon.UseGradient = symbol.UseGradient;
+                    icon.GradientStartColor = symbol.GradientStartColor;
+                    icon.GradientEndColor = symbol.GradientEndColor;
+                    icon.GradientAngle = symbol.GradientAngle;
+                    icon.Outlined = symbol.Outlined;
+                    icon.OutlineColor = symbol.OutlineColor;
+                    icon.OutlineWidth = symbol.OutlineWidth;
+                    icon.Shadow = symbol.Shadow;
+                }
+
+                icon.Enabled = true;
+                return true;
+            }
+
+            default:
+                return false;
+        }
+    }
+
+    /// <summary>
     /// Sets up a text layer the button editor adds on its own: default size, position and style on a
     /// key of the given size. The layer's box is left as the editor made it.
     /// </summary>

@@ -980,9 +980,28 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             OnPropertyChanged(nameof(HasSelectedLayer));
             OnPropertyChanged(nameof(ShowStateProperties));
             OnPropertyChanged(nameof(SelectedLayerDialHint));
+            OnPropertyChanged(nameof(CanUseLayerAsDefault));
+            LayerDefaultTaken = false;
             UpdateSelectionBounds();
         }
     }
+
+    /// <summary>
+    /// True for a text, symbol or image layer on a key. The defaults are laid out for a key, so a
+    /// layer on a side strip does not offer them.
+    /// </summary>
+    public bool CanUseLayerAsDefault => !IsStripCanvas && _selectedLayer is TextLayer or SymbolLayer or ImageLayer;
+
+    /// <summary>Takes the selected layer's size, position and style as the defaults for new layers (Settings).</summary>
+    public IRelayCommand UseLayerAsDefaultCommand => field ??= Relay.Create(() =>
+    {
+        if (CanUseLayerAsDefault && LayerDefaults.TakeFrom(_selectedLayer, DeviceWidth, DeviceHeight))
+            LayerDefaultTaken = true;
+    });
+
+    /// <summary>True right after the selected layer was taken as the default, so the editor can say so.</summary>
+    [ObservableProperty]
+    public partial bool LayerDefaultTaken { get; set; }
 
     public ImageLayer SelectedImageLayer => _selectedLayer as ImageLayer;
     public TextLayer SelectedTextLayer => _selectedLayer as TextLayer;
