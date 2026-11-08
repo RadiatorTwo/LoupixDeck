@@ -18,6 +18,7 @@ using LoupixDeck.Services.IconPacks;
 using LoupixDeck.Services.Macros;
 using LoupixDeck.Services.Mouse;
 using LoupixDeck.Services.Plugins;
+using LoupixDeck.Services.ProcessWatch;
 using LoupixDeck.Services.SystemPower;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels;
@@ -233,6 +234,10 @@ public static class ServiceCollectionExtensions
         else
             collection.AddSingleton<IAppWindowActivator, NoOpAppWindowActivator>();
 
+        // Process lookups and kernel exit notification for the running dot of application keys
+        // (issue #568). Root singleton: one exit-watch thread for all devices.
+        collection.AddSingleton<IProcessWatcher, ProcessWatcher>();
+
         // In-app clipboard for button/side-display copy/paste (issue #166). Root singleton so a
         // snapshot copied on one device can be pasted onto another.
         collection.AddSingleton<IButtonClipboardService, ButtonClipboardService>();
@@ -318,6 +323,7 @@ public static class ServiceCollectionExtensions
         collection.Forward<IActiveWindowMonitor>(root);
         collection.Forward<IActiveWindowState>(root);
         collection.Forward<IAppWindowActivator>(root);
+        collection.Forward<IProcessWatcher>(root);
         collection.Forward<IMacroConditionEvaluator>(root);
         collection.Forward<IMacroExecutionRegistry>(root);
         collection.Forward<IMacroPromptService>(root);
