@@ -1735,11 +1735,13 @@ public static class BitmapHelper
         SKColor color;
         switch (touchButton.RunningIndicator)
         {
+            // Vivid colours far apart in brightness as well as hue: a small dot on a key LCD loses
+            // subtle differences, so a bright green and a deep blue stay distinct at a glance.
             case RunningIndicatorState.Running:
-                color = new SKColor(0x4C, 0xAF, 0x50);
+                color = new SKColor(0x00, 0xFF, 0x3C);
                 break;
             case RunningIndicatorState.Active:
-                color = new SKColor(0x21, 0x96, 0xF3);
+                color = new SKColor(0x10, 0x4B, 0xFF);
                 break;
             default:
                 return;
