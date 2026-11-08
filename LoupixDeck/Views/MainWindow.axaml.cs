@@ -380,8 +380,7 @@ public partial class MainWindow : Window
         // Already on the way out (via tray Quit / hamburger Quit) — let it close.
         if (_isQuitting) return;
 
-        var behavior = ViewModel?.SelectedDevice?.LoupedeckController?.Config?.CloseButtonBehavior
-                       ?? CloseButtonBehavior.MinimizeToTray;
+        CloseButtonBehavior behavior = WindowSettings.CloseButtonBehavior;
 
         if (behavior == CloseButtonBehavior.Quit)
         {

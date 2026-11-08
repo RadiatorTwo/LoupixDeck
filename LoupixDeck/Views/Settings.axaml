@@ -382,19 +382,19 @@
                             <TextBlock Classes="label" Text="{loc:Tr Settings_CloseButtonBehavior}" />
                             <RadioButton GroupName="closeBehavior" Content="{loc:Tr Settings_MinimizeToTray}"
                                          HorizontalAlignment="Left" Margin="0,6,0,0"
-                                         IsChecked="{Binding Config.CloseButtonBehavior, Mode=TwoWay,
+                                         IsChecked="{Binding CloseButtonBehavior, Mode=TwoWay,
                                                      Converter={StaticResource EnumToBooleanConverter},
                                                      ConverterParameter={x:Static m:CloseButtonBehavior.MinimizeToTray}}" />
                             <RadioButton GroupName="closeBehavior" Content="{loc:Tr Settings_QuitApplication}"
                                          HorizontalAlignment="Left" Margin="0,4,0,0"
-                                         IsChecked="{Binding Config.CloseButtonBehavior, Mode=TwoWay,
+                                         IsChecked="{Binding CloseButtonBehavior, Mode=TwoWay,
                                                      Converter={StaticResource EnumToBooleanConverter},
                                                      ConverterParameter={x:Static m:CloseButtonBehavior.Quit}}" />
                             <TextBlock Classes="hint" Margin="0,6,0,0"
                                        Text="{loc:Tr Settings_ChooseQuitOnDesktopsWithout}" />
                             <CheckBox Content="{loc:Tr Settings_StartMinimizedToTray}"
                                       HorizontalAlignment="Left" Margin="0,10,0,0"
-                                      IsChecked="{Binding Config.StartMinimizedToTray, Mode=TwoWay}" />
+                                      IsChecked="{Binding StartMinimizedToTray, Mode=TwoWay}" />
                         </StackPanel>
                     </Border>
                 </StackPanel>

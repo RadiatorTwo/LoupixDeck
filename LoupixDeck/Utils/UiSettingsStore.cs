@@ -28,6 +28,12 @@ public static class UiSettingsStore
         return Read(key) is JsonValue value && value.TryGetValue(out bool flag) ? flag : defaultValue;
     }
 
+    /// <summary>True when the file holds <paramref name="key"/>, whatever its value.</summary>
+    public static bool Contains(string key)
+    {
+        return Read(key) is not null;
+    }
+
     public static void Set(string key, string value)
     {
         Write(key, value is null ? null : JsonValue.Create(value));
