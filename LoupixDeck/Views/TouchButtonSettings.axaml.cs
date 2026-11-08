@@ -699,11 +699,57 @@ public partial class TouchButtonSettings : Window
             vm.ClearWheelHover();
     }
 
+    /// <summary>Right-click on a row of the layer list: selects that layer and opens its menu.</summary>
+    private void LayerList_ContextRequested(object sender, ContextRequestedEventArgs e)
+    {
+        if (DataContext is not TouchButtonSettingsViewModel vm) return;
+
+        if ((e.Source as Visual)?.FindAncestorOfType<ListBoxItem>(includeSelf: true)?.DataContext is not LayerBase layer)
+            return;
+
+        vm.SelectedLayer = layer;
+        e.Handled = ShowLayerMenu(vm, (Control)sender);
+    }
+
+    /// <summary>
+    /// The context menu of the selected layer, shared by the layer list and the preview. Opens nothing
+    /// when the layer offers no entry.
+    /// </summary>
+    private static bool ShowLayerMenu(TouchButtonSettingsViewModel vm, Control target)
+    {
+        if (!vm.CanUseLayerAsDefault) return false;
+
+        MenuFlyout menu = new();
+        menu.Items.Add(new MenuItem
+        {
+            Header = Loc.Tr("TouchButton_UseAsLayerDefault"),
+            Command = vm.UseLayerAsDefaultCommand
+        });
+        ToolTip.SetTip((MenuItem)menu.Items[0], Loc.Tr("TouchButton_UseAsLayerDefaultHint"));
+        menu.ShowAt(target, showAtPointer: true);
+        return true;
+    }
+
     private void Editor_PointerPressed(object sender, PointerPressedEventArgs e)
     {
         if (DataContext is not TouchButtonSettingsViewModel vm || vm.ButtonData == null) return;
 
         var pos = e.GetPosition(EditorRoot);
+
+        // Right-click selects the layer under the pointer and opens its menu instead of dragging it.
+        if (e.GetCurrentPoint(EditorRoot).Properties.IsRightButtonPressed)
+        {
+            LayerBase hit = vm.SelectedLayer != null &&
+                            IsInside(pos, vm.SelectionLeft, vm.SelectionTop, vm.SelectionWidth, vm.SelectionHeight)
+                ? vm.SelectedLayer
+                : HitTestLayer(vm, pos);
+            if (hit == null) return;
+
+            vm.SelectedLayer = hit;
+            ShowLayerMenu(vm, EditorRoot);
+            e.Handled = true;
+            return;
+        }
 
         // 1) Handle hit-test — only meaningful for layers that show handles
         //    (suppressed for text layers via ScaleHandlesVisible).
