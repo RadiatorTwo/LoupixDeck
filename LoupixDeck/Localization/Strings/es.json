@@ -1371,7 +1371,7 @@
   "TouchButton_UseAutomaticLayout": "Usar diseño automático",
   "TouchButton_UseAutomaticLayoutHint": "Descarta este diseño y deja que LoupixDeck vuelva a dibujar la pantalla de la rueda.",
   "TextSource_Static": "Texto propio",
-  "TextSource_DialLabel": "Etiqueta de la rueda",
+  "TextSource_DialLabel": "Etiqueta del dial",
   "TextSource_DialValue": "Valor",
   "TextSource_ValueDetail": "Detalle del valor",
   "DialMenu_EditAppearance": "Editar apariencia…",

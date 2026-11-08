@@ -522,6 +522,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         OnPropertyChanged(nameof(SelectedStripProvider));
         OnPropertyChanged(nameof(IsSegmentCommandMode));
         OnPropertyChanged(nameof(CanAddIndicator));
+        OnPropertyChanged(nameof(TextSources));
         OnPropertyChanged(nameof(ShowButtonSection));
         OnPropertyChanged(nameof(ShowCommandArea));
     }
@@ -813,7 +814,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             WheelPreviewLabel(_wheel.DisplayText),
             WheelPreviewValue)
         : IsStripCanvas
-            ? new DialRenderContext(null, KeyPreviewValue)
+            ? new DialRenderContext(WheelPreviewLabel(null), KeyPreviewValue)
             : new DialRenderContext(null, ButtonData?.DisplayValue ?? KeyPreviewValue);
 
     private static readonly IReadOnlyList<TextSource> WheelTextSources = Enum.GetValues<TextSource>();
@@ -823,7 +824,12 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         [TextSource.Static, TextSource.DialValue, TextSource.ValueDetail];
 
     /// <summary>The text sources a text layer on the edited surface can pick from.</summary>
-    public IReadOnlyList<TextSource> TextSources => IsWheelCanvas ? WheelTextSources : KeyTextSources;
+    public IReadOnlyList<TextSource> TextSources =>
+        IsWheelCanvas ? WheelTextSources : IsStripCanvas ? StripTextSources : KeyTextSources;
+
+    // A tap-zone strip layer shows the label and value of the dial beside its zone.
+    private static readonly IReadOnlyList<TextSource> StripTextSources =
+        [TextSource.Static, TextSource.DialLabel, TextSource.DialValue, TextSource.ValueDetail];
 
     public IRelayCommand AddLiveImageLayerCommand => field ??= Relay.Create(AddLiveImageLayer);
     public IRelayCommand AddIndicatorLayerCommand => field ??= Relay.Create(AddIndicatorLayer);

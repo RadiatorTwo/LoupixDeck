@@ -1371,7 +1371,7 @@
   "TouchButton_UseAutomaticLayout": "Automatisches Layout verwenden",
   "TouchButton_UseAutomaticLayoutHint": "Verwirft dieses Layout; LoupixDeck zeichnet den Radbildschirm wieder selbst.",
   "TextSource_Static": "Eigener Text",
-  "TextSource_DialLabel": "Beschriftung des Rads",
+  "TextSource_DialLabel": "Beschriftung des Drehreglers",
   "TextSource_DialValue": "Wert",
   "TextSource_ValueDetail": "Wert-Detail",
   "DialMenu_EditAppearance": "Aussehen bearbeiten…",

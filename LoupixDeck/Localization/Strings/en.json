@@ -1371,7 +1371,7 @@
   "TouchButton_UseAutomaticLayout": "Use automatic layout",
   "TouchButton_UseAutomaticLayoutHint": "Drops this layout and lets LoupixDeck draw the wheel screen itself again.",
   "TextSource_Static": "Own text",
-  "TextSource_DialLabel": "Wheel label",
+  "TextSource_DialLabel": "Dial label",
   "TextSource_DialValue": "Value",
   "TextSource_ValueDetail": "Value detail",
   "DialMenu_EditAppearance": "Edit appearance…",

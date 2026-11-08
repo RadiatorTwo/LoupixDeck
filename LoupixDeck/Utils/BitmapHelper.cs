@@ -3795,9 +3795,9 @@ public static class BitmapHelper
     /// Renders a side strip in free-draw mode: the strip's wallpaper region as the
     /// background, with the page's <see cref="RotaryButtonPage.StripCanvas"/> layers
     /// (image/text/symbol) composited on top across the full 60×270 surface. No per-knob
-    /// labels are drawn, but an indicator layer shows the value of the dial next to the tap
-    /// zone its centre sits in: <paramref name="zoneValue"/> resolves that value per zone (top
-    /// 0, middle 1, bottom 2), null for none. Falls back to just the background
+    /// labels are drawn, but an indicator layer and a text layer with a dial source show the
+    /// dial next to the tap zone the layer's centre sits in: <paramref name="zoneDial"/> resolves
+    /// that dial's label and value per zone (top 0, middle 1, bottom 2). Falls back to just the background
     /// when the canvas is empty. <paramref name="drawBackground"/> false leaves the background
     /// transparent, for a strip composited over a video wallpaper.
     /// </summary>
@@ -3808,7 +3808,7 @@ public static class BitmapHelper
         int height,
         RotarySide side,
         bool drawBackground = true,
-        Func<int, LoupixDeck.PluginSdk.AdjustmentValue?> zoneValue = null)
+        Func<int, DialRenderContext> zoneDial = null)
     {
         // Recorded, so the on-screen view can draw the strip sharp at its own size (#251).
         using var recording = new RecordedRender(width, height);
@@ -3827,8 +3827,8 @@ public static class BitmapHelper
 
             foreach (var layer in canvas?.Layers ?? [])
             {
-                DialRenderContext? dial = layer is DialIndicatorLayer && zoneValue != null
-                    ? new DialRenderContext(null, zoneValue(StripZoneOf(layer, width, height)))
+                DialRenderContext? dial = zoneDial != null && ReadsDial(layer)
+                    ? zoneDial(StripZoneOf(layer, width, height))
                     : null;
                 DrawLayers(skCanvas, [layer], width, height, dial);
             }
@@ -3836,6 +3836,11 @@ public static class BitmapHelper
             return recording.Finish();
         }
     }
+
+    /// <summary>True when a layer draws a dial's label or value: an indicator, or a text layer
+    /// with a dial source.</summary>
+    public static bool ReadsDial(LayerBase layer) =>
+        layer is DialIndicatorLayer or TextLayer { IsDynamicText: true };
 
     /// <summary>
     /// The tap zone (top 0, middle 1, bottom 2) a strip-canvas layer's centre sits in; the
