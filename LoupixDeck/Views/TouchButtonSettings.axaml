@@ -27,6 +27,7 @@
 
     <Window.Resources>
         <conv:TransitionKindLabelConverter x:Key="TransitionKindLabel" />
+        <conv:StripModeLabelConverter x:Key="StripModeLabel" />
         <conv:TextSourceLabelConverter x:Key="TextSourceLabel" />
         <conv:EnumToBooleanConverter x:Key="EnumToBoolean" />
 
@@ -234,14 +235,20 @@
 
                         <StackPanel Grid.Row="0">
                             <!-- Side-strip (Razer) mode picker — only when editing a strip
-                                 canvas. Segmented locks the canvas (the strip shows the dial
-                                 labels); FreeDraw unlocks layer editing. -->
+                                 canvas. Dial labels (Segmented) locks the canvas; Tap zones
+                                 (FreeDraw) unlocks layer editing. -->
                             <StackPanel IsVisible="{Binding IsStripCanvas}" Margin="0,0,0,12">
                                 <TextBlock Classes="panel-title" Text="{loc:Tr TouchButton_SideStrip}" />
                                 <TextBlock Classes="label" Text="{loc:Tr TouchButton_Mode}" Margin="0,0,0,2" />
                                 <ComboBox ItemsSource="{Binding AvailableStripModes}"
                                           SelectedItem="{Binding StripMode, Mode=TwoWay}"
-                                          HorizontalAlignment="Stretch" />
+                                          HorizontalAlignment="Stretch">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="models:StripMode">
+                                            <TextBlock Text="{Binding Converter={StaticResource StripModeLabel}}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
                                 <TextBlock Classes="hint" Margin="0,4,0,0" TextWrapping="Wrap"
                                            Text="{loc:Tr TouchButton_SwitchToFreeDrawToEdit}"
                                            IsVisible="{Binding IsDrawDisabledHintVisible}" />
@@ -269,14 +276,6 @@
 
                             <StackPanel IsVisible="{Binding ShowButtonSection}">
                             <TextBlock Classes="panel-title" Text="{loc:Tr TouchButton_Button}" />
-                            <!-- Sets the launch command and the icon in one step; it configures the
-                                 whole button, not a single layer, so it sits here rather than in the
-                                 Layers toolbar. -->
-                            <Button Classes="toolbar accent" Content="{loc:Tr TouchButton_AssignApplication}"
-                                    HorizontalAlignment="Stretch"
-                                    Margin="0,0,0,8"
-                                    Command="{Binding AssignApplicationCommand}"
-                                    ToolTip.Tip="{loc:Tr TouchButton_PickAnInstalledApplicationSets}" />
                             <CheckBox Content="{loc:Tr TouchButton_RunWhileDeviceIsOff}"
                                       IsChecked="{Binding ButtonData.EnableWhenOff}"
                                       Margin="0,0,0,4" />
@@ -428,10 +427,11 @@
                                     IsVisible="{Binding IsWheelCanvas}"
                                     Command="{Binding AddLiveImageLayerCommand}"
                                     ToolTip.Tip="{loc:Tr TouchButton_LiveImageHint}" />
-                            <!-- The CT wheel and a touch key whose command reports a value have one to indicate. -->
+                            <!-- The CT wheel, a touch key whose command reports a value, and a tap-zone
+                                 strip (the dial beside each zone) have one to indicate. -->
                             <Button Classes="toolbar" Content="{loc:Tr TouchButton_Indicator}" Margin="0,-4,0,8"
                                     HorizontalAlignment="Stretch"
-                                    IsVisible="{Binding !IsStripCanvas}"
+                                    IsVisible="{Binding CanAddIndicator}"
                                     Command="{Binding AddIndicatorLayerCommand}"
                                     ToolTip.Tip="{loc:Tr TouchButton_IndicatorArcHint}" />
                         </StackPanel>
@@ -706,6 +706,13 @@
                                        Source="{Binding EditorPreview}" />
                                 <Canvas Width="{Binding EditorCanvasWidth}"
                                         Height="{Binding EditorCanvasHeight}" Background="Transparent">
+                                    <!-- Drop zone while a command or an application is dragged over
+                                         the preview: the whole key, or the tap zone of a FreeDraw
+                                         strip under the pointer. Placed from code-behind. -->
+                                    <Rectangle Name="PreviewDropZone"
+                                               Stroke="#4DA3FF" StrokeThickness="2"
+                                               Fill="#334DA3FF"
+                                               IsHitTestVisible="False" IsVisible="False" />
                                     <Rectangle Stroke="#CC5B9BD5"
                                                StrokeThickness="1"
                                                StrokeDashArray="4,3"
@@ -874,6 +881,10 @@
                                  (mutually exclusive with the State properties panel above). -->
                             <Border Classes="editor-panel" IsVisible="{Binding HasSelectedLayer}">
                                 <StackPanel>
+                                    <!-- Which dial a tap-zone strip's indicator or dial-text layer follows. -->
+                                    <TextBlock Classes="hint" Margin="0,0,0,8" TextWrapping="Wrap"
+                                               Text="{Binding SelectedLayerDialHint}"
+                                               IsVisible="{Binding SelectedLayerDialHint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                                     <ContentControl Content="{Binding SelectedLayer}">
                                 <ContentControl.DataTemplates>
 
@@ -1433,6 +1444,88 @@
                     <Border Classes="editor-panel" Margin="0,4,4,0">
                         <views:CommandPickerView Name="PickerControl"
                                                  DataContext="{Binding CommandPicker}" />
+                    </Border>
+                </TabItem>
+
+                <!-- Installed applications, as in the main window's side panel. Double-click one to
+                     add its launch command to the active sequence, or drag it into a sequence; a
+                     FreeDraw strip's three sequences each take their own application. -->
+                <TabItem Header="{loc:Tr ActionPanel_Apps}" IsVisible="{Binding ShowCommandArea}">
+                    <Border Classes="editor-panel" Margin="0,4,4,0">
+                        <Grid RowDefinitions="Auto,Auto,Auto,*">
+                            <TextBlock Grid.Row="0" Classes="hint" Margin="0,0,0,8" TextWrapping="Wrap"
+                                       Text="{loc:Tr TouchButton_AppsHint}" />
+
+                            <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,0,0,6">
+                                <TextBox Grid.Column="0"
+                                         PlaceholderText="{loc:Tr AppPicker_SearchApplications}"
+                                         Text="{Binding AppList.SearchText, Mode=TwoWay}"
+                                         IsEnabled="{Binding AppList.ShowContent}" />
+                                <!-- mdi-plus: a program the scan does not find, picked by hand. -->
+                                <Button Grid.Column="1" Classes="toolbar"
+                                        Width="32" Height="32" Padding="0" Margin="6,0,0,0"
+                                        FontFamily="{DynamicResource MdiFont}" FontSize="16"
+                                        HorizontalContentAlignment="Center"
+                                        VerticalContentAlignment="Center"
+                                        ToolTip.Tip="{loc:Tr ActionPanel_AddAnApplicationTheScan}"
+                                        Command="{Binding AppList.AddApplicationCommand}"
+                                        Content="&#xF0415;" />
+                            </Grid>
+
+                            <TextBlock Grid.Row="2" Classes="hint" Margin="0,0,0,6"
+                                       Text="{Binding AppList.CountLabel}"
+                                       IsVisible="{Binding AppList.ShowContent}" />
+
+                            <Panel Grid.Row="3">
+                                <!-- A ListBox for its virtualization: a machine can have several
+                                     hundred applications. -->
+                                <ListBox Name="AppListBox"
+                                         ItemsSource="{Binding AppList.Apps}"
+                                         SelectedItem="{Binding AppList.SelectedApp, Mode=TwoWay}"
+                                         DoubleTapped="AppList_DoubleTapped"
+                                         IsVisible="{Binding AppList.ShowContent}"
+                                         Background="Transparent"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                    <ListBox.Styles>
+                                        <Style Selector="ListBoxItem">
+                                            <Setter Property="Padding" Value="0" />
+                                        </Style>
+                                    </ListBox.Styles>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate DataType="vm:AppRowViewModel">
+                                            <Grid ColumnDefinitions="Auto,*,Auto" Margin="8,4" ColumnSpacing="10">
+                                                <Border Grid.Column="0" Width="32" Height="32" CornerRadius="6"
+                                                        Background="{DynamicResource AppSurfaceLow}">
+                                                    <Image Source="{Binding Icon}" Stretch="Uniform" />
+                                                </Border>
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding SourceLabel}" FontSize="11"
+                                                               Foreground="{DynamicResource AppTextSecondary}" />
+                                                </StackPanel>
+                                                <Border Grid.Column="2" IsVisible="{Binding IsGame}"
+                                                        VerticalAlignment="Center" CornerRadius="4" Padding="6,2"
+                                                        Background="{DynamicResource AppSurfaceLow}">
+                                                    <TextBlock Text="{loc:Tr AppPicker_Game}" FontSize="10"
+                                                               Foreground="{DynamicResource AppTextSecondary}" />
+                                                </Border>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+
+                                <TextBlock Text="{loc:Tr AppPicker_SearchingForInstalledApplications}"
+                                           IsVisible="{Binding AppList.IsLoading}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource AppTextSecondary}" />
+
+                                <TextBlock Text="{Binding AppList.BlockReason}"
+                                           IsVisible="{Binding AppList.HasBlockReason}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           TextWrapping="Wrap" TextAlignment="Center"
+                                           Foreground="{DynamicResource AppTextSecondary}" />
+                            </Panel>
+                        </Grid>
                     </Border>
                 </TabItem>
 

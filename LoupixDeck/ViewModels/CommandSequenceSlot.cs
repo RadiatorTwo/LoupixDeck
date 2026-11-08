@@ -141,10 +141,20 @@ public class CommandSequenceSlot : ViewModelBase
         if (string.IsNullOrWhiteSpace(formattedCommand)) return;
 
         var wasEmpty = Commands.Count == 0;
-        index = Math.Clamp(index, 0, Commands.Count);
-        Commands.Insert(index, CreateSegment(formattedCommand));
-        RebuildCommandString();
+        InsertRawAt(formattedCommand, index);
         CommandInserted?.Invoke(menuEntry, wasEmpty);
+    }
+
+    /// <summary>Inserts an already formatted command (e.g. an application's launch command) at the
+    /// given chip index. Returns false when there was nothing to insert.</summary>
+    public bool InsertRawAt(string raw, int index)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return false;
+
+        index = Math.Clamp(index, 0, Commands.Count);
+        Commands.Insert(index, CreateSegment(raw));
+        RebuildCommandString();
+        return true;
     }
 
     /// <summary>Raised after a command was inserted from the picker; the flag says whether the

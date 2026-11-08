@@ -1435,9 +1435,10 @@ public partial class LoupedeckLiveSController(
         // plugin's I/O, and lets the backend's own notification thread — which wants the gate to
         // repaint — deadlock against the render thread waiting on the backend. Inside the gate
         // the pulls are served from this snapshot, so they neither block nor re-enter.
-        // A free-draw canvas reads no dial values and skips it (#472).
+        // A free-draw canvas reads dial values only for its indicator and dial-text layers and
+        // skips the snapshot without one (#472).
         var idx = SideIndex(side);
-        if (page.StripMode != StripMode.FreeDraw)
+        if (page.StripMode != StripMode.FreeDraw || ReadsDial(page.StripCanvas))
             _frameAdjustmentValues[idx] = SnapshotAdjustmentValues(page, side);
         try
         {
@@ -1451,6 +1452,10 @@ public partial class LoupedeckLiveSController(
             _frameAdjustmentValues[idx] = null;
         }
     }
+
+    /// <summary>True when a free-draw strip canvas holds a visible layer that draws a dial's label or value.</summary>
+    private static bool ReadsDial(TouchButton canvas) =>
+        canvas?.Layers?.Any(l => l is { Visible: true } && BitmapHelper.ReadsDial(l)) == true;
 
     /// <summary>
     /// Per-side snapshot of the current frame's adjustment values, keyed by global knob index.
@@ -1493,13 +1498,28 @@ public partial class LoupedeckLiveSController(
                 : BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side,
                     valueFor: valueFor, drawBackground: drawBackground),
             StripMode.FreeDraw => BitmapHelper.RenderStripCanvas(page.StripCanvas, config, StripWidth, StripHeight,
-                side, drawBackground),
+                side, drawBackground, ZoneDialFor(page, valueFor)),
             _ => useSessions
                 ? BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side,
                     (i, rc) => (_segmentSession[SideIndex(side)] as ISegmentStripSession)?.RenderSegment(i, rc) ?? false,
                     valueFor, drawBackground)
                 : BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side,
                     valueFor: valueFor, drawBackground: drawBackground)
+        };
+    }
+
+    /// <summary>
+    /// Builds the per-zone dial a free-draw strip's indicator and dial-text layers draw: the
+    /// label and value of the dial beside tap zone <c>zone</c> of this side's page.
+    /// </summary>
+    private static Func<int, DialRenderContext> ZoneDialFor(RotaryButtonPage page,
+        Func<int, AdjustmentValue?> valueFor)
+    {
+        var buttons = page?.RotaryButtons;
+        return zone =>
+        {
+            var dial = buttons != null && zone >= 0 && zone < buttons.Count ? buttons[zone] : null;
+            return new DialRenderContext(dial?.DisplayText, valueFor?.Invoke(zone));
         };
     }
 

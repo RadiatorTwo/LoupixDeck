@@ -113,6 +113,19 @@ public static class ActionAssignment
     }
 
     /// <summary>
+    /// The layers a command brings along, laid out for a surface of the given size, without adding
+    /// them anywhere. A declared background colour is dropped: the caller's surface may be only part
+    /// of a canvas, such as one tap zone of a side strip.
+    /// </summary>
+    public static List<LayerBase> CreateLayers(string label, string symbolId, int widthPx, int heightPx,
+        ButtonLayoutDescriptor layout = null, IAssetService assets = null)
+    {
+        List<LayerBase> layers = [];
+        AddLayers(layers, _ => { }, label, symbolId, widthPx, heightPx, layout, assets);
+        return layers;
+    }
+
+    /// <summary>
     /// Gives each state of <paramref name="button"/> that is still empty the layers (and background)
     /// its declared state brings along, matched by position. A state that already has layers is left
     /// alone, so the user's artwork is never replaced; a state without a layout is skipped.

@@ -1886,7 +1886,8 @@ public static class BitmapHelper
         IReadOnlyList<TouchButton> wheelSegments = null,
         TouchButton wheelShared = null,
         int wheelHover = -1,
-        bool wheelDividers = true)
+        bool wheelDividers = true,
+        Func<int, DialRenderContext> stripZoneDial = null)
     {
         ArgumentNullException.ThrowIfNull(canvas);
         ArgumentNullException.ThrowIfNull(touchButton);
@@ -1945,7 +1946,8 @@ public static class BitmapHelper
         }
         else
         {
-            DrawEditorSurface(canvas, touchButton, frame, dial, area: null, faded: false, fillBackground: true);
+            DrawEditorSurface(canvas, touchButton, frame, dial, area: null, faded: false, fillBackground: true,
+                zoneDial: stripZoneDial);
         }
 
         // A round screen (the CT wheel) only shows the inscribed circle: dim the corners the
@@ -3320,7 +3322,8 @@ public static class BitmapHelper
     /// <paramref name="faded"/> surface is drawn translucent over what lies below it.
     /// </summary>
     private static void DrawEditorSurface(SKCanvas canvas, TouchButton surface, EditorFrame frame,
-        DialRenderContext? dial, SKPath area, bool faded, bool fillBackground, Func<LayerBase, bool> include = null)
+        DialRenderContext? dial, SKPath area, bool faded, bool fillBackground, Func<LayerBase, bool> include = null,
+        Func<int, DialRenderContext> zoneDial = null)
     {
         canvas.Save();
         canvas.ClipRect(frame.Rect);
@@ -3356,13 +3359,18 @@ public static class BitmapHelper
             if (layer == null || !layer.Visible) continue;
             if (include != null && !include(layer)) continue;
 
+            // A tap-zone strip layer shows the dial beside its zone, as on the device.
+            DialRenderContext? layerDial = zoneDial != null && ReadsDial(layer)
+                ? zoneDial(StripZoneOf(layer, frame.DeviceWidth, frame.DeviceHeight))
+                : dial;
+
             switch (layer)
             {
                 case ImageLayer image:
                     DrawImageLayerExtended(canvas, image, frame.DeviceWidth, frame.DeviceHeight);
                     break;
                 case TextLayer text:
-                    DrawTextLayer(canvas, text, frame.DeviceWidth, frame.DeviceHeight, dial);
+                    DrawTextLayer(canvas, text, frame.DeviceWidth, frame.DeviceHeight, layerDial);
                     break;
                 case SymbolLayer symbol:
                     DrawSymbolLayer(canvas, symbol, frame.DeviceWidth, frame.DeviceHeight);
@@ -3371,7 +3379,7 @@ public static class BitmapHelper
                     DrawPluginLayerExtended(canvas, plugin, frame.DeviceWidth, frame.DeviceHeight);
                     break;
                 case DialIndicatorLayer indicator:
-                    DrawDialIndicatorLayer(canvas, indicator, frame.DeviceWidth, frame.DeviceHeight, dial?.Normalized);
+                    DrawDialIndicatorLayer(canvas, indicator, frame.DeviceWidth, frame.DeviceHeight, layerDial?.Normalized);
                     break;
             }
         }
@@ -3794,8 +3802,10 @@ public static class BitmapHelper
     /// <summary>
     /// Renders a side strip in free-draw mode: the strip's wallpaper region as the
     /// background, with the page's <see cref="RotaryButtonPage.StripCanvas"/> layers
-    /// (image/text/symbol) composited on top across the full 60×270 surface. The dials
-    /// are decoupled — no per-knob labels are drawn. Falls back to just the background
+    /// (image/text/symbol) composited on top across the full 60×270 surface. No per-knob
+    /// labels are drawn, but an indicator layer and a text layer with a dial source show the
+    /// dial next to the tap zone the layer's centre sits in: <paramref name="zoneDial"/> resolves
+    /// that dial's label and value per zone (top 0, middle 1, bottom 2). Falls back to just the background
     /// when the canvas is empty. <paramref name="drawBackground"/> false leaves the background
     /// transparent, for a strip composited over a video wallpaper.
     /// </summary>
@@ -3805,7 +3815,8 @@ public static class BitmapHelper
         int width,
         int height,
         RotarySide side,
-        bool drawBackground = true)
+        bool drawBackground = true,
+        Func<int, DialRenderContext> zoneDial = null)
     {
         // Recorded, so the on-screen view can draw the strip sharp at its own size (#251).
         using var recording = new RecordedRender(width, height);
@@ -3822,11 +3833,35 @@ public static class BitmapHelper
                 DrawStripWallpaperOrColor(skCanvas, config, side, width, height, fallback);
             }
 
-            if (canvas?.Layers != null)
-                DrawLayers(skCanvas, canvas.Layers, width, height);
+            foreach (var layer in canvas?.Layers ?? [])
+            {
+                DialRenderContext? dial = zoneDial != null && ReadsDial(layer)
+                    ? zoneDial(StripZoneOf(layer, width, height))
+                    : null;
+                DrawLayers(skCanvas, [layer], width, height, dial);
+            }
 
             return recording.Finish();
         }
+    }
+
+    /// <summary>True when a layer draws a dial's label or value: an indicator, or a text layer
+    /// with a dial source.</summary>
+    public static bool ReadsDial(LayerBase layer) =>
+        layer is DialIndicatorLayer or TextLayer { IsDynamicText: true };
+
+    /// <summary>
+    /// The tap zone (top 0, middle 1, bottom 2) a strip-canvas layer's centre sits in; the
+    /// middle zone for a layer without bounds. The zones split the strip into equal thirds,
+    /// as the tap routing does.
+    /// </summary>
+    public static int StripZoneOf(LayerBase layer, int width, int height)
+    {
+        if (height <= 0 || GetLayerDeviceRect(layer, width, height) is not { } rect)
+            return RotaryButtonPage.StripSegmentCount / 2;
+
+        var zone = (int)Math.Floor(rect.MidY * RotaryButtonPage.StripSegmentCount / height);
+        return Math.Clamp(zone, 0, RotaryButtonPage.StripSegmentCount - 1);
     }
 
     /// <summary>
