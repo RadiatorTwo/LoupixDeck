@@ -814,8 +814,49 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             WheelPreviewLabel(_wheel.DisplayText),
             WheelPreviewValue)
         : IsStripCanvas
-            ? new DialRenderContext(WheelPreviewLabel(null), KeyPreviewValue)
+            ? null
             : new DialRenderContext(null, ButtonData?.DisplayValue ?? KeyPreviewValue);
+
+    /// <summary>The dial beside a tap zone of the edited strip, or null when there is none.</summary>
+    private RotaryButton StripZoneDialButton(int zone) =>
+        _stripPage?.RotaryButtons is { } dials && zone >= 0 && zone < dials.Count ? dials[zone] : null;
+
+    /// <summary>True when the dial has a rotation command, which is what can report a value.</summary>
+    private static bool HasRotationCommand(RotaryButton dial) =>
+        dial != null && (!string.IsNullOrWhiteSpace(dial.RotaryLeftCommand) ||
+                         !string.IsNullOrWhiteSpace(dial.RotaryRightCommand));
+
+    /// <summary>
+    /// The preview of a tap-zone strip layer that shows a dial: that dial's real label, and a sample
+    /// value only when the dial has a rotation command. A layer in the zone of a dial without one
+    /// stays empty, as it does on the device, so the zone it follows is visible while editing.
+    /// </summary>
+    private DialRenderContext StripZonePreviewDial(int zone)
+    {
+        RotaryButton dial = StripZoneDialButton(zone);
+        return new DialRenderContext(dial?.DisplayText, HasRotationCommand(dial) ? KeyPreviewValue : null);
+    }
+
+    private static readonly string[] ZoneDialKeys = ["TouchButton_TopDial", "TouchButton_MiddleDial", "TouchButton_BottomDial"];
+
+    /// <summary>
+    /// For an indicator or dial-text layer on a tap-zone strip: which dial it follows, and a warning
+    /// when that dial has no rotation command. Null for every other layer and surface.
+    /// </summary>
+    public string SelectedLayerDialHint
+    {
+        get
+        {
+            if (!IsSegmentCommandMode || _selectedLayer == null || !BitmapHelper.ReadsDial(_selectedLayer))
+                return null;
+
+            int zone = BitmapHelper.StripZoneOf(_selectedLayer, DeviceWidth, DeviceHeight);
+            string dialName = Loc.Tr(ZoneDialKeys[zone]);
+            return HasRotationCommand(StripZoneDialButton(zone))
+                ? string.Format(Loc.Tr("TouchButton_FollowsDialFmt"), dialName)
+                : string.Format(Loc.Tr("TouchButton_FollowsDialWithoutCommandFmt"), dialName);
+        }
+    }
 
     private static readonly IReadOnlyList<TextSource> WheelTextSources = Enum.GetValues<TextSource>();
 
@@ -938,6 +979,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             OnPropertyChanged(nameof(CanDeleteSelectedLayer));
             OnPropertyChanged(nameof(HasSelectedLayer));
             OnPropertyChanged(nameof(ShowStateProperties));
+            OnPropertyChanged(nameof(SelectedLayerDialHint));
             UpdateSelectionBounds();
         }
     }
@@ -2157,6 +2199,8 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             OnPropertyChanged(nameof(SelectedTextCommandChoice));
             OnPropertyChanged(nameof(SelectedImageCommandChoice));
             OnPropertyChanged(nameof(SelectedFontChoice));
+            // Moving a layer into another tap zone changes the dial it follows.
+            OnPropertyChanged(nameof(SelectedLayerDialHint));
         });
     }
 
@@ -2195,7 +2239,8 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
                 wheelSegments: IsWheelSplit ? _wheel.ActiveSegments().Select(s => s.Canvas).ToArray() : null,
                 wheelShared: IsWheelSplit ? _wheel.SplitCanvas : null,
                 wheelHover: _hoverSegment,
-                wheelDividers: _wheel?.ShowSplitDividers ?? true);
+                wheelDividers: _wheel?.ShowSplitDividers ?? true,
+                stripZoneDial: IsSegmentCommandMode ? StripZonePreviewDial : null);
         }
 
         EditorPreview = target;
