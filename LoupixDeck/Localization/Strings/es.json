@@ -1179,6 +1179,7 @@
   "TouchButton_To": "Hasta:",
   "TouchButton_ToggleAlignmentGrid": "Alternar cuadrícula de alineación",
   "TouchButton_TransitionAfterPress": "Transición tras pulsar",
+  "TouchButton_DeleteLayer": "Eliminar capa",
   "TouchButton_UseAsLayerDefault": "Usar como predeterminado para capas nuevas",
   "TouchButton_UseAsLayerDefaultHint": "Las capas nuevas de este tipo empiezan con el tamaño, la posición y el estilo de esta capa. Se pueden cambiar en Ajustes > Valores predeterminados de capas.",
   "TouchButton_UsedAsLayerDefault": "Guardado como predeterminado para capas nuevas.",
