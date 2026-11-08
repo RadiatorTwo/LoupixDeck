@@ -97,6 +97,26 @@ public class TouchButton : StatefulButton
     [JsonIgnore]
     public LoupixDeck.PluginSdk.AdjustmentValue? RenderedDisplayValue { get; set; }
 
+    /// <summary>
+    /// The running dot drawn on a key that launches an application with "Show Running Indicator"
+    /// ticked (issue #568). Runtime only: set by the running indicator manager.
+    /// </summary>
+    [JsonIgnore]
+    public RunningIndicatorState RunningIndicator { get; private set; }
+
+    /// <summary>
+    /// Sets <see cref="RunningIndicator"/> and repaints the key when it changed and
+    /// <paramref name="repaint"/> is set. Without it the next render of the key shows the new
+    /// state — used for a key that is not on screen.
+    /// </summary>
+    public void SetRunningIndicator(RunningIndicatorState state, bool repaint)
+    {
+        if (RunningIndicator == state) return;
+
+        RunningIndicator = state;
+        if (repaint) Refresh();
+    }
+
     /// <summary>The render context for <see cref="DisplayValue"/>, or null when there is none.</summary>
     [JsonIgnore]
     public DialRenderContext? ValueContext =>

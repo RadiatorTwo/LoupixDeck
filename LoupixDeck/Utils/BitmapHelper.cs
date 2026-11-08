@@ -1338,6 +1338,7 @@ public static class BitmapHelper
             DrawTouchButtonContent(canvas, touchButton, wallpaperToUse, opacityToUse, wallpaperSource, width, height,
                 ShowsFolderBadges(config), value is { } v ? new DialRenderContext(null, v) : null);
             DrawUnavailableOverlay(canvas, touchButton, width, height);
+            DrawRunningIndicator(canvas, touchButton, width, height);
         }
 
         touchButton.RenderedDisplayValue = value;
@@ -1397,6 +1398,7 @@ public static class BitmapHelper
                 canvas.DrawBitmap(layers, new SKRect(0, 0, layers.Width, layers.Height),
                     new SKRect(0, 0, width, height), SKSamplingOptions.Default, paint: null);
             DrawUnavailableOverlay(canvas, touchButton, width, height);
+            DrawRunningIndicator(canvas, touchButton, width, height);
         }
 
         touchButton.RenderedDisplayValue = value;
@@ -1489,6 +1491,7 @@ public static class BitmapHelper
             DrawLayers(canvas, [animated], width, height, dial);
             canvas.DrawBitmap(cache.Over, keyRect, SKSamplingOptions.Default);
             DrawUnavailableOverlay(canvas, touchButton, width, height);
+            DrawRunningIndicator(canvas, touchButton, width, height);
         }
 
         touchButton.RenderedDisplayValue = value;
@@ -1580,6 +1583,7 @@ public static class BitmapHelper
                 DrawTouchButtonContent(canvas, touchButton, wallpaperToUse, opacityToUse, wallpaperSource, width, height,
                     ShowsFolderBadges(config), touchButton.ValueContext);
                 DrawUnavailableOverlay(canvas, touchButton, width, height);
+                DrawRunningIndicator(canvas, touchButton, width, height);
             });
         }
     }
@@ -1718,6 +1722,51 @@ public static class BitmapHelper
         float margin = 5 * unit;
         DrawSymbolGlyph(canvas, "link-off", SKRect.Create(width - size - margin, height - size - margin, size, size),
             SKColors.White);
+    }
+
+    /// <summary>
+    /// Draws the running dot of an application key (issue #568) in the bottom-left corner: green
+    /// while the launched program runs, blue while it has focus. Drawn over the finished key like
+    /// <see cref="DrawUnavailableOverlay"/>, so no cached part holds a stale dot.
+    /// Must be called under <see cref="SkiaRenderGate"/>.Sync.
+    /// </summary>
+    private static void DrawRunningIndicator(SKCanvas canvas, TouchButton touchButton, int width, int height)
+    {
+        SKColor color;
+        switch (touchButton.RunningIndicator)
+        {
+            case RunningIndicatorState.Running:
+                color = new SKColor(0x4C, 0xAF, 0x50);
+                break;
+            case RunningIndicatorState.Active:
+                color = new SKColor(0x21, 0x96, 0xF3);
+                break;
+            default:
+                return;
+        }
+
+        if (touchButton.IsFolderBackSlot) return;
+
+        float unit = Math.Min(width, height) / 90f;
+        float radius = 5 * unit;
+        float margin = 7 * unit;
+        float centerX = margin + radius;
+        float centerY = height - margin - radius;
+
+        using var fill = new SKPaint();
+        fill.Color = color;
+        fill.IsAntialias = true;
+        fill.Style = SKPaintStyle.Fill;
+
+        // A dark ring keeps the dot readable on a light or same-coloured key.
+        using var outline = new SKPaint();
+        outline.Color = new SKColor(0, 0, 0, 180);
+        outline.IsAntialias = true;
+        outline.Style = SKPaintStyle.Stroke;
+        outline.StrokeWidth = Math.Max(1f, 1.5f * unit);
+
+        canvas.DrawCircle(centerX, centerY, radius, fill);
+        canvas.DrawCircle(centerX, centerY, radius, outline);
     }
 
     /// <summary>

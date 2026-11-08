@@ -491,6 +491,9 @@ public static class ServiceCollectionExtensions
 
         collection.AddSingleton<IDynamicTextManager, DynamicTextManager>();
 
+        // Running dot of the current page's application keys (issue #568); event-driven, no timer.
+        collection.AddSingleton<IRunningIndicatorManager, RunningIndicatorManager>();
+
         // Lets plugins query/set the active state of stateful touch buttons (issue #131).
         collection.AddSingleton<IButtonStateService, ButtonStateService>();
 
