@@ -3794,8 +3794,10 @@ public static class BitmapHelper
     /// <summary>
     /// Renders a side strip in free-draw mode: the strip's wallpaper region as the
     /// background, with the page's <see cref="RotaryButtonPage.StripCanvas"/> layers
-    /// (image/text/symbol) composited on top across the full 60×270 surface. The dials
-    /// are decoupled — no per-knob labels are drawn. Falls back to just the background
+    /// (image/text/symbol) composited on top across the full 60×270 surface. No per-knob
+    /// labels are drawn, but an indicator layer shows the value of the dial next to the tap
+    /// zone its centre sits in: <paramref name="zoneValue"/> resolves that value per zone (top
+    /// 0, middle 1, bottom 2), null for none. Falls back to just the background
     /// when the canvas is empty. <paramref name="drawBackground"/> false leaves the background
     /// transparent, for a strip composited over a video wallpaper.
     /// </summary>
@@ -3805,7 +3807,8 @@ public static class BitmapHelper
         int width,
         int height,
         RotarySide side,
-        bool drawBackground = true)
+        bool drawBackground = true,
+        Func<int, LoupixDeck.PluginSdk.AdjustmentValue?> zoneValue = null)
     {
         // Recorded, so the on-screen view can draw the strip sharp at its own size (#251).
         using var recording = new RecordedRender(width, height);
@@ -3822,11 +3825,30 @@ public static class BitmapHelper
                 DrawStripWallpaperOrColor(skCanvas, config, side, width, height, fallback);
             }
 
-            if (canvas?.Layers != null)
-                DrawLayers(skCanvas, canvas.Layers, width, height);
+            foreach (var layer in canvas?.Layers ?? [])
+            {
+                DialRenderContext? dial = layer is DialIndicatorLayer && zoneValue != null
+                    ? new DialRenderContext(null, zoneValue(StripZoneOf(layer, width, height)))
+                    : null;
+                DrawLayers(skCanvas, [layer], width, height, dial);
+            }
 
             return recording.Finish();
         }
+    }
+
+    /// <summary>
+    /// The tap zone (top 0, middle 1, bottom 2) a strip-canvas layer's centre sits in; the
+    /// middle zone for a layer without bounds. The zones split the strip into equal thirds,
+    /// as the tap routing does.
+    /// </summary>
+    public static int StripZoneOf(LayerBase layer, int width, int height)
+    {
+        if (height <= 0 || GetLayerDeviceRect(layer, width, height) is not { } rect)
+            return RotaryButtonPage.StripSegmentCount / 2;
+
+        var zone = (int)Math.Floor(rect.MidY * RotaryButtonPage.StripSegmentCount / height);
+        return Math.Clamp(zone, 0, RotaryButtonPage.StripSegmentCount - 1);
     }
 
     /// <summary>

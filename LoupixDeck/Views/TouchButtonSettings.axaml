@@ -427,10 +427,11 @@
                                     IsVisible="{Binding IsWheelCanvas}"
                                     Command="{Binding AddLiveImageLayerCommand}"
                                     ToolTip.Tip="{loc:Tr TouchButton_LiveImageHint}" />
-                            <!-- The CT wheel and a touch key whose command reports a value have one to indicate. -->
+                            <!-- The CT wheel, a touch key whose command reports a value, and a tap-zone
+                                 strip (the dial beside each zone) have one to indicate. -->
                             <Button Classes="toolbar" Content="{loc:Tr TouchButton_Indicator}" Margin="0,-4,0,8"
                                     HorizontalAlignment="Stretch"
-                                    IsVisible="{Binding !IsStripCanvas}"
+                                    IsVisible="{Binding CanAddIndicator}"
                                     Command="{Binding AddIndicatorLayerCommand}"
                                     ToolTip.Tip="{loc:Tr TouchButton_IndicatorArcHint}" />
                         </StackPanel>

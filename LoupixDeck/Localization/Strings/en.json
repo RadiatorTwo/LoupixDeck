@@ -1359,7 +1359,7 @@
   "TouchButton_WheelSampleLabel": "Label",
   "TouchButton_Indicator": "+ Indicator",
   "TouchButton_SelectedLayerIndicator": "Selected Layer: Indicator",
-  "TouchButton_IndicatorArcHint": "Draws the arc of the value the command reports: the wheel's adjustment command, or a touch key's own command. Nothing is drawn while the command reports no value.",
+  "TouchButton_IndicatorArcHint": "Draws the arc of the value the command reports: the wheel's adjustment command, a touch key's own command, or on a side strip the adjustment command of the dial beside the tap zone the indicator sits in. Nothing is drawn while the command reports no value.",
   "TouchButton_TrackColor": "Track",
   "TouchButton_FillColor": "Fill",
   "TouchButton_Thickness": "Thickness",

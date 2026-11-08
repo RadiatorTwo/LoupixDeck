@@ -1359,7 +1359,7 @@
   "TouchButton_WheelSampleLabel": "Etiqueta",
   "TouchButton_Indicator": "+ Indicador",
   "TouchButton_SelectedLayerIndicator": "Capa seleccionada: Indicador",
-  "TouchButton_IndicatorArcHint": "Dibuja el arco del valor que informa el comando: el comando de ajuste de la rueda o el comando de una tecla táctil. No se dibuja nada mientras el comando no informe un valor.",
+  "TouchButton_IndicatorArcHint": "Dibuja el arco del valor que informa el comando: el comando de ajuste de la rueda, el comando de una tecla táctil o, en una tira lateral, el comando de ajuste del dial junto a la zona táctil donde está el indicador. No se dibuja nada mientras el comando no informe un valor.",
   "TouchButton_TrackColor": "Pista",
   "TouchButton_FillColor": "Relleno",
   "TouchButton_Thickness": "Grosor",

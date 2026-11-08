@@ -361,6 +361,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             OnPropertyChanged(nameof(SelectedStripProvider));
 
             OnPropertyChanged(nameof(IsSegmentCommandMode));
+            OnPropertyChanged(nameof(CanAddIndicator));
             OnPropertyChanged(nameof(ShowCommandArea));
 
             // A tab that disappears under the selection would leave the panel blank.
@@ -384,6 +385,10 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// <summary>True when the bottom area edits a FreeDraw strip's three per-segment command
     /// sequences (top/middle/bottom) instead of the single <see cref="TouchButton.Command"/>.</summary>
     public bool IsSegmentCommandMode => IsStripCanvas && StripMode == StripMode.FreeDraw;
+
+    /// <summary>True when the surface has a value an indicator layer can draw: the wheel, a touch
+    /// key, or a tap-zone strip (the dial beside each zone). A strip in the other modes draws no canvas.</summary>
+    public bool CanAddIndicator => !IsStripCanvas || IsSegmentCommandMode;
 
     private static readonly string[] SegmentTitleKeys = ["Slot_TopSegment", "Slot_MiddleSegment", "Slot_BottomSegment"];
 
@@ -516,6 +521,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         OnPropertyChanged(nameof(AvailableStripProviders));
         OnPropertyChanged(nameof(SelectedStripProvider));
         OnPropertyChanged(nameof(IsSegmentCommandMode));
+        OnPropertyChanged(nameof(CanAddIndicator));
         OnPropertyChanged(nameof(ShowButtonSection));
         OnPropertyChanged(nameof(ShowCommandArea));
     }
@@ -807,7 +813,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             WheelPreviewLabel(_wheel.DisplayText),
             WheelPreviewValue)
         : IsStripCanvas
-            ? null
+            ? new DialRenderContext(null, KeyPreviewValue)
             : new DialRenderContext(null, ButtonData?.DisplayValue ?? KeyPreviewValue);
 
     private static readonly IReadOnlyList<TextSource> WheelTextSources = Enum.GetValues<TextSource>();

@@ -1359,7 +1359,7 @@
   "TouchButton_WheelSampleLabel": "Beschriftung",
   "TouchButton_Indicator": "+ Anzeige",
   "TouchButton_SelectedLayerIndicator": "Ausgewählte Ebene: Anzeige",
-  "TouchButton_IndicatorArcHint": "Zeichnet den Bogen des gemeldeten Werts: des Einstellbefehls am Rad oder des Befehls einer Touch-Taste. Ohne gemeldeten Wert wird nichts gezeichnet.",
+  "TouchButton_IndicatorArcHint": "Zeichnet den Bogen des gemeldeten Werts: des Einstellbefehls am Rad, des Befehls einer Touch-Taste oder, auf einem Seitenstreifen, des Einstellbefehls des Drehreglers neben der Tippzone, in der die Anzeige liegt. Ohne gemeldeten Wert wird nichts gezeichnet.",
   "TouchButton_TrackColor": "Spur",
   "TouchButton_FillColor": "Füllung",
   "TouchButton_Thickness": "Stärke",

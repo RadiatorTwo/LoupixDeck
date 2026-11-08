@@ -1435,9 +1435,10 @@ public partial class LoupedeckLiveSController(
         // plugin's I/O, and lets the backend's own notification thread — which wants the gate to
         // repaint — deadlock against the render thread waiting on the backend. Inside the gate
         // the pulls are served from this snapshot, so they neither block nor re-enter.
-        // A free-draw canvas reads no dial values and skips it (#472).
+        // A free-draw canvas reads dial values only for its indicator layers and skips the
+        // snapshot without one (#472).
         var idx = SideIndex(side);
-        if (page.StripMode != StripMode.FreeDraw)
+        if (page.StripMode != StripMode.FreeDraw || HasIndicatorLayer(page.StripCanvas))
             _frameAdjustmentValues[idx] = SnapshotAdjustmentValues(page, side);
         try
         {
@@ -1451,6 +1452,10 @@ public partial class LoupedeckLiveSController(
             _frameAdjustmentValues[idx] = null;
         }
     }
+
+    /// <summary>True when a free-draw strip canvas holds an indicator layer, which draws a dial's value.</summary>
+    private static bool HasIndicatorLayer(TouchButton canvas) =>
+        canvas?.Layers?.Any(l => l is DialIndicatorLayer { Visible: true }) == true;
 
     /// <summary>
     /// Per-side snapshot of the current frame's adjustment values, keyed by global knob index.
@@ -1493,7 +1498,7 @@ public partial class LoupedeckLiveSController(
                 : BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side,
                     valueFor: valueFor, drawBackground: drawBackground),
             StripMode.FreeDraw => BitmapHelper.RenderStripCanvas(page.StripCanvas, config, StripWidth, StripHeight,
-                side, drawBackground),
+                side, drawBackground, valueFor),
             _ => useSessions
                 ? BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side,
                     (i, rc) => (_segmentSession[SideIndex(side)] as ISegmentStripSession)?.RenderSegment(i, rc) ?? false,
