@@ -1593,6 +1593,8 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         };
 
         ApplyInitialStripHeightFit(layer, layer.CachedImage?.Width ?? 0, layer.CachedImage?.Height ?? 0);
+        if (!IsStripCanvas)
+            LayerDefaults.ApplyToNewIcon(layer, DeviceWidth, DeviceHeight);
 
         AddLayer(layer);
         SelectedLayer = layer;
@@ -1707,6 +1709,11 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             BoxWidth = box,
             BoxHeight = box
         };
+
+        // The defaults from Settings are laid out for a key, not for a side strip.
+        if (!IsStripCanvas)
+            LayerDefaults.ApplyToNewText(layer, DeviceWidth, DeviceHeight);
+
         AddLayer(layer);
         SelectedLayer = layer;
     }
@@ -1743,6 +1750,9 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
         SymbolLayer layer = await _buttonTemplates.PickSymbolLayerAsync(ButtonData.Layers);
         if (layer == null) return;
+
+        if (!IsStripCanvas)
+            LayerDefaults.ApplyToNewIcon(layer, DeviceWidth, DeviceHeight);
 
         AddLayer(layer);
         SelectedLayer = layer;
@@ -1856,6 +1866,10 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             layer.Scale = Services.AppLauncher.AppAssignment.IconScaleFor(
                 Services.AppLauncher.AppAssignment.StripIconSizePx, Math.Min(DeviceWidth, DeviceHeight));
             layer.PositionY = (int)Math.Round(((segment + 0.5) * zoneHeight) - (DeviceHeight / 2.0));
+        }
+        else if (!IsStripCanvas)
+        {
+            LayerDefaults.ApplyToNewIcon(layer, DeviceWidth, DeviceHeight);
         }
 
         layer.CachedImage = _assetService.Load(relative);

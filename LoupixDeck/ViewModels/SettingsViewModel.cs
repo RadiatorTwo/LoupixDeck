@@ -1273,6 +1273,13 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         }
     }
 
+    // ───────── Layer defaults ─────────
+
+    // Global (LayerDefaults) like the font; bound straight to the stored objects, which save on change.
+    public TextLayerDefaults TextDefaults => LayerDefaults.Text;
+
+    public IconLayerDefaults IconDefaults => LayerDefaults.Icon;
+
     // ───────── About ─────────
 
     public string Version { get; }

@@ -72,7 +72,12 @@ public static class AppAssignment
             return null;
 
         button.Command = BuildLaunchCommand(app);
-        return AddIconLayer(button, app, iconRelativePath, replaceLayers, layerName, keySizePx);
+        ImageLayer layer = AddIconLayer(button, app, iconRelativePath, replaceLayers, layerName, keySizePx);
+
+        // A key's icon follows the defaults from Settings; a tap zone of a side strip, which calls
+        // AddIconLayer directly, keeps its own size.
+        LayerDefaults.ApplyToNewIcon(layer, keySizePx, keySizePx);
+        return layer;
     }
 
     /// <summary>

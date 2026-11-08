@@ -174,7 +174,7 @@ public static class ActionAssignment
                 break;
 
             case ButtonLayoutMode.IconOnly when hasSymbol:
-                layers.Add(CreateSymbol(text, symbolId, 0, IconOnlyScale));
+                layers.Add(CreateSymbol(text, symbolId, 0, LayerDefaults.IconSizeOr(IconOnlyScale)));
                 break;
 
             case ButtonLayoutMode.CaptionOnly:
@@ -190,7 +190,7 @@ public static class ActionAssignment
             default:
                 if (hasSymbol)
                 {
-                    layers.Add(CreateSymbol(text, symbolId, Scaled(SymbolOffsetYPx, scaleY), SymbolScale));
+                    layers.Add(CreateSymbol(text, symbolId, Scaled(SymbolOffsetYPx, scaleY), LayerDefaults.IconSizeOr(SymbolScale)));
                     layers.Add(CreateCaption(text, keyWidthPx, keyHeightPx));
                 }
                 else
@@ -248,26 +248,28 @@ public static class ActionAssignment
         double scaleX = ScaleFactor(keyWidthPx);
         double scaleY = ScaleFactor(keyHeightPx);
         caption.Centered = true;
-        caption.TextSize = Scaled(LabelTextSizePx, scaleY);
+        caption.TextSize = Scaled(LayerDefaults.TextSizeOr(LabelTextSizePx), scaleY);
         caption.PositionX = 0;
         caption.PositionY = Scaled(offsetYPx, scaleY);
         caption.BoxWidth = Scaled(LabelBoxWidthPx, scaleX);
         caption.BoxHeight = Scaled(LabelBoxHeightPx, scaleY);
         caption.Scale = 1.0;
         caption.ScaleY = 0;
+        LayerDefaults.ApplyTextStyle(caption);
     }
 
     /// <summary>Lays <paramref name="layer"/> out as the only content of the key.</summary>
     private static void PlaceTextOnly(TextLayer layer, double scaleX, double scaleY)
     {
         layer.Centered = true;
-        layer.TextSize = Scaled(TextOnlySizePx, scaleY);
+        layer.TextSize = Scaled(LayerDefaults.TextSizeOr(TextOnlySizePx), scaleY);
         layer.PositionX = 0;
         layer.PositionY = 0;
         layer.BoxWidth = Scaled(TextOnlyBoxPx, scaleX);
         layer.BoxHeight = Scaled(TextOnlyBoxPx, scaleY);
         layer.Scale = 1.0;
         layer.ScaleY = 0;
+        LayerDefaults.ApplyTextStyle(layer);
     }
 
     /// <summary>Centres <paramref name="symbol"/> horizontally at <paramref name="positionY"/> and
@@ -284,6 +286,8 @@ public static class ActionAssignment
                 ?? (symbol.EffectiveScaleX / symbol.EffectiveScaleY));
         else
             symbol.FitScaleToGlyph(scale);
+
+        LayerDefaults.ApplyIconStyle(symbol);
     }
 
     /// <summary>
@@ -539,17 +543,17 @@ public static class ActionAssignment
         switch (plan.Layout)
         {
             case ButtonTemplate.IconCaptionBottom:
-                PlaceIcon(icon, Scaled(SymbolOffsetYPx, scaleY), SymbolScale, keyWidthPx, keyHeightPx);
+                PlaceIcon(icon, Scaled(SymbolOffsetYPx, scaleY), LayerDefaults.IconSizeOr(SymbolScale), keyWidthPx, keyHeightPx);
                 PlaceCaption(caption, LabelOffsetYPx, keyWidthPx, keyHeightPx);
                 break;
 
             case ButtonTemplate.IconCaptionTop:
-                PlaceIcon(icon, Scaled(SymbolOffsetYTopPx, scaleY), SymbolScale, keyWidthPx, keyHeightPx);
+                PlaceIcon(icon, Scaled(SymbolOffsetYTopPx, scaleY), LayerDefaults.IconSizeOr(SymbolScale), keyWidthPx, keyHeightPx);
                 PlaceCaption(caption, LabelOffsetYTopPx, keyWidthPx, keyHeightPx);
                 break;
 
             case ButtonTemplate.IconOnly:
-                PlaceIcon(icon, 0, IconOnlyScale, keyWidthPx, keyHeightPx);
+                PlaceIcon(icon, 0, LayerDefaults.IconSizeOr(IconOnlyScale), keyWidthPx, keyHeightPx);
                 break;
 
             case ButtonTemplate.TextOnly:
