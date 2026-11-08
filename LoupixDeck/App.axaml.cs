@@ -186,7 +186,7 @@ public partial class App : Application
             // Read before the window is built, otherwise it paints in the default theme and
             // then switches. The theme is global; the primary's config only seeds it once.
             ThemeSettings.Initialize(primaryConfig?.ThemeVariant);
-            ShowMainWindow(shell, primaryConfig, desktop);
+            ShowMainWindow(shell, desktop);
 
             // Look for a new release in the background (issue #233) as soon as the window exists to
             // show the hint. Not after the device bring-up: a slow or absent device would hold it
@@ -511,11 +511,10 @@ public partial class App : Application
 
     /// <summary>
     /// Builds and shows the one window, on an empty shell that devices join as they connect.
-    /// <paramref name="startupConfig"/> is the primary device's config, read before any device
-    /// has been brought up — the only setting needed this early is StartMinimizedToTray.
+    /// Whether it starts hidden is the global <see cref="WindowSettings.StartMinimizedToTray"/>,
+    /// never a device's config: which device is primary depends on what has enumerated by now.
     /// </summary>
-    private static void ShowMainWindow(MainShellViewModel shell, LoupedeckConfig startupConfig,
-        IClassicDesktopStyleApplicationLifetime desktop)
+    private static void ShowMainWindow(MainShellViewModel shell, IClassicDesktopStyleApplicationLifetime desktop)
     {
         // Invoke, not InvokeAsync: the caller is already on the UI thread, and a queued
         // operation would not run until the bring-up loop's first await — which is the wait
@@ -531,7 +530,7 @@ public partial class App : Application
             // briefly flashes onscreen before it is hidden again. We also switch to
             // OnExplicitShutdown so the lifetime doesn't end with no visible window — the
             // tray icon is the only entry point and Environment.Exit(0) the only exit path.
-            if (startupConfig?.StartMinimizedToTray == true)
+            if (WindowSettings.StartMinimizedToTray)
             {
                 desktop.ShutdownMode = Avalonia.Controls.ShutdownMode.OnExplicitShutdown;
                 mainWindow.MarkStartedMinimized();

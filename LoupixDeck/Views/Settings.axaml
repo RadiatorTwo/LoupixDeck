@@ -394,7 +394,7 @@
                                        Text="{loc:Tr Settings_ChooseQuitOnDesktopsWithout}" />
                             <CheckBox Content="{loc:Tr Settings_StartMinimizedToTray}"
                                       HorizontalAlignment="Left" Margin="0,10,0,0"
-                                      IsChecked="{Binding Config.StartMinimizedToTray, Mode=TwoWay}" />
+                                      IsChecked="{Binding StartMinimizedToTray, Mode=TwoWay}" />
                         </StackPanel>
                     </Border>
                 </StackPanel>

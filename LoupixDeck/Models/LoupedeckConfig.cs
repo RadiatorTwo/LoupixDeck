@@ -131,6 +131,10 @@ public partial class LoupedeckConfig : ObservableObject
     public string ThemeVariant { get; set; } = "Dark";
 
     public CloseButtonBehavior CloseButtonBehavior { get; set; } = CloseButtonBehavior.MinimizeToTray;
+    /// <summary>
+    /// Legacy per-device flag. It is global now (<c>WindowSettings</c>, in ui-settings.json); the
+    /// device configs on disk seed it once, and it is kept so older config files load unchanged.
+    /// </summary>
     public bool StartMinimizedToTray { get; set; }
 
     // Windows only: route keyboard and mouse macros through the Interception kernel driver

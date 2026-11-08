@@ -141,6 +141,13 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         set { _autostart.SetEnabled(value); OnPropertyChanged(); }
     }
 
+    /// <summary>Start hidden in the tray. Global (WindowSettings), not part of this device's config.</summary>
+    public bool StartMinimizedToTray
+    {
+        get => WindowSettings.StartMinimizedToTray;
+        set { WindowSettings.StartMinimizedToTray = value; OnPropertyChanged(); }
+    }
+
     /// <summary>
     /// App-focus page switching is available on Windows and on Linux (X11/XWayland).
     /// Gates the "App Switching" settings page — wider than <see cref="IsWindows"/>,
