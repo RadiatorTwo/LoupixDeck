@@ -29,6 +29,8 @@ public interface IActivateWindowByTitle : IDBusObject
     Task<bool> activateByWmClassAsync(string name);
 
     Task<bool> activateByWmClassInstanceAsync(string instance);
+
+    Task<string> setSortOrderAsync(string newSortOrder);
 #pragma warning restore IDE1006
 }
 
