@@ -1458,5 +1458,6 @@
   "Diagnostics_ActionEnableUserExtensions": "Activar extensiones de usuario",
   "Diagnostics_GnomeActivationBroken": "GNOME Shell no pudo cargar la extensión «Activate Window By Title» o la considera incompatible con esta versión de GNOME.",
   "Diagnostics_FixRepairGnomeActivationFmt": "Actualiza la extensión o reinstálala desde su página: {0}",
-  "Diagnostics_GnomeActivationShellUnavailable": "No se pudo acceder a GNOME Shell a través del bus de sesión."
+  "Diagnostics_GnomeActivationShellUnavailable": "No se pudo acceder a GNOME Shell a través del bus de sesión.",
+  "Diagnostics_CompositorGnome": "GNOME no tiene una interfaz de foco propia. La comprobación «Activación de ventanas (GNOME)» indica si las ventanas pueden traerse al frente."
 }

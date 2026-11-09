@@ -1458,5 +1458,6 @@
   "Diagnostics_ActionEnableUserExtensions": "Benutzererweiterungen aktivieren",
   "Diagnostics_GnomeActivationBroken": "GNOME Shell konnte die Erweiterung „Activate Window By Title“ nicht laden oder hält sie für inkompatibel mit dieser GNOME-Version.",
   "Diagnostics_FixRepairGnomeActivationFmt": "Aktualisiere die Erweiterung oder installiere sie über ihre Seite neu: {0}",
-  "Diagnostics_GnomeActivationShellUnavailable": "GNOME Shell ist über den Sitzungsbus nicht erreichbar."
+  "Diagnostics_GnomeActivationShellUnavailable": "GNOME Shell ist über den Sitzungsbus nicht erreichbar.",
+  "Diagnostics_CompositorGnome": "GNOME hat keine eigene Fokus-Schnittstelle. Ob Fenster nach vorne geholt werden können, zeigt die Prüfung „Fensteraktivierung (GNOME)“."
 }

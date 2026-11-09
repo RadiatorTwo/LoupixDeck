@@ -1458,5 +1458,6 @@
   "Diagnostics_ActionEnableUserExtensions": "Enable user extensions",
   "Diagnostics_GnomeActivationBroken": "GNOME Shell could not load the \"Activate Window By Title\" extension, or considers it incompatible with this GNOME version.",
   "Diagnostics_FixRepairGnomeActivationFmt": "Update the extension, or reinstall it from its page: {0}",
-  "Diagnostics_GnomeActivationShellUnavailable": "GNOME Shell could not be reached on the session bus."
+  "Diagnostics_GnomeActivationShellUnavailable": "GNOME Shell could not be reached on the session bus.",
+  "Diagnostics_CompositorGnome": "GNOME has no focus interface of its own. Whether windows can be brought to the front is shown by the \"Window activation (GNOME)\" check."
 }
