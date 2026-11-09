@@ -4156,7 +4156,7 @@ public static class BitmapHelper
     {
         if (string.IsNullOrEmpty(text)) return 0f;
         using var font = new SKFont(GetTextTypeface(bold, italic), fontSize);
-        return font.MeasureText(text);
+        return FallbackText.Measure(font, text);
     }
 
     internal static void DrawTextAt(
@@ -4240,7 +4240,7 @@ public static class BitmapHelper
         {
             var line = lines[i];
 
-            var textWidth = font.MeasureText(line);
+            var textWidth = FallbackText.Measure(font, line);
             var drawX = hAlign switch
             {
                 0 => posX,                                  // Left
@@ -4261,10 +4261,10 @@ public static class BitmapHelper
                 outlinePaint.StrokeJoin = SKStrokeJoin.Round;
                 outlinePaint.StrokeCap = SKStrokeCap.Round;
 
-                canvas.DrawText(line, drawX, drawY, SKTextAlign.Left, font, outlinePaint);
+                FallbackText.Draw(canvas, line, drawX, drawY, font, outlinePaint);
             }
 
-            canvas.DrawText(line, drawX, drawY, SKTextAlign.Left, font, textPaint);
+            FallbackText.Draw(canvas, line, drawX, drawY, font, textPaint);
         }
     }
 
@@ -4313,7 +4313,7 @@ public static class BitmapHelper
                 currentLine.Clear();
             }
 
-            if (font.MeasureText(word) > maxWidth)
+            if (FallbackText.Measure(font, word) > maxWidth)
             {
                 foreach (char c in word)
                 {
@@ -4353,7 +4353,7 @@ public static class BitmapHelper
             if (written > 0)
                 buffer[written++] = ' ';
             word.CopyTo(buffer[written..]);
-            return font.MeasureText(buffer);
+            return FallbackText.Measure(font, buffer);
         }
 
         int mark = current.Length;
@@ -4374,9 +4374,9 @@ public static class BitmapHelper
         {
             Span<char> buffer = stackalloc char[line.Length];
             line.CopyTo(0, buffer, line.Length);
-            return font.MeasureText(buffer);
+            return FallbackText.Measure(font, buffer);
         }
 
-        return font.MeasureText(line.ToString());
+        return FallbackText.Measure(font, line.ToString());
     }
 }
