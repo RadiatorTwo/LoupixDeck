@@ -1442,5 +1442,6 @@
   "FolderPanel_Paste": "Paste",
   "Confirm_EnablePastePluginTitle": "Enable plugin?",
   "Confirm_EnablePastePluginMessage": "The pasted content needs the plugin '{0}'. Enable it for this device?",
-  "Confirm_EnablePastePluginsMessage": "The pasted content needs the plugins {0}. Enable them for this device?"
+  "Confirm_EnablePastePluginsMessage": "The pasted content needs the plugins {0}. Enable them for this device?",
+  "Diagnostics_FixActionFailedFmt": "The fix could not be applied: {0}"
 }

@@ -1699,6 +1699,10 @@
                                                 </Border>
 
                                                 <StackPanel Orientation="Horizontal" Spacing="9">
+                                                    <Button Classes="accent"
+                                                            Content="{Binding Result.Fix.Action.Label}"
+                                                            IsVisible="{Binding HasFixAction}"
+                                                            Command="{Binding $parent[Window].DataContext.Diagnostics.ApplyFixCommand}" />
                                                     <Button Content="{loc:Tr Diagnostics_CopyCommand}"
                                                             IsVisible="{Binding HasCommand}"
                                                             Command="{Binding CopyCommandCommand}" />

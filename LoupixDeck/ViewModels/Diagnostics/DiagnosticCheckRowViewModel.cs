@@ -39,6 +39,7 @@ public sealed partial class DiagnosticCheckRowViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(HasTechnicalDetail))]
     [NotifyPropertyChangedFor(nameof(HasFix))]
     [NotifyPropertyChangedFor(nameof(HasCommand))]
+    [NotifyPropertyChangedFor(nameof(HasFixAction))]
     [NotifyPropertyChangedFor(nameof(SupportsKeyTest))]
     [NotifyPropertyChangedFor(nameof(SupportsRecordingTest))]
     [NotifyPropertyChangedFor(nameof(SupportsStoreTest))]
@@ -92,6 +93,9 @@ public sealed partial class DiagnosticCheckRowViewModel : ViewModelBase
     public bool HasFix => Result.Fix != null;
 
     public bool HasCommand => !string.IsNullOrWhiteSpace(Result.Fix?.Command);
+
+    /// <summary>True when the fix can be applied from the page with a button.</summary>
+    public bool HasFixAction => Result.Fix?.Action != null;
 
     /// <summary>
     /// The detail pane's key/value block: the result, its group, how long the check took, then

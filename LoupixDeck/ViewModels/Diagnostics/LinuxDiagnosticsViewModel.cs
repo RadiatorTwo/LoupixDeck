@@ -58,6 +58,7 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(HasSelection))]
     [NotifyPropertyChangedFor(nameof(CanRunDisplayTest))]
     [NotifyCanExecuteChangedFor(nameof(RerunCheckCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ApplyFixCommand))]
     public partial DiagnosticCheckRowViewModel SelectedCheck { get; set; }
 
     [ObservableProperty]
@@ -66,6 +67,7 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
     [NotifyCanExecuteChangedFor(nameof(ShowReportCommand))]
     [NotifyCanExecuteChangedFor(nameof(RerunCheckCommand))]
     [NotifyCanExecuteChangedFor(nameof(RerunCategoryCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ApplyFixCommand))]
     [NotifyPropertyChangedFor(nameof(HasResults))]
     public partial bool IsRunning { get; set; }
 
@@ -150,6 +152,10 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
     public IAsyncRelayCommand RerunCategoryCommand =>
         field ??= Relay.Create(RerunCategoryAsync, () => !IsRunning && (SelectedCategory != null));
 
+    /// <summary>Applies the selected check's fix action, then runs the check again.</summary>
+    public IAsyncRelayCommand ApplyFixCommand =>
+        field ??= Relay.Create(ApplyFixAsync, () => !IsRunning && (SelectedCheck?.HasFixAction == true));
+
     /// <summary>
     /// The optional injection test. It is the only action of the page that changes anything on
     /// the system, so it asks first and says exactly what it will do.
@@ -210,6 +216,32 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
 
     private Task RunAllAsync() => ExecuteAsync(() => _diagnostics.RunAllAsync(BuildProgress(), _run.Token),
         () => _diagnostics.CheckCount);
+
+    private async Task ApplyFixAsync()
+    {
+        DiagnosticCheckRowViewModel check = SelectedCheck;
+        DiagnosticFixAction action = check?.Result.Fix?.Action;
+
+        if (action == null)
+        {
+            return;
+        }
+
+        check.CopyStatusText = string.Empty;
+
+        try
+        {
+            await action.RunAsync(CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Diagnostics] Fix for {check.Id} failed: {ex.Message}");
+            check.CopyStatusText = Loc.Tr("Diagnostics_FixActionFailedFmt", ex.Message);
+            return;
+        }
+
+        await RerunCheckAsync();
+    }
 
     private Task RerunCheckAsync()
     {

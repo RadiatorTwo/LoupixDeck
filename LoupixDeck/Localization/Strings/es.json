@@ -1442,5 +1442,6 @@
   "FolderPanel_Paste": "Pegar",
   "Confirm_EnablePastePluginTitle": "¿Activar plugin?",
   "Confirm_EnablePastePluginMessage": "El contenido pegado necesita el plugin '{0}'. ¿Activarlo para este dispositivo?",
-  "Confirm_EnablePastePluginsMessage": "El contenido pegado necesita los plugins {0}. ¿Activarlos para este dispositivo?"
+  "Confirm_EnablePastePluginsMessage": "El contenido pegado necesita los plugins {0}. ¿Activarlos para este dispositivo?",
+  "Diagnostics_FixActionFailedFmt": "No se pudo aplicar la corrección: {0}"
 }
