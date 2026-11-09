@@ -791,48 +791,105 @@
                                 <CheckBox Margin="0,8,0,0"
                                           Content="{loc:Tr Settings_InheritWallpaper}"
                                           IsChecked="{Binding Config.InheritWallpaperFromPreviousPage, Mode=TwoWay}" />
-                                <ItemsControl ItemsSource="{Binding TouchPages}" Margin="0,8,0,0">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate DataType="m:TouchButtonPage">
-                                            <Border Background="{DynamicResource AppSurfaceAlt}" CornerRadius="4" Padding="8" Margin="0,0,0,6">
-                                                <Grid ColumnDefinitions="80,*,Auto,Auto,Auto,Auto,Auto,Auto">
-                                                    <Border Grid.Column="0" BorderBrush="{DynamicResource AppBorderSubtle}" BorderThickness="1" CornerRadius="3" Height="40"
-                                                            ToolTip.Tip="{Binding PageName}">
-                                                        <Image Source="{Binding WallpaperThumbnail}" Stretch="UniformToFill" />
-                                                    </Border>
-                                                    <!-- No page name here: the row carries seven action
-                                                         buttons and the name only ever showed a clipped
-                                                         fragment. The thumbnail identifies the row; the
-                                                         name is on its tooltip. -->
-                                                    <Button Grid.Column="2" Classes="row-action" ToolTip.Tip="{loc:Tr Settings_EditWallpaper}"
-                                                            Command="{Binding $parent[Window].DataContext.EditWallpaperCommand}"
-                                                            CommandParameter="{Binding}">
-                                                        <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF02E9;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
-                                                    </Button>
-                                                    <Button Grid.Column="3" Classes="row-action" ToolTip.Tip="{loc:Tr Settings_EditPageCommands}"
-                                                            Command="{Binding $parent[Window].DataContext.EditPageCommandsCommand}"
-                                                            CommandParameter="{Binding}">
-                                                        <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF18D8;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
-                                                    </Button>
-                                                    <Button Grid.Column="4" Classes="row-action" Content="↑" ToolTip.Tip="{loc:Tr Settings_MoveUp}"
-                                                            Command="{Binding $parent[Window].DataContext.MoveTouchPageUpCommand}"
-                                                            CommandParameter="{Binding}" />
-                                                    <Button Grid.Column="5" Classes="row-action" Content="↓" ToolTip.Tip="{loc:Tr Settings_MoveDown}"
-                                                            Command="{Binding $parent[Window].DataContext.MoveTouchPageDownCommand}"
-                                                            CommandParameter="{Binding}" />
-                                                    <Button Grid.Column="6" Classes="row-action" ToolTip.Tip="{loc:Tr Settings_ExportThisPageAsA}"
-                                                            Command="{Binding $parent[Window].DataContext.ExportTouchPageCommand}"
-                                                            CommandParameter="{Binding}">
-                                                        <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF0207;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
-                                                    </Button>
-                                                    <Button Grid.Column="7" Classes="row-action danger" Content="✕" ToolTip.Tip="{loc:Tr Settings_RemovePage}"
-                                                            Command="{Binding $parent[Window].DataContext.RemoveTouchPageCommand}"
-                                                            CommandParameter="{Binding}" />
-                                                </Grid>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                                <!-- One calm row per page: drag handle, wallpaper thumbnail (click to
+                                     edit), name with its wallpaper origin, and a single "more" menu.
+                                     The overlay canvas draws the drop line while a row is dragged. -->
+                                <Panel Margin="0,8,0,0">
+                                    <ItemsControl ItemsSource="{Binding TouchPages}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="m:TouchButtonPage">
+                                                <Border Classes="page-row">
+                                                    <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                                                        <Border Grid.Column="0" Classes="page-grip"
+                                                                ToolTip.Tip="{loc:Tr Settings_DragToReorder}"
+                                                                PointerPressed="OnPageGripPressed"
+                                                                PointerMoved="OnPageGripMoved"
+                                                                PointerReleased="OnPageGripReleased"
+                                                                PointerCaptureLost="OnPageGripCaptureLost">
+                                                            <!-- mdi-drag -->
+                                                            <TextBlock Text="&#xF01DD;" />
+                                                        </Border>
+                                                        <Button Grid.Column="1" Classes="page-thumb"
+                                                                ToolTip.Tip="{loc:Tr Settings_EditWallpaper}"
+                                                                Command="{Binding $parent[Window].DataContext.EditWallpaperCommand}"
+                                                                CommandParameter="{Binding}">
+                                                            <Border CornerRadius="5" ClipToBounds="True">
+                                                                <Panel>
+                                                                    <Image Source="{Binding WallpaperThumbnail}" Stretch="UniformToFill" />
+                                                                    <Panel Classes="thumb-overlay">
+                                                                        <Border Classes="thumb-scrim" />
+                                                                        <!-- mdi-image -->
+                                                                        <TextBlock Text="&#xF02E9;" />
+                                                                    </Panel>
+                                                                </Panel>
+                                                            </Border>
+                                                        </Button>
+                                                        <StackPanel Grid.Column="2" Classes="page-text">
+                                                            <Panel>
+                                                                <TextBlock Classes="page-name" Text="{Binding Name}"
+                                                                           IsVisible="{Binding Name, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                                <TextBlock Classes="page-name" Text="{loc:TrFormat Settings_PageNumberFmt, Page}"
+                                                                           IsVisible="{Binding Name, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
+                                                            </Panel>
+                                                            <Panel>
+                                                                <TextBlock Classes="page-sub" Text="{loc:Tr Settings_OwnWallpaper}"
+                                                                           IsVisible="{Binding HasAnyWallpaper}" />
+                                                                <TextBlock Classes="page-sub" Text="{loc:TrFormat Settings_SameAsPageFmt, InheritedWallpaperSource.Page}"
+                                                                           IsVisible="{Binding InheritedWallpaperSource, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                                                                <TextBlock Classes="page-sub" Text="{loc:Tr Settings_NoWallpaper}">
+                                                                    <TextBlock.IsVisible>
+                                                                        <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                                                            <Binding Path="!HasAnyWallpaper" />
+                                                                            <Binding Path="InheritedWallpaperSource" Converter="{x:Static ObjectConverters.IsNull}" />
+                                                                        </MultiBinding>
+                                                                    </TextBlock.IsVisible>
+                                                                </TextBlock>
+                                                            </Panel>
+                                                        </StackPanel>
+                                                        <Button Grid.Column="3" Classes="page-more"
+                                                                ToolTip.Tip="{loc:Tr Settings_MoreActions}">
+                                                            <!-- mdi-dots-horizontal -->
+                                                            <TextBlock Text="&#xF01D8;" />
+                                                            <Button.Flyout>
+                                                                <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                                                    <MenuItem Header="{loc:Tr Settings_ChangeWallpaperMenu}"
+                                                                              Command="{Binding $parent[Window].DataContext.EditWallpaperCommand}"
+                                                                              CommandParameter="{Binding}">
+                                                                        <MenuItem.Icon><TextBlock Classes="menu-icon" Text="&#xF02E9;" /></MenuItem.Icon>
+                                                                    </MenuItem>
+                                                                    <MenuItem Header="{loc:Tr Settings_PageCommandsMenu}"
+                                                                              Command="{Binding $parent[Window].DataContext.EditPageCommandsCommand}"
+                                                                              CommandParameter="{Binding}">
+                                                                        <MenuItem.Icon><TextBlock Classes="menu-icon" Text="&#xF18D8;" /></MenuItem.Icon>
+                                                                    </MenuItem>
+                                                                    <MenuItem Header="{loc:Tr Settings_DuplicateMenu}"
+                                                                              Command="{Binding $parent[Window].DataContext.DuplicateTouchPageCommand}"
+                                                                              CommandParameter="{Binding}">
+                                                                        <MenuItem.Icon><TextBlock Classes="menu-icon" Text="&#xF018F;" /></MenuItem.Icon>
+                                                                    </MenuItem>
+                                                                    <MenuItem Header="{loc:Tr Settings_ExportMenu}"
+                                                                              Command="{Binding $parent[Window].DataContext.ExportTouchPageCommand}"
+                                                                              CommandParameter="{Binding}">
+                                                                        <MenuItem.Icon><TextBlock Classes="menu-icon" Text="&#xF0207;" /></MenuItem.Icon>
+                                                                    </MenuItem>
+                                                                    <Separator />
+                                                                    <MenuItem Classes="danger" Header="{loc:Tr Settings_DeleteMenu}"
+                                                                              Command="{Binding $parent[Window].DataContext.RemoveTouchPageCommand}"
+                                                                              CommandParameter="{Binding}">
+                                                                        <MenuItem.Icon><TextBlock Classes="menu-icon" Text="&#xF0A7A;" /></MenuItem.Icon>
+                                                                    </MenuItem>
+                                                                </MenuFlyout>
+                                                            </Button.Flyout>
+                                                        </Button>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <Canvas Classes="page-drop-overlay" IsHitTestVisible="False">
+                                        <Border Classes="page-drop-line" IsVisible="False" />
+                                    </Canvas>
+                                </Panel>
                             </StackPanel>
                         </Border>
 
@@ -844,36 +901,69 @@
                                         <TextBlock Grid.Column="0" Classes="card-title" Text="{loc:Tr Settings_RotaryPages}" />
                                         <Button Grid.Column="1" Content="{loc:Tr Settings_Add}" Command="{Binding AddRotaryPageCommand}" />
                                     </Grid>
-                                    <ItemsControl ItemsSource="{Binding RotaryPages}" Margin="0,8,0,0">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate DataType="m:RotaryButtonPage">
-                                                <Border Background="{DynamicResource AppSurfaceAlt}" CornerRadius="4" Padding="8" Margin="0,0,0,6">
-                                                    <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto">
-                                                        <TextBlock Grid.Column="0" Text="{Binding PageName}" VerticalAlignment="Center" />
-                                                        <Button Grid.Column="1" Classes="row-action" ToolTip.Tip="{loc:Tr Settings_EditPageCommands}"
-                                                                Command="{Binding $parent[Window].DataContext.EditPageCommandsCommand}"
-                                                                CommandParameter="{Binding}">
-                                                            <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF18D8;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
-                                                        </Button>
-                                                        <Button Grid.Column="2" Classes="row-action" Content="↑" ToolTip.Tip="{loc:Tr Settings_MoveUp}"
-                                                                Command="{Binding $parent[Window].DataContext.MoveRotaryPageUpCommand}"
-                                                                CommandParameter="{Binding}" />
-                                                        <Button Grid.Column="3" Classes="row-action" Content="↓" ToolTip.Tip="{loc:Tr Settings_MoveDown}"
-                                                                Command="{Binding $parent[Window].DataContext.MoveRotaryPageDownCommand}"
-                                                                CommandParameter="{Binding}" />
-                                                        <Button Grid.Column="4" Classes="row-action" ToolTip.Tip="{loc:Tr Settings_ExportThisPageAsA}"
-                                                                Command="{Binding $parent[Window].DataContext.ExportRotaryPageCommand}"
-                                                                CommandParameter="{Binding}">
-                                                            <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF0207;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
-                                                        </Button>
-                                                        <Button Grid.Column="5" Classes="row-action danger" Content="✕" ToolTip.Tip="{loc:Tr Settings_RemoveRotaryPage}"
-                                                                Command="{Binding $parent[Window].DataContext.RemoveRotaryPageCommand}"
-                                                                CommandParameter="{Binding}" />
-                                                    </Grid>
-                                                </Border>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
+                                    <Panel Margin="0,8,0,0">
+                                        <ItemsControl ItemsSource="{Binding RotaryPages}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate DataType="m:RotaryButtonPage">
+                                                    <Border Classes="page-row">
+                                                        <Grid ColumnDefinitions="Auto,*,Auto">
+                                                            <Border Grid.Column="0" Classes="page-grip"
+                                                                    ToolTip.Tip="{loc:Tr Settings_DragToReorder}"
+                                                                    PointerPressed="OnPageGripPressed"
+                                                                    PointerMoved="OnPageGripMoved"
+                                                                    PointerReleased="OnPageGripReleased"
+                                                                    PointerCaptureLost="OnPageGripCaptureLost">
+                                                                <!-- mdi-drag -->
+                                                                <TextBlock Text="&#xF01DD;" />
+                                                            </Border>
+                                                            <!-- Rotary pages have no wallpaper, so no thumbnail and no origin line. -->
+                                                            <StackPanel Grid.Column="1" Classes="page-text">
+                                                                <Panel>
+                                                                <TextBlock Classes="page-name" Text="{Binding Name}"
+                                                                           IsVisible="{Binding Name, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                                <TextBlock Classes="page-name" Text="{loc:TrFormat Settings_PageNumberFmt, Page}"
+                                                                           IsVisible="{Binding Name, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
+                                                                </Panel>
+                                                            </StackPanel>
+                                                            <Button Grid.Column="2" Classes="page-more"
+                                                                    ToolTip.Tip="{loc:Tr Settings_MoreActions}">
+                                                                <!-- mdi-dots-horizontal -->
+                                                                <TextBlock Text="&#xF01D8;" />
+                                                                <Button.Flyout>
+                                                                    <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                                                        <MenuItem Header="{loc:Tr Settings_PageCommandsMenu}"
+                                                                                  Command="{Binding $parent[Window].DataContext.EditPageCommandsCommand}"
+                                                                                  CommandParameter="{Binding}">
+                                                                            <MenuItem.Icon><TextBlock Classes="menu-icon" Text="&#xF18D8;" /></MenuItem.Icon>
+                                                                        </MenuItem>
+                                                                        <MenuItem Header="{loc:Tr Settings_DuplicateMenu}"
+                                                                                  Command="{Binding $parent[Window].DataContext.DuplicateRotaryPageCommand}"
+                                                                                  CommandParameter="{Binding}">
+                                                                            <MenuItem.Icon><TextBlock Classes="menu-icon" Text="&#xF018F;" /></MenuItem.Icon>
+                                                                        </MenuItem>
+                                                                        <MenuItem Header="{loc:Tr Settings_ExportMenu}"
+                                                                                  Command="{Binding $parent[Window].DataContext.ExportRotaryPageCommand}"
+                                                                                  CommandParameter="{Binding}">
+                                                                            <MenuItem.Icon><TextBlock Classes="menu-icon" Text="&#xF0207;" /></MenuItem.Icon>
+                                                                        </MenuItem>
+                                                                        <Separator />
+                                                                        <MenuItem Classes="danger" Header="{loc:Tr Settings_DeleteMenu}"
+                                                                                  Command="{Binding $parent[Window].DataContext.RemoveRotaryPageCommand}"
+                                                                                  CommandParameter="{Binding}">
+                                                                            <MenuItem.Icon><TextBlock Classes="menu-icon" Text="&#xF0A7A;" /></MenuItem.Icon>
+                                                                        </MenuItem>
+                                                                    </MenuFlyout>
+                                                                </Button.Flyout>
+                                                            </Button>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <Canvas Classes="page-drop-overlay" IsHitTestVisible="False">
+                                            <Border Classes="page-drop-line" IsVisible="False" />
+                                        </Canvas>
+                                    </Panel>
                                 </StackPanel>
 
                                 <!-- Independent left/right lists — devices with side strips (Razer). -->
@@ -882,59 +972,137 @@
                                         <TextBlock Grid.Column="0" Classes="card-title" Text="{loc:Tr Settings_LeftRotaryPages}" />
                                         <Button Grid.Column="1" Content="{loc:Tr Settings_Add}" Command="{Binding AddLeftRotaryPageCommand}" />
                                     </Grid>
-                                    <ItemsControl ItemsSource="{Binding LeftRotaryPages}" Margin="0,8,0,0">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate DataType="m:RotaryButtonPage">
-                                                <Border Background="{DynamicResource AppSurfaceAlt}" CornerRadius="4" Padding="8" Margin="0,0,0,6">
-                                                    <Grid ColumnDefinitions="*,Auto,Auto,Auto">
-                                                        <TextBlock Grid.Column="0" Text="{Binding PageName}" VerticalAlignment="Center" />
-                                                        <Button Grid.Column="1" Classes="row-action" ToolTip.Tip="{loc:Tr Settings_EditPageCommands}"
-                                                                Command="{Binding $parent[Window].DataContext.EditPageCommandsCommand}"
-                                                                CommandParameter="{Binding}">
-                                                            <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF18D8;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
-                                                        </Button>
-                                                        <Button Grid.Column="2" Classes="row-action" ToolTip.Tip="{loc:Tr Settings_ExportThisPageAsA}"
-                                                                Command="{Binding $parent[Window].DataContext.ExportRotaryPageCommand}"
-                                                                CommandParameter="{Binding}">
-                                                            <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF0207;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
-                                                        </Button>
-                                                        <Button Grid.Column="3" Classes="row-action danger" Content="✕" ToolTip.Tip="{loc:Tr Settings_RemoveRotaryPage}"
-                                                                Command="{Binding $parent[Window].DataContext.RemoveLeftRotaryPageCommand}"
-                                                                CommandParameter="{Binding}" />
-                                                    </Grid>
-                                                </Border>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
+                                    <Panel Margin="0,8,0,0">
+                                        <ItemsControl ItemsSource="{Binding LeftRotaryPages}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate DataType="m:RotaryButtonPage">
+                                                    <Border Classes="page-row">
+                                                        <Grid ColumnDefinitions="Auto,*,Auto">
+                                                            <Border Grid.Column="0" Classes="page-grip"
+                                                                    ToolTip.Tip="{loc:Tr Settings_DragToReorder}"
+                                                                    PointerPressed="OnPageGripPressed"
+                                                                    PointerMoved="OnPageGripMoved"
+                                                                    PointerReleased="OnPageGripReleased"
+                                                                    PointerCaptureLost="OnPageGripCaptureLost">
+                                                                <!-- mdi-drag -->
+                                                                <TextBlock Text="&#xF01DD;" />
+                                                            </Border>
+                                                            <!-- Rotary pages have no wallpaper, so no thumbnail and no origin line. -->
+                                                            <StackPanel Grid.Column="1" Classes="page-text">
+                                                                <Panel>
+                                                                <TextBlock Classes="page-name" Text="{Binding Name}"
+                                                                           IsVisible="{Binding Name, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                                <TextBlock Classes="page-name" Text="{loc:TrFormat Settings_PageNumberFmt, Page}"
+                                                                           IsVisible="{Binding Name, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
+                                                                </Panel>
+                                                            </StackPanel>
+                                                            <Button Grid.Column="2" Classes="page-more"
+                                                                    ToolTip.Tip="{loc:Tr Settings_MoreActions}">
+                                                                <!-- mdi-dots-horizontal -->
+                                                                <TextBlock Text="&#xF01D8;" />
+                                                                <Button.Flyout>
+                                                                    <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                                                        <MenuItem Header="{loc:Tr Settings_PageCommandsMenu}"
+                                                                                  Command="{Binding $parent[Window].DataContext.EditPageCommandsCommand}"
+                                                                                  CommandParameter="{Binding}">
+                                                                            <MenuItem.Icon><TextBlock Classes="menu-icon" Text="&#xF18D8;" /></MenuItem.Icon>
+                                                                        </MenuItem>
+                                                                        <MenuItem Header="{loc:Tr Settings_DuplicateMenu}"
+                                                                                  Command="{Binding $parent[Window].DataContext.DuplicateRotaryPageCommand}"
+                                                                                  CommandParameter="{Binding}">
+                                                                            <MenuItem.Icon><TextBlock Classes="menu-icon" Text="&#xF018F;" /></MenuItem.Icon>
+                                                                        </MenuItem>
+                                                                        <MenuItem Header="{loc:Tr Settings_ExportMenu}"
+                                                                                  Command="{Binding $parent[Window].DataContext.ExportRotaryPageCommand}"
+                                                                                  CommandParameter="{Binding}">
+                                                                            <MenuItem.Icon><TextBlock Classes="menu-icon" Text="&#xF0207;" /></MenuItem.Icon>
+                                                                        </MenuItem>
+                                                                        <Separator />
+                                                                        <MenuItem Classes="danger" Header="{loc:Tr Settings_DeleteMenu}"
+                                                                                  Command="{Binding $parent[Window].DataContext.RemoveLeftRotaryPageCommand}"
+                                                                                  CommandParameter="{Binding}">
+                                                                            <MenuItem.Icon><TextBlock Classes="menu-icon" Text="&#xF0A7A;" /></MenuItem.Icon>
+                                                                        </MenuItem>
+                                                                    </MenuFlyout>
+                                                                </Button.Flyout>
+                                                            </Button>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <Canvas Classes="page-drop-overlay" IsHitTestVisible="False">
+                                            <Border Classes="page-drop-line" IsVisible="False" />
+                                        </Canvas>
+                                    </Panel>
 
                                     <Grid ColumnDefinitions="*,Auto" Margin="0,12,0,0">
                                         <TextBlock Grid.Column="0" Classes="card-title" Text="{loc:Tr Settings_RightRotaryPages}" />
                                         <Button Grid.Column="1" Content="{loc:Tr Settings_Add}" Command="{Binding AddRightRotaryPageCommand}" />
                                     </Grid>
-                                    <ItemsControl ItemsSource="{Binding RightRotaryPages}" Margin="0,8,0,0">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate DataType="m:RotaryButtonPage">
-                                                <Border Background="{DynamicResource AppSurfaceAlt}" CornerRadius="4" Padding="8" Margin="0,0,0,6">
-                                                    <Grid ColumnDefinitions="*,Auto,Auto,Auto">
-                                                        <TextBlock Grid.Column="0" Text="{Binding PageName}" VerticalAlignment="Center" />
-                                                        <Button Grid.Column="1" Classes="row-action" ToolTip.Tip="{loc:Tr Settings_EditPageCommands}"
-                                                                Command="{Binding $parent[Window].DataContext.EditPageCommandsCommand}"
-                                                                CommandParameter="{Binding}">
-                                                            <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF18D8;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
-                                                        </Button>
-                                                        <Button Grid.Column="2" Classes="row-action" ToolTip.Tip="{loc:Tr Settings_ExportThisPageAsA}"
-                                                                Command="{Binding $parent[Window].DataContext.ExportRotaryPageCommand}"
-                                                                CommandParameter="{Binding}">
-                                                            <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF0207;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
-                                                        </Button>
-                                                        <Button Grid.Column="3" Classes="row-action danger" Content="✕" ToolTip.Tip="{loc:Tr Settings_RemoveRotaryPage}"
-                                                                Command="{Binding $parent[Window].DataContext.RemoveRightRotaryPageCommand}"
-                                                                CommandParameter="{Binding}" />
-                                                    </Grid>
-                                                </Border>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
+                                    <Panel Margin="0,8,0,0">
+                                        <ItemsControl ItemsSource="{Binding RightRotaryPages}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate DataType="m:RotaryButtonPage">
+                                                    <Border Classes="page-row">
+                                                        <Grid ColumnDefinitions="Auto,*,Auto">
+                                                            <Border Grid.Column="0" Classes="page-grip"
+                                                                    ToolTip.Tip="{loc:Tr Settings_DragToReorder}"
+                                                                    PointerPressed="OnPageGripPressed"
+                                                                    PointerMoved="OnPageGripMoved"
+                                                                    PointerReleased="OnPageGripReleased"
+                                                                    PointerCaptureLost="OnPageGripCaptureLost">
+                                                                <!-- mdi-drag -->
+                                                                <TextBlock Text="&#xF01DD;" />
+                                                            </Border>
+                                                            <!-- Rotary pages have no wallpaper, so no thumbnail and no origin line. -->
+                                                            <StackPanel Grid.Column="1" Classes="page-text">
+                                                                <Panel>
+                                                                <TextBlock Classes="page-name" Text="{Binding Name}"
+                                                                           IsVisible="{Binding Name, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                                <TextBlock Classes="page-name" Text="{loc:TrFormat Settings_PageNumberFmt, Page}"
+                                                                           IsVisible="{Binding Name, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
+                                                                </Panel>
+                                                            </StackPanel>
+                                                            <Button Grid.Column="2" Classes="page-more"
+                                                                    ToolTip.Tip="{loc:Tr Settings_MoreActions}">
+                                                                <!-- mdi-dots-horizontal -->
+                                                                <TextBlock Text="&#xF01D8;" />
+                                                                <Button.Flyout>
+                                                                    <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                                                        <MenuItem Header="{loc:Tr Settings_PageCommandsMenu}"
+                                                                                  Command="{Binding $parent[Window].DataContext.EditPageCommandsCommand}"
+                                                                                  CommandParameter="{Binding}">
+                                                                            <MenuItem.Icon><TextBlock Classes="menu-icon" Text="&#xF18D8;" /></MenuItem.Icon>
+                                                                        </MenuItem>
+                                                                        <MenuItem Header="{loc:Tr Settings_DuplicateMenu}"
+                                                                                  Command="{Binding $parent[Window].DataContext.DuplicateRotaryPageCommand}"
+                                                                                  CommandParameter="{Binding}">
+                                                                            <MenuItem.Icon><TextBlock Classes="menu-icon" Text="&#xF018F;" /></MenuItem.Icon>
+                                                                        </MenuItem>
+                                                                        <MenuItem Header="{loc:Tr Settings_ExportMenu}"
+                                                                                  Command="{Binding $parent[Window].DataContext.ExportRotaryPageCommand}"
+                                                                                  CommandParameter="{Binding}">
+                                                                            <MenuItem.Icon><TextBlock Classes="menu-icon" Text="&#xF0207;" /></MenuItem.Icon>
+                                                                        </MenuItem>
+                                                                        <Separator />
+                                                                        <MenuItem Classes="danger" Header="{loc:Tr Settings_DeleteMenu}"
+                                                                                  Command="{Binding $parent[Window].DataContext.RemoveRightRotaryPageCommand}"
+                                                                                  CommandParameter="{Binding}">
+                                                                            <MenuItem.Icon><TextBlock Classes="menu-icon" Text="&#xF0A7A;" /></MenuItem.Icon>
+                                                                        </MenuItem>
+                                                                    </MenuFlyout>
+                                                                </Button.Flyout>
+                                                            </Button>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <Canvas Classes="page-drop-overlay" IsHitTestVisible="False">
+                                            <Border Classes="page-drop-line" IsVisible="False" />
+                                        </Canvas>
+                                    </Panel>
                                 </StackPanel>
                             </StackPanel>
                         </Border>

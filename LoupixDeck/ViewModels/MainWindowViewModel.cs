@@ -66,6 +66,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public IRelayCommand AddRotaryPageCommand { get; }
     public IRelayCommand DeleteRotaryPageCommand { get; }
+    public IRelayCommand DuplicateRotaryPageCommand { get; }
     public IRelayCommand RotaryPageButtonCommand { get; }
     public IRelayCommand NextRotaryPageCommand { get; }
     public IRelayCommand PreviousRotaryPageCommand { get; }
@@ -80,10 +81,12 @@ public partial class MainWindowViewModel : ViewModelBase
     // page independently. Bound per side (Left/Right) in the device layout.
     public IRelayCommand AddLeftRotaryPageCommand { get; }
     public IRelayCommand DeleteLeftRotaryPageCommand { get; }
+    public IRelayCommand DuplicateLeftRotaryPageCommand { get; }
     public IRelayCommand NextLeftRotaryPageCommand { get; }
     public IRelayCommand PreviousLeftRotaryPageCommand { get; }
     public IRelayCommand AddRightRotaryPageCommand { get; }
     public IRelayCommand DeleteRightRotaryPageCommand { get; }
+    public IRelayCommand DuplicateRightRotaryPageCommand { get; }
     public IRelayCommand NextRightRotaryPageCommand { get; }
     public IRelayCommand PreviousRightRotaryPageCommand { get; }
 
@@ -97,6 +100,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public IRelayCommand AddTouchPageCommand { get; }
     public IRelayCommand DeleteTouchPageCommand { get; }
+    public IRelayCommand DuplicateTouchPageCommand { get; }
     public IRelayCommand TouchPageButtonCommand { get; }
     public IRelayCommand NextTouchPageCommand { get; }
     public IRelayCommand PreviousTouchPageCommand { get; }
@@ -416,6 +420,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         AddRotaryPageCommand = new RelayCommand(AddRotaryPageButton_Click);
         DeleteRotaryPageCommand = new RelayCommand(DeleteRotaryPageButton_Click);
+        DuplicateRotaryPageCommand = new RelayCommand(DuplicateRotaryPageButton_Click);
         RotaryPageButtonCommand = new RelayCommand<int>(RotaryPageButton_Click);
         NextRotaryPageCommand = new RelayCommand(NextRotaryPage_Click);
         PreviousRotaryPageCommand = new RelayCommand(PreviousRotaryPage_Click);
@@ -427,10 +432,12 @@ public partial class MainWindowViewModel : ViewModelBase
 
         AddLeftRotaryPageCommand = new RelayCommand(() => AddRotaryPageForSide(RotarySide.Left));
         DeleteLeftRotaryPageCommand = new RelayCommand(() => DeleteRotaryPageForSide(RotarySide.Left));
+        DuplicateLeftRotaryPageCommand = new RelayCommand(() => DuplicateRotaryPageForSide(RotarySide.Left));
         NextLeftRotaryPageCommand = new RelayCommand(() => PageRotaryForSide(RotarySide.Left, next: true));
         PreviousLeftRotaryPageCommand = new RelayCommand(() => PageRotaryForSide(RotarySide.Left, next: false));
         AddRightRotaryPageCommand = new RelayCommand(() => AddRotaryPageForSide(RotarySide.Right));
         DeleteRightRotaryPageCommand = new RelayCommand(() => DeleteRotaryPageForSide(RotarySide.Right));
+        DuplicateRightRotaryPageCommand = new RelayCommand(() => DuplicateRotaryPageForSide(RotarySide.Right));
         NextRightRotaryPageCommand = new RelayCommand(() => PageRotaryForSide(RotarySide.Right, next: true));
         PreviousRightRotaryPageCommand = new RelayCommand(() => PageRotaryForSide(RotarySide.Right, next: false));
 
@@ -439,6 +446,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         AddTouchPageCommand = new RelayCommand(AddTouchPageButton_Click);
         DeleteTouchPageCommand = new RelayCommand(DeleteTouchPageButton_Click);
+        DuplicateTouchPageCommand = new RelayCommand(DuplicateTouchPageButton_Click);
         TouchPageButtonCommand = new RelayCommand<int>(TouchPageButton_Click);
         NextTouchPageCommand = new RelayCommand(NextTouchPage_Click);
         PreviousTouchPageCommand = new RelayCommand(PreviousTouchPage_Click);
@@ -626,6 +634,15 @@ public partial class MainWindowViewModel : ViewModelBase
         });
     }
 
+    private void DuplicateRotaryPageButton_Click()
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            LoupedeckController.PageManager.DuplicateRotaryButtonPage();
+            LoupedeckController.SaveConfig();
+        });
+    }
+
     private void RotaryPageButton_Click(int page)
     {
         LoupedeckController.AnimateGotoRotaryPage(page - 1);
@@ -659,6 +676,16 @@ public partial class MainWindowViewModel : ViewModelBase
         });
     }
 
+    private void DuplicateRotaryPageForSide(RotarySide side)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            IPageManager pages = LoupedeckController.PageManager;
+            pages.DuplicateRotaryButtonPage(side, pages.GetCurrentRotaryPageIndex(side));
+            LoupedeckController.SaveConfig();
+        });
+    }
+
     private void PageRotaryForSide(RotarySide side, bool next)
     {
         LoupedeckController.AnimateRotaryPageForSide(side, next);
@@ -678,6 +705,17 @@ public partial class MainWindowViewModel : ViewModelBase
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
             LoupedeckController.PageManager.DeleteTouchButtonPage();
+            LoupedeckController.SaveConfig();
+        });
+    }
+
+    private void DuplicateTouchPageButton_Click()
+    {
+        EndExclusiveModeForPageChange();
+        Avalonia.Threading.Dispatcher.UIThread.Post(async () =>
+        {
+            IPageManager pages = LoupedeckController.PageManager;
+            await pages.DuplicateTouchButtonPage(pages.CurrentTouchPageIndex);
             LoupedeckController.SaveConfig();
         });
     }

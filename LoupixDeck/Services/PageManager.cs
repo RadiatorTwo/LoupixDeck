@@ -46,6 +46,10 @@ public interface IPageManager
     void AddRotaryButtonPage(RotarySide side, bool init = false);
     void DeleteRotaryButtonPage(RotarySide side);
 
+    /// <summary>Inserts a copy of the side's page at <paramref name="pageIndex"/> right after it
+    /// and makes the copy current.</summary>
+    void DuplicateRotaryButtonPage(RotarySide side, int pageIndex);
+
     Task NextTouchPage();
     Task PreviousTouchPage();
 
@@ -60,6 +64,14 @@ public interface IPageManager
     void DeleteRotaryButtonPage();
     Task AddTouchButtonPage(bool init = false);
     Task DeleteTouchButtonPage();
+
+    /// <summary>Duplicates the current rotary page (on a side-strip device, the current page of
+    /// each column, so both sides stay in step).</summary>
+    void DuplicateRotaryButtonPage();
+
+    /// <summary>Inserts a copy of the touch page at <paramref name="pageIndex"/> right after it
+    /// and makes the copy current.</summary>
+    Task DuplicateTouchButtonPage(int pageIndex);
 
     void RefreshTouchButtons();
     void RefreshSimpleButtons();
@@ -411,19 +423,38 @@ public class PageManager : IPageManager
             return;
 
         pages.RemoveAt(GetCurrentRotaryPageIndex(side));
-
-        var counter = 0;
-        foreach (var page in pages)
-        {
-            counter++;
-            page.Page = counter;
-        }
+        Renumber(pages);
 
         var currentIndex = GetCurrentRotaryPageIndex(side);
         if (currentIndex < pages.Count)
             ApplyRotaryPage(side, currentIndex, init: true);
         else
             ApplyRotaryPage(side, pages.Count - 1, init: true);
+    }
+
+    public void DuplicateRotaryButtonPage()
+    {
+        if (HasIndependentRotarySides)
+        {
+            DuplicateRotaryButtonPage(RotarySide.Left, GetCurrentRotaryPageIndex(RotarySide.Left));
+            DuplicateRotaryButtonPage(RotarySide.Right, GetCurrentRotaryPageIndex(RotarySide.Right));
+            return;
+        }
+
+        DuplicateRotaryButtonPage(RotarySide.Both, GetCurrentRotaryPageIndex(RotarySide.Both));
+    }
+
+    public void DuplicateRotaryButtonPage(RotarySide side, int pageIndex)
+    {
+        var pages = GetRotaryPages(side);
+        if (pageIndex < 0 || pageIndex >= pages.Count)
+            return;
+
+        RotaryButtonPage copy = PageCloner.Clone(pages[pageIndex], _deviceService.RotaryButtonCount, SideRotaryButtonCount);
+        pages.Insert(pageIndex + 1, copy);
+        Renumber(pages);
+
+        ApplyRotaryPage(side, pageIndex + 1, init: true);
     }
 
     public async Task AddTouchButtonPage(bool init = false)
@@ -452,13 +483,7 @@ public class PageManager : IPageManager
             return;
 
         TouchButtonPages.RemoveAt(CurrentTouchPageIndex);
-
-        var counter = 0;
-        foreach (var page in TouchButtonPages)
-        {
-            counter++;
-            page.Page = counter;
-        }
+        Renumber(TouchButtonPages);
 
         if (CurrentTouchPageIndex < TouchButtonPages.Count)
         {
@@ -468,6 +493,31 @@ public class PageManager : IPageManager
         {
             await ApplyTouchPage(TouchButtonPages.Count - 1);
         }
+    }
+
+    /// <summary>Rewrites each page's 1-based <see cref="ButtonPageBase.Page"/> number from its position.</summary>
+    private static void Renumber<T>(IList<T> pages) where T : ButtonPageBase
+    {
+        for (int i = 0; i < pages.Count; i++)
+            pages[i].Page = i + 1;
+    }
+
+    public async Task DuplicateTouchButtonPage(int pageIndex)
+    {
+        if (pageIndex < 0 || pageIndex >= TouchButtonPages.Count)
+            return;
+
+        TouchButtonPage copy = PageCloner.Clone(TouchButtonPages[pageIndex], _deviceService.TouchButtonCount);
+        int insertAt = pageIndex + 1;
+        TouchButtonPages.Insert(insertAt, copy);
+        Renumber(TouchButtonPages);
+
+        // The startup page is stored by index; keep it on the page it pointed at. Context rules
+        // and companion targets reference pages by id and need nothing.
+        if (_config.ActiveWorkspace is { } workspace && workspace.StartupTouchPageIndex >= insertAt)
+            workspace.StartupTouchPageIndex++;
+
+        await ApplyTouchPage(insertAt);
     }
 
     public void RefreshTouchButtons()
