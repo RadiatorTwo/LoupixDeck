@@ -455,6 +455,32 @@
       }
     },
     {
+      "id": "msteams",
+      "name": "Microsoft Teams",
+      "description": "Control Microsoft Teams meetings: mic, camera, background blur, reactions, raise hand, screen sharing and leave, with live button state.",
+      "author": "RadiatorTwo",
+      "repository": "RadiatorTwo/LoupixDeck.Plugin.MSTeams",
+      "icon": "https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck.Plugin.MSTeams/master/icon.png",
+      "platforms": [ "Windows" ],
+      "minSdkVersion": "1.36.0",
+      "commandPrefixes": [ "MSTeams." ],
+      "release": {
+        "version": "1.0.0",
+        "tag": "v1.0.0",
+        "publishedAt": "2026-11-09T12:07:34Z",
+        "sdkVersion": "1.36",
+        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.MSTeams/releases/tag/v1.0.0",
+        "packages": [
+          {
+            "platform": "windows",
+            "fileName": "msteams-1.0.0-windows.zip",
+            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.MSTeams/releases/download/v1.0.0/msteams-1.0.0-windows.zip",
+            "sha256": "be3193017b613d8b9b8b9e614ea65b2358cc4a026998a87a8b5a9d8c9964b948"
+          }
+        ]
+      }
+    },
+    {
       "id": "network",
       "name": "Network",
       "description": "Controls NetworkManager connections, Wi-Fi and VPNs over the native D-Bus API.",
