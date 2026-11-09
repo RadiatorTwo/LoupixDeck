@@ -1,6 +1,7 @@
 using LoupixDeck.Localization;
 using LoupixDeck.Models.Diagnostics;
 using LoupixDeck.Services.ActiveWindow;
+using LoupixDeck.Services.AppActivation;
 using LoupixDeck.WaylandFocus;
 
 namespace LoupixDeck.Services.Diagnostics.Linux.Checks;
@@ -33,6 +34,14 @@ public sealed class CompositorCheck(IActiveWindowMonitor monitor) : ILinuxDiagno
         {
             return Task.FromResult(DiagnosticCheckResult.Skipped(Id, Category, title,
                 Loc.Tr("Diagnostics_CompositorNotApplicable"), null, sessionType));
+        }
+
+        // GNOME has no focus IPC of its own; what it needs is covered by the separate
+        // session.gnome-activation check, so a warning here would only repeat it.
+        if (GnomeActivationExtension.IsGnome())
+        {
+            return Task.FromResult(DiagnosticCheckResult.Skipped(Id, Category, title,
+                Loc.Tr("Diagnostics_CompositorGnome"), null, "GNOME"));
         }
 
         // The environment is fixed for the session, so live detection returns the same

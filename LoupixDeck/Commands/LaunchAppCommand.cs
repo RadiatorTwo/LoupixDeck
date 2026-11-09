@@ -106,7 +106,8 @@ public sealed class LaunchAppCommand(IAppWindowActivator activator, IProcessWatc
             return false;
         }
 
-        AppActivationOutcome outcome = await activator.ActivateAsync(name, CancellationToken.None);
+        AppActivationOutcome outcome = await activator.ActivateAsync(name,
+            LaunchTargetProcess.WindowClasses(target), CancellationToken.None);
         switch (outcome)
         {
             case AppActivationOutcome.NotRunning:

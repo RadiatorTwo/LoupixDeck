@@ -20,7 +20,8 @@ public sealed class MacAppWindowActivator : IAppWindowActivator
 {
     private const string BundleMarker = ".app/";
 
-    public Task<AppActivationOutcome> ActivateAsync(string processName, CancellationToken cancellationToken)
+    public Task<AppActivationOutcome> ActivateAsync(string processName, IReadOnlyCollection<string> windowClasses,
+        CancellationToken cancellationToken)
         => Task.Run(() => Activate(processName), cancellationToken);
 
     private static AppActivationOutcome Activate(string processName)

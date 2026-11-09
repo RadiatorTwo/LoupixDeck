@@ -64,6 +64,7 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<ILinuxDiagnosticCheck, DesktopEnvironmentCheck>();
         collection.AddSingleton<ILinuxDiagnosticCheck, SessionTypeCheck>();
         collection.AddSingleton<ILinuxDiagnosticCheck, CompositorCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, GnomeActivationCheck>();
         collection.AddSingleton<ILinuxDiagnosticCheck, XWaylandCheck>();
         collection.AddSingleton<ILinuxDiagnosticCheck, XPropCheck>();
         collection.AddSingleton<ILinuxDiagnosticCheck, ActiveWindowCheck>();
