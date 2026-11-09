@@ -94,6 +94,7 @@ public sealed partial class TouchButtonPage(int pageSize) : ButtonPageBase()
     public void SetInheritedWallpaperSource(TouchButtonPage source)
     {
         InheritedWallpaperSource = source;
+        OnPropertyChanged(nameof(InheritedWallpaperSource));
         OnPropertyChanged(nameof(WallpaperThumbnail));
     }
 
@@ -140,6 +141,7 @@ public sealed partial class TouchButtonPage(int pageSize) : ButtonPageBase()
     {
         OnPropertyChanged(nameof(Wallpaper));
         OnPropertyChanged(nameof(WallpaperThumbnail));
+        OnPropertyChanged(nameof(HasAnyWallpaper));
         OnPropertyChanged(nameof(WallpaperInvalidated));
     }
 

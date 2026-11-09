@@ -76,12 +76,6 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     public IRelayCommand RemoveTouchPageCommand => field ??= Relay.Create<TouchButtonPage>(
         p => _ = RemoveTouchPage(p),
         p => p != null && _pageManager.TouchButtonPages.Count > 1);
-    public IRelayCommand MoveTouchPageUpCommand => field ??= Relay.Create<TouchButtonPage>(
-        p => MovePage(_pageManager.TouchButtonPages, p, -1),
-        p => p != null && _pageManager.TouchButtonPages.IndexOf(p) > 0);
-    public IRelayCommand MoveTouchPageDownCommand => field ??= Relay.Create<TouchButtonPage>(
-        p => MovePage(_pageManager.TouchButtonPages, p, +1),
-        p => p != null && _pageManager.TouchButtonPages.IndexOf(p) < _pageManager.TouchButtonPages.Count - 1);
     public IAsyncRelayCommand DuplicateTouchPageCommand => field ??= Relay.Create<TouchButtonPage>(
         p => _pageManager.DuplicateTouchButtonPage(_pageManager.TouchButtonPages.IndexOf(p)),
         static p => p != null);
@@ -1062,6 +1056,15 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         _pageManager.DeleteRotaryButtonPage(side);
     }
 
+    /// <summary>Moves a touch page to <paramref name="targetIndex"/> — the drop target of the
+    /// page list's drag handle.</summary>
+    public void MoveTouchPage(TouchButtonPage page, int targetIndex)
+    {
+        int index = _pageManager.TouchButtonPages.IndexOf(page);
+        if (index < 0 || targetIndex == index) return;
+        MovePage(_pageManager.TouchButtonPages, page, targetIndex - index);
+    }
+
     private void MovePage<T>(ObservableCollection<T> coll, T page, int delta)
     {
         if (page == null) return;
@@ -1105,8 +1108,6 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
 
     private void RefreshTouchPageCommands()
     {
-        MoveTouchPageUpCommand?.NotifyCanExecuteChanged();
-        MoveTouchPageDownCommand?.NotifyCanExecuteChanged();
         RemoveTouchPageCommand?.NotifyCanExecuteChanged();
     }
 

@@ -586,4 +586,121 @@
         <Setter Property="Background" Value="{DynamicResource AppControlBackgroundActive}" />
         <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}" />
     </Style>
+    <!-- ===== Touch page list rows (Settings > Pages) ===== -->
+    <Style Selector="Border.page-row">
+        <Setter Property="Background" Value="{DynamicResource AppSurfaceAlt}" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Height" Value="60" />
+        <Setter Property="Padding" Value="2,0,6,0" />
+        <Setter Property="Margin" Value="0,0,0,8" />
+    </Style>
+    <Style Selector="Border.page-row.dragging">
+        <Setter Property="Opacity" Value="0.5" />
+    </Style>
+
+    <Style Selector="Border.page-grip">
+        <Setter Property="Width" Value="20" />
+        <Setter Property="Height" Value="40" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Cursor" Value="SizeNorthSouth" />
+    </Style>
+    <Style Selector="Border.page-grip > TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource MdiFont}" />
+        <Setter Property="FontSize" Value="18" />
+        <Setter Property="Foreground" Value="{DynamicResource AppTextMuted}" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Border.page-grip:pointerover > TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
+    </Style>
+
+    <Style Selector="Button.page-thumb">
+        <Setter Property="Width" Value="64" />
+        <Setter Property="Height" Value="38" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="6,0,0,0" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
+        <Setter Property="Background" Value="{DynamicResource AppSurfaceLow}" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Stretch" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.page-thumb:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AppSurfaceLow}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
+    </Style>
+    <Style Selector="Button.page-thumb Panel.thumb-overlay">
+        <Setter Property="Opacity" Value="0" />
+    </Style>
+    <Style Selector="Button.page-thumb:pointerover Panel.thumb-overlay, Button.page-thumb:focus-visible Panel.thumb-overlay">
+        <Setter Property="Opacity" Value="1" />
+    </Style>
+    <Style Selector="Border.thumb-scrim">
+        <Setter Property="Background" Value="{DynamicResource AppSurfaceLow}" />
+        <Setter Property="Opacity" Value="0.65" />
+    </Style>
+    <Style Selector="Panel.thumb-overlay > TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource MdiFont}" />
+        <Setter Property="FontSize" Value="18" />
+        <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="StackPanel.page-text">
+        <Setter Property="Margin" Value="10,0,8,0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Spacing" Value="1" />
+    </Style>
+    <Style Selector="TextBlock.page-name">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+    <Style Selector="TextBlock.page-sub">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="{DynamicResource AppTextMuted}" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+
+    <Style Selector="Button.page-more">
+        <Setter Property="Width" Value="40" />
+        <Setter Property="Height" Value="40" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.page-more > TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource MdiFont}" />
+        <Setter Property="FontSize" Value="18" />
+        <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
+    </Style>
+    <Style Selector="Button.page-more:pointerover /template/ ContentPresenter, Button.page-more:flyout-open /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AppControlBackgroundHover}" />
+    </Style>
+
+    <Style Selector="TextBlock.menu-icon">
+        <Setter Property="FontFamily" Value="{StaticResource MdiFont}" />
+        <Setter Property="FontSize" Value="16" />
+    </Style>
+    <Style Selector="MenuItem.danger">
+        <Setter Property="Foreground" Value="{DynamicResource AppTextDestructive}" />
+    </Style>
+
+    <!-- Where a dragged page row lands; the system accent, like the checkboxes. -->
+    <Style Selector="Border.page-drop-line">
+        <Setter Property="Height" Value="2" />
+        <Setter Property="CornerRadius" Value="1" />
+        <Setter Property="Background">
+            <SolidColorBrush Color="{DynamicResource SystemAccentColor}" />
+        </Setter>
+    </Style>
+
 </Styles>
