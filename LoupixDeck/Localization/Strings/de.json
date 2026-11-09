@@ -170,6 +170,7 @@
   "Device_DeleteCurrentRightRotaryPage": "Aktuelle rechte Drehregler-Seite löschen",
   "Device_DeleteCurrentRotaryPage": "Aktuelle Drehregler-Seite löschen",
   "Device_DeleteCurrentTouchPage": "Aktuelle Touch-Seite löschen",
+  "Page_CopyName": "{0} (Kopie)",
   "Device_ExclusiveModeActive": "Exklusivmodus aktiv",
   "Device_NextLeftRotaryPage": "Nächste linke Drehregler-Seite",
   "Device_NextRightRotaryPage": "Nächste rechte Drehregler-Seite",

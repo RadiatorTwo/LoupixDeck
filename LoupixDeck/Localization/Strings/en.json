@@ -170,6 +170,7 @@
   "Device_DeleteCurrentRightRotaryPage": "Delete current right rotary page",
   "Device_DeleteCurrentRotaryPage": "Delete current rotary page",
   "Device_DeleteCurrentTouchPage": "Delete current touch page",
+  "Page_CopyName": "{0} (copy)",
   "Device_ExclusiveModeActive": "Exclusive Mode Active",
   "Device_NextLeftRotaryPage": "Next left rotary page",
   "Device_NextRightRotaryPage": "Next right rotary page",

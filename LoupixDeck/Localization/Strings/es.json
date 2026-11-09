@@ -170,6 +170,7 @@
   "Device_DeleteCurrentRightRotaryPage": "Eliminar página de dial derecho actual",
   "Device_DeleteCurrentRotaryPage": "Eliminar página de dial actual",
   "Device_DeleteCurrentTouchPage": "Eliminar página táctil actual",
+  "Page_CopyName": "{0} (copia)",
   "Device_ExclusiveModeActive": "Modo exclusivo activo",
   "Device_NextLeftRotaryPage": "Página de dial izquierdo siguiente",
   "Device_NextRightRotaryPage": "Página de dial derecho siguiente",
