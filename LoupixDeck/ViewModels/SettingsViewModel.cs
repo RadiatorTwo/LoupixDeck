@@ -82,6 +82,9 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     public IRelayCommand MoveTouchPageDownCommand => field ??= Relay.Create<TouchButtonPage>(
         p => MovePage(_pageManager.TouchButtonPages, p, +1),
         p => p != null && _pageManager.TouchButtonPages.IndexOf(p) < _pageManager.TouchButtonPages.Count - 1);
+    public IAsyncRelayCommand DuplicateTouchPageCommand => field ??= Relay.Create<TouchButtonPage>(
+        p => _pageManager.DuplicateTouchButtonPage(_pageManager.TouchButtonPages.IndexOf(p)),
+        static p => p != null);
     public IRelayCommand<TouchButtonPage> EditWallpaperCommand => field ??= Relay.Create<TouchButtonPage>(p => _ = EditWallpaper(p), p => p != null);
 
     public IRelayCommand EditPageCommandsCommand => field ??= Relay.Create<object>(
@@ -94,6 +97,11 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         p => MovePage(_pageManager.RotaryButtonPages, p, -1), p => p != null && _pageManager.RotaryButtonPages.IndexOf(p) > 0);
     public IRelayCommand MoveRotaryPageDownCommand => field ??= Relay.Create<RotaryButtonPage>(
         p => MovePage(_pageManager.RotaryButtonPages, p, +1), p => p != null && _pageManager.RotaryButtonPages.IndexOf(p) < _pageManager.RotaryButtonPages.Count - 1);
+
+    // One command for shared and side pages: the page's Side names the list it lives in.
+    public IRelayCommand DuplicateRotaryPageCommand => field ??= Relay.Create<RotaryButtonPage>(
+        p => _pageManager.DuplicateRotaryButtonPage(p.Side, _pageManager.GetRotaryPages(p.Side).IndexOf(p)),
+        static p => p != null);
 
     // Side-specific rotary page management for devices with independent dial columns (Razer).
     public IRelayCommand AddLeftRotaryPageCommand => field ??= Relay.Create(() => _pageManager.AddRotaryButtonPage(RotarySide.Left));

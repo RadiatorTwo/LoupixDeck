@@ -337,6 +337,13 @@
             <!-- While a custom folder is open its breadcrumbs take the pager's place. -->
             <controls:FolderBreadcrumbBar HorizontalAlignment="Center" IsVisible="{Binding IsFolderOpen}" />
             <Border Classes="Pager" HorizontalAlignment="Center" IsVisible="{Binding !IsFolderOpen}">
+                <Border.ContextFlyout>
+                    <MenuFlyout>
+                        <MenuItem Header="{loc:Tr Device_AddTouchPage}" Command="{Binding AddTouchPageCommand}" />
+                        <MenuItem Header="{loc:Tr Device_DuplicateTouchPage}" Command="{Binding DuplicateTouchPageCommand}" />
+                        <MenuItem Header="{loc:Tr Device_DeleteCurrentTouchPage}" Command="{Binding DeleteTouchPageCommand}" />
+                    </MenuFlyout>
+                </Border.ContextFlyout>
                 <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
                     <Button Classes="PagerBtn PagerNav" Content="&#8249;"
                             ToolTip.Tip="{loc:Tr Device_PreviousTouchPage}"
@@ -354,6 +361,11 @@
                     <Button Classes="PagerBtn" Content="+"
                             ToolTip.Tip="{loc:Tr Device_AddTouchPage}"
                             Command="{Binding AddTouchPageCommand}" />
+                    <Button Classes="PagerBtn"
+                            ToolTip.Tip="{loc:Tr Device_DuplicateTouchPage}"
+                            Command="{Binding DuplicateTouchPageCommand}">
+                        <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF018F;" />
+                    </Button>
                     <Button Classes="PagerBtn delete" Content="&#10005;"
                             ToolTip.Tip="{loc:Tr Device_DeleteCurrentTouchPage}"
                             Command="{Binding DeleteTouchPageCommand}" />

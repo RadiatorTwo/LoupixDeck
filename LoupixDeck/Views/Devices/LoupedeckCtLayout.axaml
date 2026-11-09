@@ -193,6 +193,13 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <Border Grid.Column="0" Classes="Pager" HorizontalAlignment="Left">
+                <Border.ContextFlyout>
+                    <MenuFlyout>
+                        <MenuItem Header="{loc:Tr Device_AddLeftRotaryPage}" Command="{Binding AddLeftRotaryPageCommand}" />
+                        <MenuItem Header="{loc:Tr Device_DuplicateLeftRotaryPage}" Command="{Binding DuplicateLeftRotaryPageCommand}" />
+                        <MenuItem Header="{loc:Tr Device_DeleteCurrentLeftRotaryPage}" Command="{Binding DeleteLeftRotaryPageCommand}" />
+                    </MenuFlyout>
+                </Border.ContextFlyout>
                 <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
                     <Button Classes="PagerBtn PagerNav" Content="‹"
                             ToolTip.Tip="{loc:Tr Device_PreviousLeftRotaryPage}"
@@ -210,6 +217,11 @@
                     <Button Classes="PagerBtn" Content="+"
                             ToolTip.Tip="{loc:Tr Device_AddLeftRotaryPage}"
                             Command="{Binding AddLeftRotaryPageCommand}" />
+                    <Button Classes="PagerBtn"
+                            ToolTip.Tip="{loc:Tr Device_DuplicateLeftRotaryPage}"
+                            Command="{Binding DuplicateLeftRotaryPageCommand}">
+                        <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF018F;" />
+                    </Button>
                     <Button Classes="PagerBtn delete" Content="✕"
                             ToolTip.Tip="{loc:Tr Device_DeleteCurrentLeftRotaryPage}"
                             Command="{Binding DeleteLeftRotaryPageCommand}" />
@@ -217,6 +229,13 @@
             </Border>
 
             <Border Grid.Column="2" Classes="Pager" HorizontalAlignment="Right">
+                <Border.ContextFlyout>
+                    <MenuFlyout>
+                        <MenuItem Header="{loc:Tr Device_AddRightRotaryPage}" Command="{Binding AddRightRotaryPageCommand}" />
+                        <MenuItem Header="{loc:Tr Device_DuplicateRightRotaryPage}" Command="{Binding DuplicateRightRotaryPageCommand}" />
+                        <MenuItem Header="{loc:Tr Device_DeleteCurrentRightRotaryPage}" Command="{Binding DeleteRightRotaryPageCommand}" />
+                    </MenuFlyout>
+                </Border.ContextFlyout>
                 <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
                     <Button Classes="PagerBtn PagerNav" Content="‹"
                             ToolTip.Tip="{loc:Tr Device_PreviousRightRotaryPage}"
@@ -234,6 +253,11 @@
                     <Button Classes="PagerBtn" Content="+"
                             ToolTip.Tip="{loc:Tr Device_AddRightRotaryPage}"
                             Command="{Binding AddRightRotaryPageCommand}" />
+                    <Button Classes="PagerBtn"
+                            ToolTip.Tip="{loc:Tr Device_DuplicateRightRotaryPage}"
+                            Command="{Binding DuplicateRightRotaryPageCommand}">
+                        <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF018F;" />
+                    </Button>
                     <Button Classes="PagerBtn delete" Content="✕"
                             ToolTip.Tip="{loc:Tr Device_DeleteCurrentRightRotaryPage}"
                             Command="{Binding DeleteRightRotaryPageCommand}" />
@@ -646,6 +670,13 @@
                 <!-- While a custom folder is open its breadcrumbs take the pager's place. -->
                 <controls:FolderBreadcrumbBar HorizontalAlignment="Center" IsVisible="{Binding IsFolderOpen}" />
                 <Border Classes="Pager" HorizontalAlignment="Center" IsVisible="{Binding !IsFolderOpen}">
+                    <Border.ContextFlyout>
+                        <MenuFlyout>
+                            <MenuItem Header="{loc:Tr Device_AddTouchPage}" Command="{Binding AddTouchPageCommand}" />
+                            <MenuItem Header="{loc:Tr Device_DuplicateTouchPage}" Command="{Binding DuplicateTouchPageCommand}" />
+                            <MenuItem Header="{loc:Tr Device_DeleteCurrentTouchPage}" Command="{Binding DeleteTouchPageCommand}" />
+                        </MenuFlyout>
+                    </Border.ContextFlyout>
                     <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
                         <TextBlock Classes="PagerIcon" Text="&#xF11D9;"
                                    ToolTip.Tip="{loc:Tr Device_TouchPagesTitle}" />
@@ -665,6 +696,11 @@
                         <Button Classes="PagerBtn" Content="+"
                                 ToolTip.Tip="{loc:Tr Device_AddTouchPage}"
                                 Command="{Binding AddTouchPageCommand}" />
+                        <Button Classes="PagerBtn"
+                                ToolTip.Tip="{loc:Tr Device_DuplicateTouchPage}"
+                                Command="{Binding DuplicateTouchPageCommand}">
+                            <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF018F;" />
+                        </Button>
                         <Button Classes="PagerBtn delete" Content="✕"
                                 ToolTip.Tip="{loc:Tr Device_DeleteCurrentTouchPage}"
                                 Command="{Binding DeleteTouchPageCommand}" />

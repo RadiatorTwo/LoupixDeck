@@ -795,7 +795,7 @@
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate DataType="m:TouchButtonPage">
                                             <Border Background="{DynamicResource AppSurfaceAlt}" CornerRadius="4" Padding="8" Margin="0,0,0,6">
-                                                <Grid ColumnDefinitions="80,*,Auto,Auto,Auto,Auto,Auto,Auto">
+                                                <Grid ColumnDefinitions="80,*,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
                                                     <Border Grid.Column="0" BorderBrush="{DynamicResource AppBorderSubtle}" BorderThickness="1" CornerRadius="3" Height="40"
                                                             ToolTip.Tip="{Binding PageName}">
                                                         <Image Source="{Binding WallpaperThumbnail}" Stretch="UniformToFill" />
@@ -820,12 +820,17 @@
                                                     <Button Grid.Column="5" Classes="row-action" Content="↓" ToolTip.Tip="{loc:Tr Settings_MoveDown}"
                                                             Command="{Binding $parent[Window].DataContext.MoveTouchPageDownCommand}"
                                                             CommandParameter="{Binding}" />
-                                                    <Button Grid.Column="6" Classes="row-action" ToolTip.Tip="{loc:Tr Settings_ExportThisPageAsA}"
+                                                    <Button Grid.Column="6" Classes="row-action" ToolTip.Tip="{loc:Tr Settings_DuplicatePage}"
+                                                            Command="{Binding $parent[Window].DataContext.DuplicateTouchPageCommand}"
+                                                            CommandParameter="{Binding}">
+                                                        <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF018F;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                                    </Button>
+                                                    <Button Grid.Column="7" Classes="row-action" ToolTip.Tip="{loc:Tr Settings_ExportThisPageAsA}"
                                                             Command="{Binding $parent[Window].DataContext.ExportTouchPageCommand}"
                                                             CommandParameter="{Binding}">
                                                         <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF0207;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
                                                     </Button>
-                                                    <Button Grid.Column="7" Classes="row-action danger" Content="✕" ToolTip.Tip="{loc:Tr Settings_RemovePage}"
+                                                    <Button Grid.Column="8" Classes="row-action danger" Content="✕" ToolTip.Tip="{loc:Tr Settings_RemovePage}"
                                                             Command="{Binding $parent[Window].DataContext.RemoveTouchPageCommand}"
                                                             CommandParameter="{Binding}" />
                                                 </Grid>
@@ -848,7 +853,7 @@
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate DataType="m:RotaryButtonPage">
                                                 <Border Background="{DynamicResource AppSurfaceAlt}" CornerRadius="4" Padding="8" Margin="0,0,0,6">
-                                                    <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto">
+                                                    <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto,Auto">
                                                         <TextBlock Grid.Column="0" Text="{Binding PageName}" VerticalAlignment="Center" />
                                                         <Button Grid.Column="1" Classes="row-action" ToolTip.Tip="{loc:Tr Settings_EditPageCommands}"
                                                                 Command="{Binding $parent[Window].DataContext.EditPageCommandsCommand}"
@@ -861,12 +866,17 @@
                                                         <Button Grid.Column="3" Classes="row-action" Content="↓" ToolTip.Tip="{loc:Tr Settings_MoveDown}"
                                                                 Command="{Binding $parent[Window].DataContext.MoveRotaryPageDownCommand}"
                                                                 CommandParameter="{Binding}" />
-                                                        <Button Grid.Column="4" Classes="row-action" ToolTip.Tip="{loc:Tr Settings_ExportThisPageAsA}"
+                                                        <Button Grid.Column="4" Classes="row-action" ToolTip.Tip="{loc:Tr Settings_DuplicatePage}"
+                                                                Command="{Binding $parent[Window].DataContext.DuplicateRotaryPageCommand}"
+                                                                CommandParameter="{Binding}">
+                                                            <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF018F;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                                        </Button>
+                                                        <Button Grid.Column="5" Classes="row-action" ToolTip.Tip="{loc:Tr Settings_ExportThisPageAsA}"
                                                                 Command="{Binding $parent[Window].DataContext.ExportRotaryPageCommand}"
                                                                 CommandParameter="{Binding}">
                                                             <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF0207;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
                                                         </Button>
-                                                        <Button Grid.Column="5" Classes="row-action danger" Content="✕" ToolTip.Tip="{loc:Tr Settings_RemoveRotaryPage}"
+                                                        <Button Grid.Column="6" Classes="row-action danger" Content="✕" ToolTip.Tip="{loc:Tr Settings_RemoveRotaryPage}"
                                                                 Command="{Binding $parent[Window].DataContext.RemoveRotaryPageCommand}"
                                                                 CommandParameter="{Binding}" />
                                                     </Grid>
@@ -886,19 +896,24 @@
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate DataType="m:RotaryButtonPage">
                                                 <Border Background="{DynamicResource AppSurfaceAlt}" CornerRadius="4" Padding="8" Margin="0,0,0,6">
-                                                    <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                                                    <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto">
                                                         <TextBlock Grid.Column="0" Text="{Binding PageName}" VerticalAlignment="Center" />
                                                         <Button Grid.Column="1" Classes="row-action" ToolTip.Tip="{loc:Tr Settings_EditPageCommands}"
                                                                 Command="{Binding $parent[Window].DataContext.EditPageCommandsCommand}"
                                                                 CommandParameter="{Binding}">
                                                             <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF18D8;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
                                                         </Button>
-                                                        <Button Grid.Column="2" Classes="row-action" ToolTip.Tip="{loc:Tr Settings_ExportThisPageAsA}"
+                                                        <Button Grid.Column="2" Classes="row-action" ToolTip.Tip="{loc:Tr Settings_DuplicatePage}"
+                                                                Command="{Binding $parent[Window].DataContext.DuplicateRotaryPageCommand}"
+                                                                CommandParameter="{Binding}">
+                                                            <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF018F;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                                        </Button>
+                                                        <Button Grid.Column="3" Classes="row-action" ToolTip.Tip="{loc:Tr Settings_ExportThisPageAsA}"
                                                                 Command="{Binding $parent[Window].DataContext.ExportRotaryPageCommand}"
                                                                 CommandParameter="{Binding}">
                                                             <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF0207;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
                                                         </Button>
-                                                        <Button Grid.Column="3" Classes="row-action danger" Content="✕" ToolTip.Tip="{loc:Tr Settings_RemoveRotaryPage}"
+                                                        <Button Grid.Column="4" Classes="row-action danger" Content="✕" ToolTip.Tip="{loc:Tr Settings_RemoveRotaryPage}"
                                                                 Command="{Binding $parent[Window].DataContext.RemoveLeftRotaryPageCommand}"
                                                                 CommandParameter="{Binding}" />
                                                     </Grid>
@@ -915,19 +930,24 @@
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate DataType="m:RotaryButtonPage">
                                                 <Border Background="{DynamicResource AppSurfaceAlt}" CornerRadius="4" Padding="8" Margin="0,0,0,6">
-                                                    <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                                                    <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto">
                                                         <TextBlock Grid.Column="0" Text="{Binding PageName}" VerticalAlignment="Center" />
                                                         <Button Grid.Column="1" Classes="row-action" ToolTip.Tip="{loc:Tr Settings_EditPageCommands}"
                                                                 Command="{Binding $parent[Window].DataContext.EditPageCommandsCommand}"
                                                                 CommandParameter="{Binding}">
                                                             <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF18D8;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
                                                         </Button>
-                                                        <Button Grid.Column="2" Classes="row-action" ToolTip.Tip="{loc:Tr Settings_ExportThisPageAsA}"
+                                                        <Button Grid.Column="2" Classes="row-action" ToolTip.Tip="{loc:Tr Settings_DuplicatePage}"
+                                                                Command="{Binding $parent[Window].DataContext.DuplicateRotaryPageCommand}"
+                                                                CommandParameter="{Binding}">
+                                                            <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF018F;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                                        </Button>
+                                                        <Button Grid.Column="3" Classes="row-action" ToolTip.Tip="{loc:Tr Settings_ExportThisPageAsA}"
                                                                 Command="{Binding $parent[Window].DataContext.ExportRotaryPageCommand}"
                                                                 CommandParameter="{Binding}">
                                                             <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF0207;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
                                                         </Button>
-                                                        <Button Grid.Column="3" Classes="row-action danger" Content="✕" ToolTip.Tip="{loc:Tr Settings_RemoveRotaryPage}"
+                                                        <Button Grid.Column="4" Classes="row-action danger" Content="✕" ToolTip.Tip="{loc:Tr Settings_RemoveRotaryPage}"
                                                                 Command="{Binding $parent[Window].DataContext.RemoveRightRotaryPageCommand}"
                                                                 CommandParameter="{Binding}" />
                                                     </Grid>
