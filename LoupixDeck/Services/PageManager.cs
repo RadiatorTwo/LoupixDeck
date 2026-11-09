@@ -411,13 +411,7 @@ public class PageManager : IPageManager
             return;
 
         pages.RemoveAt(GetCurrentRotaryPageIndex(side));
-
-        var counter = 0;
-        foreach (var page in pages)
-        {
-            counter++;
-            page.Page = counter;
-        }
+        Renumber(pages);
 
         var currentIndex = GetCurrentRotaryPageIndex(side);
         if (currentIndex < pages.Count)
@@ -452,13 +446,7 @@ public class PageManager : IPageManager
             return;
 
         TouchButtonPages.RemoveAt(CurrentTouchPageIndex);
-
-        var counter = 0;
-        foreach (var page in TouchButtonPages)
-        {
-            counter++;
-            page.Page = counter;
-        }
+        Renumber(TouchButtonPages);
 
         if (CurrentTouchPageIndex < TouchButtonPages.Count)
         {
@@ -468,6 +456,13 @@ public class PageManager : IPageManager
         {
             await ApplyTouchPage(TouchButtonPages.Count - 1);
         }
+    }
+
+    /// <summary>Rewrites each page's 1-based <see cref="ButtonPageBase.Page"/> number from its position.</summary>
+    private static void Renumber<T>(IList<T> pages) where T : ButtonPageBase
+    {
+        for (int i = 0; i < pages.Count; i++)
+            pages[i].Page = i + 1;
     }
 
     public void RefreshTouchButtons()
