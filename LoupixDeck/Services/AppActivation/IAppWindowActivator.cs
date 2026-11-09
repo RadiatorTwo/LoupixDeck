@@ -20,8 +20,8 @@ public enum AppActivationOutcome
     Activated,
 
     /// <summary>
-    /// The process runs, but this session offers no way to focus its window (GNOME on Wayland,
-    /// an unknown compositor). Nothing was done: starting it again would open a second instance.
+    /// The process runs, but this session offers no way to focus its window (GNOME on Wayland
+    /// without the activation extension, an unknown compositor). Nothing was done: starting it again would open a second instance.
     /// </summary>
     Unsupported
 }
@@ -40,5 +40,13 @@ public interface IAppWindowActivator
     /// executable name without path or <c>.exe</c>; on Linux an app_id or window class is
     /// accepted as well.
     /// </summary>
-    Task<AppActivationOutcome> ActivateAsync(string processName, CancellationToken cancellationToken);
+    /// <param name="processName">The process to bring forward.</param>
+    /// <param name="windowClasses">
+    /// Window classes the launch target is known to produce (a desktop entry's
+    /// <c>StartupWMClass</c>, its file id, a Flatpak id). Only backends that match by window
+    /// class alone use them; empty when the target names none.
+    /// </param>
+    /// <param name="cancellationToken">Cancels the search.</param>
+    Task<AppActivationOutcome> ActivateAsync(string processName, IReadOnlyCollection<string> windowClasses,
+        CancellationToken cancellationToken);
 }

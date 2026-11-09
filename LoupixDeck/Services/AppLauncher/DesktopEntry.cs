@@ -26,6 +26,7 @@ public sealed class DesktopEntry
         Exec = Value(values, "Exec");
         TryExec = Value(values, "TryExec");
         Icon = Value(values, "Icon");
+        StartupWmClass = Value(values, "StartupWMClass");
         Type = Value(values, "Type");
         Path = Value(values, "Path");
         NoDisplay = Flag(values, "NoDisplay");
@@ -54,6 +55,9 @@ public sealed class DesktopEntry
 
     /// <summary>Either an absolute file path or an icon-theme name.</summary>
     public string Icon { get; }
+
+    /// <summary>The window class the application's main window carries, when the entry names it.</summary>
+    public string StartupWmClass { get; }
 
     /// <summary>Entry type. Only <c>Application</c> is launchable.</summary>
     public string Type { get; }

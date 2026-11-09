@@ -1443,5 +1443,20 @@
   "Confirm_EnablePastePluginTitle": "Plugin aktivieren?",
   "Confirm_EnablePastePluginMessage": "Der eingefügte Inhalt benötigt das Plugin '{0}'. Soll es für dieses Gerät aktiviert werden?",
   "Confirm_EnablePastePluginsMessage": "Der eingefügte Inhalt benötigt die Plugins {0}. Sollen sie für dieses Gerät aktiviert werden?",
-  "Diagnostics_FixActionFailedFmt": "Die Korrektur konnte nicht angewendet werden: {0}"
+  "Diagnostics_FixActionFailedFmt": "Die Korrektur konnte nicht angewendet werden: {0}",
+  "Diagnostics_Check_SessionGnomeActivation": "Fensteraktivierung (GNOME)",
+  "Diagnostics_GnomeActivationNotApplicable": "Nur unter GNOME mit Wayland nötig.",
+  "Diagnostics_GnomeActivationActive": "Die Erweiterung „Activate Window By Title“ ist aktiv: „Single Instance“ kann jedes Anwendungsfenster nach vorne holen.",
+  "Diagnostics_GnomeActivationMissing": "GNOME unter Wayland erlaubt keiner Anwendung, das Fenster einer anderen zu fokussieren. Ohne die Erweiterung „Activate Window By Title“ erreicht „Single Instance“ nur XWayland-Fenster und lässt native Wayland-Apps im Hintergrund.",
+  "Diagnostics_FixInstallGnomeActivationFmt": "Installiere die Erweiterung „Activate Window By Title“. GNOME fragt in einem eigenen Dialog nach. Seite der Erweiterung: {0}",
+  "Diagnostics_ActionInstallExtension": "Erweiterung installieren",
+  "Diagnostics_GnomeActivationDisabled": "Die Erweiterung „Activate Window By Title“ ist installiert, aber ausgeschaltet. „Single Instance“ kann native Wayland-Fenster daher nicht nach vorne holen.",
+  "Diagnostics_FixEnableGnomeActivation": "Schalte die Erweiterung ein.",
+  "Diagnostics_ActionEnableExtension": "Erweiterung aktivieren",
+  "Diagnostics_GnomeActivationUserExtensionsOff": "In GNOME sind alle Benutzererweiterungen ausgeschaltet, auch „Activate Window By Title“.",
+  "Diagnostics_FixEnableUserExtensions": "Schalte die Benutzererweiterungen wieder ein. Das betrifft alle installierten Erweiterungen.",
+  "Diagnostics_ActionEnableUserExtensions": "Benutzererweiterungen aktivieren",
+  "Diagnostics_GnomeActivationBroken": "GNOME Shell konnte die Erweiterung „Activate Window By Title“ nicht laden oder hält sie für inkompatibel mit dieser GNOME-Version.",
+  "Diagnostics_FixRepairGnomeActivationFmt": "Aktualisiere die Erweiterung oder installiere sie über ihre Seite neu: {0}",
+  "Diagnostics_GnomeActivationShellUnavailable": "GNOME Shell ist über den Sitzungsbus nicht erreichbar."
 }

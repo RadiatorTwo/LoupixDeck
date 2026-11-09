@@ -8,8 +8,9 @@ namespace LoupixDeck.Services.AppActivation;
 
 /// <summary>
 /// Linux implementation. Picks the same mechanism page switching by application uses: the
-/// compositor's IPC on COSMIC, sway, niri and Hyprland, KWin scripting on Plasma Wayland, and
-/// X11 elsewhere — on a Wayland session without a supported compositor that is XWayland, which
+/// compositor's IPC on COSMIC, sway, niri and Hyprland, KWin scripting on Plasma Wayland, the
+/// "Activate Window By Title" extension on GNOME Wayland when it is installed, and X11
+/// elsewhere — on a Wayland session without a supported compositor that is XWayland, which
 /// reaches only X11 windows.
 /// </summary>
 /// <remarks>
@@ -35,12 +36,21 @@ public sealed class LinuxAppWindowActivator : IAppWindowActivator
         XWaylandOnly,
 
         KWin,
+
+        /// <summary>
+        /// GNOME Wayland: the Shell extension when it runs, otherwise X11 as
+        /// <see cref="XWaylandOnly"/>. Checked on every press, so enabling the extension from
+        /// the diagnostics takes effect without a restart.
+        /// </summary>
+        Gnome,
+
         None
     }
 
     private sealed record Backend(Kind Kind, IWindowActivator Activator);
 
-    public async Task<AppActivationOutcome> ActivateAsync(string processName, CancellationToken cancellationToken)
+    public async Task<AppActivationOutcome> ActivateAsync(string processName, IReadOnlyCollection<string> windowClasses,
+        CancellationToken cancellationToken)
     {
         Backend backend = _backend.Value;
         string name = processName.Trim();
@@ -54,7 +64,7 @@ public sealed class LinuxAppWindowActivator : IAppWindowActivator
 
         try
         {
-            return await ActivateAsync(backend, name, processIds, cancellationToken);
+            return await ActivateAsync(backend, name, windowClasses, processIds, cancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
@@ -66,10 +76,36 @@ public sealed class LinuxAppWindowActivator : IAppWindowActivator
     }
 
     private static async Task<AppActivationOutcome> ActivateAsync(Backend backend, string name,
-        HashSet<int> processIds, CancellationToken cancellationToken)
+        IReadOnlyCollection<string> windowClasses, HashSet<int> processIds, CancellationToken cancellationToken)
     {
         using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(Timeout);
+
+        if (backend.Kind == Kind.Gnome)
+        {
+            if (processIds.Count == 0)
+                return AppActivationOutcome.NotRunning;
+
+            // The process name first: it is what the user typed or what the target resolved to.
+            List<string> candidates = [name, .. windowClasses.Where(c => !string.IsNullOrWhiteSpace(c))];
+            switch (await GnomeWindowActivator.ActivateAsync(
+                        candidates.Distinct(StringComparer.Ordinal).ToList(), timeout.Token))
+            {
+                case GnomeWindowActivator.Result.Activated:
+                    return AppActivationOutcome.Activated;
+                case GnomeWindowActivator.Result.NotFound:
+                    // Mutter sees every window, but matches the class exactly: a running process
+                    // without a match may simply carry a class nobody named. Starting it again
+                    // could open a second instance, so nothing is done.
+                    return AppActivationOutcome.Unsupported;
+            }
+
+            // No extension: XWayland windows are still reachable through X11, when there is one.
+            if (backend.Activator == null)
+                return AppActivationOutcome.Unsupported;
+
+            backend = backend with { Kind = Kind.XWaylandOnly };
+        }
 
         if (backend.Kind == Kind.KWin)
         {
@@ -119,9 +155,14 @@ public sealed class LinuxAppWindowActivator : IAppWindowActivator
         if (wayland && KWinWindowActivator.IsKdeWayland())
             return new Backend(Kind.KWin, null);
 
-        if (!string.IsNullOrWhiteSpace(LinuxSystemFacts.Display()))
+        if (wayland && GnomeActivationExtension.IsGnome())
+            return new Backend(Kind.Gnome, HasDisplay() ? new X11WindowActivator() : null);
+
+        if (HasDisplay())
             return new Backend(wayland ? Kind.XWaylandOnly : Kind.Complete, new X11WindowActivator());
 
         return new Backend(Kind.None, null);
     }
+
+    private static bool HasDisplay() => !string.IsNullOrWhiteSpace(LinuxSystemFacts.Display());
 }

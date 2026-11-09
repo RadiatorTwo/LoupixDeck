@@ -1443,5 +1443,20 @@
   "Confirm_EnablePastePluginTitle": "¿Activar plugin?",
   "Confirm_EnablePastePluginMessage": "El contenido pegado necesita el plugin '{0}'. ¿Activarlo para este dispositivo?",
   "Confirm_EnablePastePluginsMessage": "El contenido pegado necesita los plugins {0}. ¿Activarlos para este dispositivo?",
-  "Diagnostics_FixActionFailedFmt": "No se pudo aplicar la corrección: {0}"
+  "Diagnostics_FixActionFailedFmt": "No se pudo aplicar la corrección: {0}",
+  "Diagnostics_Check_SessionGnomeActivation": "Activación de ventanas (GNOME)",
+  "Diagnostics_GnomeActivationNotApplicable": "Solo es necesario en GNOME con Wayland.",
+  "Diagnostics_GnomeActivationActive": "La extensión «Activate Window By Title» está activa: «Single Instance» puede traer al frente cualquier ventana de aplicación.",
+  "Diagnostics_GnomeActivationMissing": "GNOME en Wayland no permite a ninguna aplicación enfocar la ventana de otra. Sin la extensión «Activate Window By Title», «Single Instance» solo alcanza ventanas de XWayland y deja las aplicaciones nativas de Wayland en segundo plano.",
+  "Diagnostics_FixInstallGnomeActivationFmt": "Instala la extensión «Activate Window By Title». GNOME pide confirmación en su propio diálogo. Página de la extensión: {0}",
+  "Diagnostics_ActionInstallExtension": "Instalar extensión",
+  "Diagnostics_GnomeActivationDisabled": "La extensión «Activate Window By Title» está instalada pero desactivada, así que «Single Instance» no puede traer al frente las ventanas nativas de Wayland.",
+  "Diagnostics_FixEnableGnomeActivation": "Activa la extensión.",
+  "Diagnostics_ActionEnableExtension": "Activar extensión",
+  "Diagnostics_GnomeActivationUserExtensionsOff": "Todas las extensiones de usuario están desactivadas en GNOME, incluida «Activate Window By Title».",
+  "Diagnostics_FixEnableUserExtensions": "Vuelve a activar las extensiones de usuario. Esto afecta a todas las extensiones instaladas.",
+  "Diagnostics_ActionEnableUserExtensions": "Activar extensiones de usuario",
+  "Diagnostics_GnomeActivationBroken": "GNOME Shell no pudo cargar la extensión «Activate Window By Title» o la considera incompatible con esta versión de GNOME.",
+  "Diagnostics_FixRepairGnomeActivationFmt": "Actualiza la extensión o reinstálala desde su página: {0}",
+  "Diagnostics_GnomeActivationShellUnavailable": "No se pudo acceder a GNOME Shell a través del bus de sesión."
 }

@@ -33,7 +33,8 @@ public sealed partial class WindowsAppWindowActivator : IAppWindowActivator
     private const uint KEYEVENTF_KEYUP = 0x0002;
     private const ushort VK_MENU = 0x12;
 
-    public Task<AppActivationOutcome> ActivateAsync(string processName, CancellationToken cancellationToken)
+    public Task<AppActivationOutcome> ActivateAsync(string processName, IReadOnlyCollection<string> windowClasses,
+        CancellationToken cancellationToken)
         => Task.Run(() => Activate(processName), cancellationToken);
 
     private static AppActivationOutcome Activate(string processName)

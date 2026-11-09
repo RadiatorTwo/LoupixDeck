@@ -1443,5 +1443,20 @@
   "Confirm_EnablePastePluginTitle": "Enable plugin?",
   "Confirm_EnablePastePluginMessage": "The pasted content needs the plugin '{0}'. Enable it for this device?",
   "Confirm_EnablePastePluginsMessage": "The pasted content needs the plugins {0}. Enable them for this device?",
-  "Diagnostics_FixActionFailedFmt": "The fix could not be applied: {0}"
+  "Diagnostics_FixActionFailedFmt": "The fix could not be applied: {0}",
+  "Diagnostics_Check_SessionGnomeActivation": "Window activation (GNOME)",
+  "Diagnostics_GnomeActivationNotApplicable": "Only needed on GNOME under Wayland.",
+  "Diagnostics_GnomeActivationActive": "The \"Activate Window By Title\" extension is active: \"Single Instance\" can bring any application window to the front.",
+  "Diagnostics_GnomeActivationMissing": "GNOME on Wayland lets no application focus another application's window. Without the \"Activate Window By Title\" extension, \"Single Instance\" reaches only XWayland windows and leaves native Wayland apps in the background.",
+  "Diagnostics_FixInstallGnomeActivationFmt": "Install the \"Activate Window By Title\" extension. GNOME asks for confirmation in its own dialog. Extension page: {0}",
+  "Diagnostics_ActionInstallExtension": "Install extension",
+  "Diagnostics_GnomeActivationDisabled": "The \"Activate Window By Title\" extension is installed but turned off, so \"Single Instance\" cannot bring native Wayland windows to the front.",
+  "Diagnostics_FixEnableGnomeActivation": "Turn the extension on.",
+  "Diagnostics_ActionEnableExtension": "Enable extension",
+  "Diagnostics_GnomeActivationUserExtensionsOff": "All user extensions are switched off in GNOME, including \"Activate Window By Title\".",
+  "Diagnostics_FixEnableUserExtensions": "Switch user extensions back on. This affects every extension you have installed.",
+  "Diagnostics_ActionEnableUserExtensions": "Enable user extensions",
+  "Diagnostics_GnomeActivationBroken": "GNOME Shell could not load the \"Activate Window By Title\" extension, or considers it incompatible with this GNOME version.",
+  "Diagnostics_FixRepairGnomeActivationFmt": "Update the extension, or reinstall it from its page: {0}",
+  "Diagnostics_GnomeActivationShellUnavailable": "GNOME Shell could not be reached on the session bus."
 }

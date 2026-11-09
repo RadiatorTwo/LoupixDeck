@@ -47,6 +47,43 @@ public static class LaunchTargetProcess
         return FromExecutable(target, skipLaunchers: false);
     }
 
+    /// <summary>
+    /// The window classes <paramref name="target"/> is known to produce, for a backend that can
+    /// only match windows by class (GNOME). A desktop entry names them: its
+    /// <c>StartupWMClass</c>, its file id (the app_id of a native Wayland window, by convention)
+    /// and the application id a Flatpak entry runs. Empty for every other target.
+    /// </summary>
+    public static IReadOnlyList<string> WindowClasses(string target)
+    {
+        if (string.IsNullOrWhiteSpace(target) || !target.EndsWith(".desktop", StringComparison.OrdinalIgnoreCase))
+            return [];
+
+        DesktopEntry entry;
+        try
+        {
+            entry = DesktopEntry.Load(target);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return [];
+        }
+
+        List<string> classes = [];
+        if (!string.IsNullOrWhiteSpace(entry?.StartupWmClass))
+            classes.Add(entry.StartupWmClass.Trim());
+
+        classes.Add(Path.GetFileNameWithoutExtension(target));
+
+        if (entry != null)
+        {
+            string program = FromDesktopEntry(target);
+            if (!string.IsNullOrEmpty(program) && program.Contains('.'))
+                classes.Add(program);
+        }
+
+        return classes.Distinct(StringComparer.Ordinal).ToList();
+    }
+
     private static string FromExecutable(string path, bool skipLaunchers)
     {
         if (string.IsNullOrWhiteSpace(path))
