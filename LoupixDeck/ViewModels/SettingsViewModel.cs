@@ -87,10 +87,6 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     public IRelayCommand AddRotaryPageCommand => field ??= Relay.Create(() => _pageManager.AddRotaryButtonPage());
     public IRelayCommand RemoveRotaryPageCommand => field ??= Relay.Create<RotaryButtonPage>(
         RemoveRotaryPage, p => p != null && _pageManager.RotaryButtonPages.Count > 1);
-    public IRelayCommand MoveRotaryPageUpCommand => field ??= Relay.Create<RotaryButtonPage>(
-        p => MovePage(_pageManager.RotaryButtonPages, p, -1), p => p != null && _pageManager.RotaryButtonPages.IndexOf(p) > 0);
-    public IRelayCommand MoveRotaryPageDownCommand => field ??= Relay.Create<RotaryButtonPage>(
-        p => MovePage(_pageManager.RotaryButtonPages, p, +1), p => p != null && _pageManager.RotaryButtonPages.IndexOf(p) < _pageManager.RotaryButtonPages.Count - 1);
 
     // One command for shared and side pages: the page's Side names the list it lives in.
     public IRelayCommand DuplicateRotaryPageCommand => field ??= Relay.Create<RotaryButtonPage>(
@@ -1056,13 +1052,43 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         _pageManager.DeleteRotaryButtonPage(side);
     }
 
-    /// <summary>Moves a touch page to <paramref name="targetIndex"/> — the drop target of the
-    /// page list's drag handle.</summary>
-    public void MoveTouchPage(TouchButtonPage page, int targetIndex)
+    /// <summary>Moves a page to <paramref name="targetIndex"/> within its own list — the drop
+    /// target of a page row's drag handle.</summary>
+    public void MovePageTo(ButtonPageBase page, int targetIndex)
     {
-        int index = _pageManager.TouchButtonPages.IndexOf(page);
-        if (index < 0 || targetIndex == index) return;
-        MovePage(_pageManager.TouchButtonPages, page, targetIndex - index);
+        switch (page)
+        {
+            case TouchButtonPage touch:
+                int index = _pageManager.TouchButtonPages.IndexOf(touch);
+                if (index >= 0 && targetIndex != index)
+                    MovePage(_pageManager.TouchButtonPages, touch, targetIndex - index);
+                break;
+
+            case RotaryButtonPage rotary:
+                MoveRotaryPage(rotary, targetIndex);
+                break;
+        }
+    }
+
+    /// <summary>Moves a rotary page within the list its side names, keeping that side's current
+    /// page index on the page it pointed at.</summary>
+    private void MoveRotaryPage(RotaryButtonPage page, int targetIndex)
+    {
+        ObservableCollection<RotaryButtonPage> pages = _pageManager.GetRotaryPages(page.Side);
+        int index = pages.IndexOf(page);
+        if (index < 0 || targetIndex == index || targetIndex < 0 || targetIndex >= pages.Count) return;
+
+        int current = AdjustCurrentIndex(_pageManager.GetCurrentRotaryPageIndex(page.Side), index, targetIndex);
+        pages.Move(index, targetIndex);
+        for (int i = 0; i < pages.Count; i++)
+            pages[i].Page = i + 1;
+
+        switch (page.Side)
+        {
+            case RotarySide.Left: Config.CurrentLeftRotaryPageIndex = current; break;
+            case RotarySide.Right: Config.CurrentRightRotaryPageIndex = current; break;
+            default: _pageManager.CurrentRotaryPageIndex = current; break;
+        }
     }
 
     private void MovePage<T>(ObservableCollection<T> coll, T page, int delta)
@@ -1113,8 +1139,6 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
 
     private void RefreshRotaryPageCommands()
     {
-        MoveRotaryPageUpCommand?.NotifyCanExecuteChanged();
-        MoveRotaryPageDownCommand?.NotifyCanExecuteChanged();
         RemoveRotaryPageCommand?.NotifyCanExecuteChanged();
     }
 
