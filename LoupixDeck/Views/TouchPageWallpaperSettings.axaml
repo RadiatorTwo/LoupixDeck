@@ -43,7 +43,8 @@
                           HorizontalScrollBarVisibility="Disabled"
                           VerticalScrollBarVisibility="Auto">
             <StackPanel Spacing="12" Margin="0,0,14,0">
-            <Border Background="{DynamicResource AppSurface}"
+            <Border x:Name="DevicePreviewCard"
+                    Background="{DynamicResource AppSurface}"
                     BorderBrush="{DynamicResource AppBorderSubtle}"
                     BorderThickness="1"
                     CornerRadius="8"
@@ -91,8 +92,11 @@
             </Border>
 
             <!-- Generated background (issue #577): an alternative to a wallpaper, so it is offered
-                 only while the selected display has no image or clip. -->
-            <Border Background="{DynamicResource AppSurface}"
+                 only while the selected display has no image or clip. Sized to the device preview
+                 card: the column is Auto, so the card would otherwise grow to its unwrapped hint text. -->
+            <Border Width="{Binding #DevicePreviewCard.Bounds.Width}"
+                    HorizontalAlignment="Left"
+                    Background="{DynamicResource AppSurface}"
                     BorderBrush="{DynamicResource AppBorderSubtle}"
                     BorderThickness="1"
                     CornerRadius="8"
@@ -121,9 +125,9 @@
 
                         <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="{loc:Tr Wallpaper_Fill_Colors}" VerticalAlignment="Center" />
                         <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="8">
-                            <ColorPicker Width="90" Color="{Binding ActiveFill.StartColor, Mode=TwoWay}"
+                            <ColorPicker Width="80" Color="{Binding ActiveFill.StartColor, Mode=TwoWay}"
                                          ToolTip.Tip="{loc:Tr Wallpaper_Fill_StartColor}" />
-                            <ColorPicker Width="90" Color="{Binding ActiveFill.MidColor, Mode=TwoWay}"
+                            <ColorPicker Width="80" Color="{Binding ActiveFill.MidColor, Mode=TwoWay}"
                                          ToolTip.Tip="{loc:Tr Wallpaper_Fill_MidColor}">
                                 <ColorPicker.IsVisible>
                                     <MultiBinding Converter="{x:Static BoolConverters.And}">
@@ -132,7 +136,7 @@
                                     </MultiBinding>
                                 </ColorPicker.IsVisible>
                             </ColorPicker>
-                            <ColorPicker Width="90" Color="{Binding ActiveFill.EndColor, Mode=TwoWay}"
+                            <ColorPicker Width="80" Color="{Binding ActiveFill.EndColor, Mode=TwoWay}"
                                          ToolTip.Tip="{loc:Tr Wallpaper_Fill_EndColor}"
                                          IsVisible="{Binding IsFillGradient}" />
                         </StackPanel>
