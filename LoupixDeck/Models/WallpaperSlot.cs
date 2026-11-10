@@ -20,6 +20,36 @@ namespace LoupixDeck.Models;
 [ObservableObject]
 public partial class WallpaperSlot
 {
+    public WallpaperSlot()
+    {
+        // Assigned here rather than inline so the setter wires the change handler; a config saved
+        // before generated backgrounds existed has no "Fill" and keeps this disabled default.
+        Fill = new WallpaperFill();
+    }
+
+    /// <summary>
+    /// Background generated from colours, painted only while the slot has no image or clip
+    /// (issue #577). Always non-null.
+    /// </summary>
+    public WallpaperFill Fill
+    {
+        get;
+        set
+        {
+            if (ReferenceEquals(field, value)) return;
+            field?.Changed -= OnFillChanged;
+            field = value ?? new WallpaperFill();
+            field.Changed += OnFillChanged;
+            OnPropertyChanged();
+            Invalidate();
+        }
+    }
+
+    private void OnFillChanged(object sender, EventArgs e)
+    {
+        OnPropertyChanged(nameof(HasFill));
+        Invalidate();
+    }
 
     /// <summary>
     /// Relative path of the original image inside the asset folder
@@ -27,6 +57,7 @@ public partial class WallpaperSlot
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasImage))]
+    [NotifyPropertyChangedFor(nameof(HasFill))]
     public partial string AssetPath { get; set; }
     partial void OnAssetPathChanged(string value) => Invalidate();
 
@@ -172,6 +203,17 @@ public partial class WallpaperSlot
     [JsonIgnore]
     public bool HasImage => !string.IsNullOrWhiteSpace(AssetPath);
 
+    /// <summary>Whether the slot paints its generated background, i.e. it is enabled and no image wins over it.</summary>
+    [JsonIgnore]
+    public bool HasFill => !HasImage && (Fill?.Enabled ?? false);
+
+    /// <summary>
+    /// Whether the slot has a still wallpaper of its own — an image or a generated background. This
+    /// is what makes a page "have a wallpaper" for inheritance, so both behave the same way.
+    /// </summary>
+    [JsonIgnore]
+    public bool HasStill => HasImage || HasFill;
+
     /// <summary>
     /// Whether this slot plays a clip. It wins over <see cref="HasImage"/> when both are set; the
     /// still image is kept rather than cleared, so removing the clip restores it — and it is what
@@ -208,6 +250,7 @@ public partial class WallpaperSlot
         ScalingOption = ScalingOption,
         Opacity = Opacity,
         Mirror = Mirror,
+        Fill = Fill?.Clone(),
     };
 
     /// <summary>Copies all parameters (and the image reference) from another slot.</summary>
@@ -224,6 +267,7 @@ public partial class WallpaperSlot
         ScalingOption = other.ScalingOption;
         Opacity = other.Opacity;
         Mirror = other.Mirror;
+        Fill.CopyFrom(other.Fill ?? new WallpaperFill());
     }
 
     /// <summary>Resets the slot to its empty default (no image).</summary>
@@ -239,5 +283,6 @@ public partial class WallpaperSlot
         ScalingOption = BitmapHelper.ScalingOption.Fit;
         Opacity = 0;
         Mirror = false;
+        Fill.Clear();
     }
 }

@@ -98,12 +98,12 @@ public sealed partial class TouchButtonPage(int pageSize) : ButtonPageBase()
         OnPropertyChanged(nameof(WallpaperThumbnail));
     }
 
-    /// <summary>True when any of the three wallpaper slots holds an image.</summary>
+    /// <summary>True when any of the three wallpaper slots holds an image or a generated background.</summary>
     [JsonIgnore]
     public bool HasAnyWallpaper =>
-        (MainWallpaper?.HasImage ?? false) ||
-        (LeftWallpaper?.HasImage ?? false) ||
-        (RightWallpaper?.HasImage ?? false);
+        (MainWallpaper?.HasStill ?? false) ||
+        (LeftWallpaper?.HasStill ?? false) ||
+        (RightWallpaper?.HasStill ?? false);
 
     /// <summary>
     /// The page whose wallpapers are drawn for the page at <paramref name="index"/> when it has

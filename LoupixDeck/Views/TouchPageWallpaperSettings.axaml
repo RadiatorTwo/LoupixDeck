@@ -9,7 +9,7 @@
         mc:Ignorable="d"
         Title="{loc:Tr Wallpaper_EditWallpaper}"
         Width="940"
-        Height="700"
+        Height="740"
         WindowStartupLocation="CenterOwner"
         CanResize="False">
     <Window.Styles>
@@ -38,8 +38,12 @@
 
         <Grid Grid.Row="1" ColumnDefinitions="Auto,16,*">
 
-            <!-- ░░░ Left: device preview ░░░ -->
-            <Border Grid.Column="0"
+            <!-- ░░░ Left: device preview and generated background ░░░ -->
+            <ScrollViewer Grid.Column="0"
+                          HorizontalScrollBarVisibility="Disabled"
+                          VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="12" Margin="0,0,14,0">
+            <Border x:Name="DevicePreviewCard"
                     Background="{DynamicResource AppSurface}"
                     BorderBrush="{DynamicResource AppBorderSubtle}"
                     BorderThickness="1"
@@ -86,6 +90,101 @@
                     </StackPanel>
                 </StackPanel>
             </Border>
+
+            <!-- Generated background (issue #577): an alternative to a wallpaper, so it is offered
+                 only while the selected display has no image or clip. Sized to the device preview
+                 card: the column is Auto, so the card would otherwise grow to its unwrapped hint text. -->
+            <Border Width="{Binding #DevicePreviewCard.Bounds.Width}"
+                    HorizontalAlignment="Left"
+                    Background="{DynamicResource AppSurface}"
+                    BorderBrush="{DynamicResource AppBorderSubtle}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="16"
+                    IsVisible="{Binding ShowFillEditor}">
+                <StackPanel Spacing="10">
+                    <!-- Kept compact so the card fits under the device preview without scrolling:
+                         the explanation is a tooltip, the middle colour toggle sits in the colour row,
+                         angle (linear) and radius (radial) share a row, and the centre is one row. -->
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Grid.Column="0" Classes="card-title" Margin="0" VerticalAlignment="Center"
+                                   Text="{loc:Tr Wallpaper_Fill_Title}"
+                                   ToolTip.Tip="{loc:Tr Wallpaper_Fill_Hint}" />
+                        <ToggleSwitch Grid.Column="1" OnContent="" OffContent="" VerticalAlignment="Center"
+                                      IsChecked="{Binding IsFillEnabled, Mode=TwoWay}"
+                                      ToolTip.Tip="{loc:Tr Wallpaper_Fill_Hint}" />
+                    </Grid>
+
+                    <Grid ColumnDefinitions="70,*,44" RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+                          RowSpacing="6" IsEnabled="{Binding IsFillEnabled}">
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="{loc:Tr Wallpaper_Fill_Style}" VerticalAlignment="Center" />
+                        <ComboBox  Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" HorizontalAlignment="Stretch"
+                                   SelectedIndex="{Binding FillModeIndex, Mode=TwoWay}">
+                            <ComboBoxItem Content="{loc:Tr Wallpaper_Fill_Solid}" />
+                            <ComboBoxItem Content="{loc:Tr Wallpaper_Fill_Linear}" />
+                            <ComboBoxItem Content="{loc:Tr Wallpaper_Fill_Radial}" />
+                        </ComboBox>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="{loc:Tr Wallpaper_Fill_Vignette}" VerticalAlignment="Center" />
+                        <Slider    Grid.Row="1" Grid.Column="1" Minimum="0" Maximum="1" TickFrequency="0.05" IsSnapToTickEnabled="True"
+                                   Value="{Binding ActiveFill.Vignette, Mode=TwoWay}" />
+                        <TextBlock Grid.Row="1" Grid.Column="2" Classes="value" Text="{Binding ActiveFill.Vignette, StringFormat={}{0:P0}}"
+                                   VerticalAlignment="Center" HorizontalAlignment="Right" />
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="{loc:Tr Wallpaper_Fill_Colors}" VerticalAlignment="Center" />
+                        <StackPanel Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="6">
+                            <ColorPicker Width="72" Color="{Binding ActiveFill.StartColor, Mode=TwoWay}"
+                                         ToolTip.Tip="{loc:Tr Wallpaper_Fill_StartColor}" />
+                            <ColorPicker Width="72" Color="{Binding ActiveFill.EndColor, Mode=TwoWay}"
+                                         ToolTip.Tip="{loc:Tr Wallpaper_Fill_EndColor}"
+                                         IsVisible="{Binding IsFillGradient}" />
+                            <CheckBox MinWidth="0" Padding="0" VerticalAlignment="Center"
+                                      IsChecked="{Binding ActiveFill.UseMidColor, Mode=TwoWay}"
+                                      IsVisible="{Binding IsFillGradient}"
+                                      ToolTip.Tip="{loc:Tr Wallpaper_Fill_UseMidColor}" />
+                            <ColorPicker Width="72" Color="{Binding ActiveFill.MidColor, Mode=TwoWay}"
+                                         ToolTip.Tip="{loc:Tr Wallpaper_Fill_MidColor}">
+                                <ColorPicker.IsVisible>
+                                    <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                        <Binding Path="IsFillGradient" />
+                                        <Binding Path="ActiveFill.UseMidColor" />
+                                    </MultiBinding>
+                                </ColorPicker.IsVisible>
+                            </ColorPicker>
+                        </StackPanel>
+
+                        <!-- Angle (linear) and radius (radial) are never shown together. -->
+                        <TextBlock Grid.Row="3" Grid.Column="0" Classes="label" Text="{loc:Tr Wallpaper_Fill_Angle}" VerticalAlignment="Center"
+                                   IsVisible="{Binding IsFillLinear}" />
+                        <Slider    Grid.Row="3" Grid.Column="1" Minimum="0" Maximum="359" TickFrequency="1" IsSnapToTickEnabled="True"
+                                   Value="{Binding ActiveFill.Angle, Mode=TwoWay}" IsVisible="{Binding IsFillLinear}" />
+                        <TextBlock Grid.Row="3" Grid.Column="2" Classes="value" Text="{Binding ActiveFill.Angle, StringFormat={}{0:0}°}"
+                                   VerticalAlignment="Center" HorizontalAlignment="Right" IsVisible="{Binding IsFillLinear}" />
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Classes="label" Text="{loc:Tr Wallpaper_Fill_Radius}" VerticalAlignment="Center"
+                                   IsVisible="{Binding IsFillRadial}" />
+                        <Slider    Grid.Row="3" Grid.Column="1" Minimum="10" Maximum="200" TickFrequency="1" IsSnapToTickEnabled="True"
+                                   Value="{Binding ActiveFill.Radius, Mode=TwoWay}" IsVisible="{Binding IsFillRadial}" />
+                        <TextBlock Grid.Row="3" Grid.Column="2" Classes="value" Text="{Binding ActiveFill.Radius, StringFormat={}{0:0}%}"
+                                   VerticalAlignment="Center" HorizontalAlignment="Right" IsVisible="{Binding IsFillRadial}" />
+
+                        <TextBlock Grid.Row="4" Grid.Column="0" Classes="label" Text="{loc:Tr Wallpaper_Fill_Center}" VerticalAlignment="Center"
+                                   IsVisible="{Binding IsFillRadial}" />
+                        <Grid      Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" ColumnDefinitions="*,8,*"
+                                   IsVisible="{Binding IsFillRadial}">
+                            <Slider Grid.Column="0" Minimum="0" Maximum="100" TickFrequency="1" IsSnapToTickEnabled="True"
+                                    Value="{Binding ActiveFill.CenterX, Mode=TwoWay}"
+                                    ToolTip.Tip="{loc:Tr Wallpaper_Fill_CenterX}" />
+                            <Slider Grid.Column="2" Minimum="0" Maximum="100" TickFrequency="1" IsSnapToTickEnabled="True"
+                                    Value="{Binding ActiveFill.CenterY, Mode=TwoWay}"
+                                    ToolTip.Tip="{loc:Tr Wallpaper_Fill_CenterY}" />
+                        </Grid>
+                    </Grid>
+                </StackPanel>
+            </Border>
+            </StackPanel>
+            </ScrollViewer>
 
             <!-- ░░░ Right: settings for the active target ░░░ -->
             <Border Grid.Column="2"

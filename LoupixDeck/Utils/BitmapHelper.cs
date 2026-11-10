@@ -1210,27 +1210,35 @@ public static class BitmapHelper
     /// caching it on first use. The cache is keyed on the requested size, so a slot baked
     /// for one device's panel is re-baked rather than reused on a differently sized one. The original image is resolved from the asset folder via
     /// <see cref="AssetResolver"/>, scaled/positioned with the slot's parameters and
-    /// optionally horizontally mirrored. Returns null when the slot has no image or the
-    /// asset is missing.
+    /// optionally horizontally mirrored. Without an image, the slot's enabled generated
+    /// background is painted instead. Returns null when the slot has neither or the asset is missing.
     /// </summary>
     public static SKBitmap GetOrBakeSlot(WallpaperSlot slot, int width, int height)
     {
-        if (slot == null || !slot.HasImage) return null;
+        if (slot == null || !slot.HasStill) return null;
         if (slot.Baked != null && slot.BakedSize == (width, height)) return slot.Baked;
 
         // Retires the previous bake rather than disposing it: it may still be read by the
         // settings preview or by an in-flight render (see WallpaperSlot.Baked).
         slot.Baked = null;
 
-        var original = AssetResolver?.Invoke(slot.AssetPath);
-        if (original == null) return null;
+        SKBitmap original = null;
+        if (slot.HasImage)
+        {
+            original = AssetResolver?.Invoke(slot.AssetPath);
+            if (original == null) return null;
+        }
 
         SKBitmap baked;
         lock (SkiaRenderGate.Sync)
         {
-            baked = ScaleAndPositionBitmap(
-                original, width, height,
-                slot.Scaling, slot.PositionX, slot.PositionY, slot.ScalingOption);
+            // An image wins over the slot's generated background (HasStill covers either).
+            baked = original != null
+                ? ScaleAndPositionBitmap(
+                    original, width, height,
+                    slot.Scaling, slot.PositionX, slot.PositionY, slot.ScalingOption)
+                : WallpaperFillRenderer.Bake(slot.Fill, width, height);
+            if (baked == null) return null;
 
             if (slot.Mirror)
             {
