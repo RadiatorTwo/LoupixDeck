@@ -130,6 +130,9 @@ public sealed partial class UpdateDialogViewModel(IUpdateService updateService, 
                     // Keep the dialog open: closing it would look as if the page had been opened.
                     StatusText = Loc.Tr("Update_ReleasePageFailed", result.Error);
                     break;
+                case UpdateInstallOutcome.InstallerNotReady:
+                    StatusText = Loc.Tr("Update_InstallerNotReady");
+                    break;
                 default:
                     StatusText = Loc.Tr("Update_Failed", result.Error);
                     break;

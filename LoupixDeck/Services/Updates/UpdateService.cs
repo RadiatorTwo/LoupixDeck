@@ -32,7 +32,7 @@ public interface IUpdateService : INotifyPropertyChanged
     void SkipVersion(UpdateInfo update);
 }
 
-public sealed partial class UpdateService : ObservableObject, IUpdateService
+public sealed partial class UpdateService(IUpdateInstaller installer) : ObservableObject, IUpdateService
 {
     private const string AutoCheckKey = "CheckForUpdates";
     private const string SkippedVersionKey = "SkippedUpdateVersion";
@@ -40,7 +40,19 @@ public sealed partial class UpdateService : ObservableObject, IUpdateService
     /// <summary>Lets the window finish its first layout before the network is touched.</summary>
     private static readonly TimeSpan StartupDelay = TimeSpan.FromSeconds(2);
 
+    /// <summary>
+    /// A release is published before CI has uploaded its installers (the Windows builds take a while).
+    /// Such a release is not offered yet; it is looked at again this often, at most
+    /// <see cref="MaxPendingRechecks"/> times, which stays well inside GitHub's hourly API limit.
+    /// </summary>
+    private static readonly TimeSpan PendingRecheckDelay = TimeSpan.FromMinutes(5);
+
+    private const int MaxPendingRechecks = 12;
+
     private readonly GitHubReleaseClient _client = new();
+
+    private int _pendingRechecks;
+    private int _recheckScheduled;
 
     public event Action<UpdateInfo> UpdateFound;
 
@@ -98,7 +110,27 @@ public sealed partial class UpdateService : ObservableObject, IUpdateService
                 return new UpdateCheckResult(UpdateCheckStatus.UpToDate);
             }
 
-            UpdateInfo update = new(AppVersion.Text, newer[0], newer);
+            // Only a release whose installer is already uploaded is offered; a newer one still being
+            // built is looked at again later.
+            ReleaseInfo latest = newer.FirstOrDefault(installer.CanInstall);
+            if (latest != newer[0])
+            {
+                Console.WriteLine($"[Update] {newer[0].Tag} is published, but its installer is not uploaded yet.");
+                SchedulePendingRecheck(manual);
+            }
+            else
+            {
+                _pendingRechecks = 0;
+            }
+
+            if (latest is null)
+            {
+                // Keep a hint an earlier check already showed; there is just nothing newer to show yet.
+                return new UpdateCheckResult(UpdateCheckStatus.Pending, PendingTag: newer[0].Tag);
+            }
+
+            List<ReleaseInfo> offered = newer.Where(r => r.Version <= latest.Version).ToList();
+            UpdateInfo update = new(AppVersion.Text, latest, offered);
             Console.WriteLine($"[Update] {update.Latest.Tag} is available (installed: {AppVersion.Text}).");
 
             bool skipped = AppVersion.TryParse(UiSettingsStore.GetString(SkippedVersionKey)) == update.Latest.Version;
@@ -121,6 +153,34 @@ public sealed partial class UpdateService : ObservableObject, IUpdateService
             Console.WriteLine($"[Update] Update check failed: {ex.Message}");
             return new UpdateCheckResult(UpdateCheckStatus.Failed, Error: ex.Message);
         }
+    }
+
+    private void SchedulePendingRecheck(bool manual)
+    {
+        if (!manual && !AutoCheckEnabled)
+        {
+            return;
+        }
+
+        if (Interlocked.Exchange(ref _recheckScheduled, 1) == 1)
+        {
+            return;
+        }
+
+        if (Interlocked.Increment(ref _pendingRechecks) > MaxPendingRechecks)
+        {
+            Console.WriteLine("[Update] Installer still missing - giving up until the next check.");
+            _pendingRechecks = 0;
+            Volatile.Write(ref _recheckScheduled, 0);
+            return;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(PendingRecheckDelay);
+            Volatile.Write(ref _recheckScheduled, 0);
+            await CheckAsync(manual: false);
+        });
     }
 
     public void SkipVersion(UpdateInfo update)

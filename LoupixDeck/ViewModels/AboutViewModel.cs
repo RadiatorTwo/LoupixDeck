@@ -38,6 +38,9 @@ public sealed partial class AboutViewModel(IUpdateService updateService, IDialog
             case UpdateCheckStatus.UpToDate:
                 UpdateStatus = Loc.Tr("About_UpToDate");
                 break;
+            case UpdateCheckStatus.Pending:
+                UpdateStatus = Loc.Tr("About_UpdatePending", result.PendingTag);
+                break;
             case UpdateCheckStatus.UpdateAvailable:
                 // Close first: the update dialog is modal to the main window, not stacked on About.
                 UpdateStatus = null;
