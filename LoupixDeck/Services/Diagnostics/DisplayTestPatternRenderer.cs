@@ -33,11 +33,11 @@ public static class DisplayTestPatternRenderer
     private static readonly SKColor MarkerBottomLeft = new(255, 255, 0); // yellow
     private static readonly SKColor MarkerBottomRight = new(0, 255, 0); // green
 
-    private static readonly SKTypeface RegularFace = SKTypeface.FromFamilyName("Liberation Sans",
-        SKFontStyleWeight.Normal, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright);
+    private static readonly SKTypeface RegularFace = BitmapHelper.ResolveTypeface("Liberation Sans",
+        SKFontStyleWeight.Normal, SKFontStyleSlant.Upright);
 
-    private static readonly SKTypeface BoldFace = SKTypeface.FromFamilyName("Liberation Sans",
-        SKFontStyleWeight.Bold, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright);
+    private static readonly SKTypeface BoldFace = BitmapHelper.ResolveTypeface("Liberation Sans",
+        SKFontStyleWeight.Bold, SKFontStyleSlant.Upright);
 
     /// <summary>
     /// True when the pattern is composed from key-sized tiles rather than from one
