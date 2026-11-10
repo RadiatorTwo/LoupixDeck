@@ -41,7 +41,8 @@ public static class BitmapHelper
     /// <summary>
     /// Typeface for <paramref name="fontFamily"/>; an empty family means
     /// <see cref="DefaultTextFontFamily"/>. A family that is not installed falls back to Skia's
-    /// system default, as the default family already does where it is missing.
+    /// system default, as the default family already does where it is missing (Windows ships
+    /// no Liberation Sans). Bold and italic survive that fallback, see <see cref="ResolveTypeface"/>.
     /// </summary>
     private static SKTypeface GetTextTypeface(bool bold, bool italic, string fontFamily = null)
     {
@@ -49,7 +50,22 @@ public static class BitmapHelper
         var weight = bold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal;
         var slant = italic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright;
         return TypefaceCache.GetOrAdd((family, weight, slant), key =>
-            SKTypeface.FromFamilyName(key.Family, key.Weight, SKFontStyleWidth.Normal, key.Slant));
+            ResolveTypeface(key.Family, key.Weight, key.Slant));
+    }
+
+    /// <summary>
+    /// Typeface for <paramref name="family"/> in the requested style. When the family is not
+    /// installed, Skia's DirectWrite backend returns the system default face in its regular
+    /// style only, dropping bold and italic. The style is then requested again from the
+    /// family Skia fell back to, so the fallback face still honours it.
+    /// </summary>
+    internal static SKTypeface ResolveTypeface(string family, SKFontStyleWeight weight, SKFontStyleSlant slant)
+    {
+        SKTypeface typeface = SKTypeface.FromFamilyName(family, weight, SKFontStyleWidth.Normal, slant);
+        if (typeface == null || string.Equals(typeface.FamilyName, family, StringComparison.OrdinalIgnoreCase))
+            return typeface;
+
+        return SKTypeface.FromFamilyName(typeface.FamilyName, weight, SKFontStyleWidth.Normal, slant) ?? typeface;
     }
 
     public enum ScalingOption
