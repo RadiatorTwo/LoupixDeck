@@ -29,7 +29,13 @@ public enum UpdateCheckStatus
 {
     UpToDate,
     UpdateAvailable,
+
+    /// <summary>A newer release is published, but its installer is not uploaded yet.</summary>
+    Pending,
+
     Failed
 }
 
-public sealed record UpdateCheckResult(UpdateCheckStatus Status, UpdateInfo Update = null, string Error = null);
+/// <param name="PendingTag">With <see cref="UpdateCheckStatus.Pending"/>: the tag of the release still being published.</param>
+public sealed record UpdateCheckResult(UpdateCheckStatus Status, UpdateInfo Update = null, string Error = null,
+    string PendingTag = null);
