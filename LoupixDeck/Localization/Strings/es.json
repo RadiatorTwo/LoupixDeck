@@ -1231,6 +1231,7 @@
   "Wallpaper_EditWallpaper": "Editar fondo",
   "Wallpaper_FfmpegWasNotFoundOn": "No se encontró ffmpeg en el PATH — un clip no se puede reproducir hasta que esté instalado.",
   "Wallpaper_Fill_Angle": "Ángulo",
+  "Wallpaper_Fill_Center": "Centro",
   "Wallpaper_Fill_CenterX": "Centro X",
   "Wallpaper_Fill_CenterY": "Centro Y",
   "Wallpaper_Fill_Colors": "Colores",

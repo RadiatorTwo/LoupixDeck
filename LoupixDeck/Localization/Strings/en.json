@@ -1231,6 +1231,7 @@
   "Wallpaper_EditWallpaper": "Edit Wallpaper",
   "Wallpaper_FfmpegWasNotFoundOn": "ffmpeg was not found on PATH — a clip cannot play until it is installed.",
   "Wallpaper_Fill_Angle": "Angle",
+  "Wallpaper_Fill_Center": "Center",
   "Wallpaper_Fill_CenterX": "Center X",
   "Wallpaper_Fill_CenterY": "Center Y",
   "Wallpaper_Fill_Colors": "Colors",
