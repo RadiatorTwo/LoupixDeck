@@ -10,14 +10,6 @@ namespace LoupixDeck.Utils;
 /// </summary>
 public static class WallpaperFillRenderer
 {
-    // Fixed so the grain is identical on every bake: a re-bake after an unrelated change must not
-    // make the background shimmer.
-    private const uint NoiseSeed = 0x9E3779B9;
-
-    // Largest per-channel offset at full noise strength. Enough to dissolve the 16 red levels of an
-    // RGB565 panel into grain without making the background look dirty.
-    private const int MaxNoiseAmplitude = 24;
-
     public static SKBitmap Bake(WallpaperFill fill, int width, int height)
     {
         if (fill == null || width <= 0 || height <= 0) return null;
@@ -40,9 +32,6 @@ public static class WallpaperFillRenderer
 
             canvas.Flush();
         }
-
-        if (fill.Noise > 0)
-            ApplyNoise(bitmap, fill.Noise);
 
         return bitmap;
     }
@@ -98,33 +87,4 @@ public static class WallpaperFillRenderer
         using SKPaint paint = new() { Shader = shader, IsAntialias = true };
         canvas.DrawRect(bounds, paint);
     }
-
-    /// <summary>Adds a fixed, monochrome grain so smooth ramps do not band on the 16-bit panel.</summary>
-    private static void ApplyNoise(SKBitmap bitmap, double strength)
-    {
-        int amplitude = (int)Math.Round(MaxNoiseAmplitude * Math.Clamp(strength, 0, 1));
-        if (amplitude <= 0) return;
-
-        Span<byte> pixels = bitmap.GetPixelSpan();
-        int count = bitmap.Width * bitmap.Height;
-        uint state = NoiseSeed;
-
-        for (int i = 0; i < count; i++)
-        {
-            // xorshift32: cheap, deterministic and plenty random for grain.
-            state ^= state << 13;
-            state ^= state >> 17;
-            state ^= state << 5;
-            int offset = (int)(state % (uint)((2 * amplitude) + 1)) - amplitude;
-
-            int p = i * 4;
-            pixels[p] = Clamp(pixels[p] + offset);
-            pixels[p + 1] = Clamp(pixels[p + 1] + offset);
-            pixels[p + 2] = Clamp(pixels[p + 2] + offset);
-        }
-
-        bitmap.NotifyPixelsChanged();
-    }
-
-    private static byte Clamp(int value) => (byte)Math.Clamp(value, 0, 255);
 }

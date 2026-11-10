@@ -13,7 +13,7 @@ public enum WallpaperFillMode
 
 /// <summary>
 /// A background generated from colours instead of an image (issue #577): a solid colour or a linear
-/// or radial gradient, optionally with a middle colour, a vignette and a little noise. It belongs to
+/// or radial gradient, optionally with a middle colour and a vignette. It belongs to
 /// a <see cref="WallpaperSlot"/> and is baked into the slot's bitmap like an image would be, so it is
 /// drawn, cut out per key and inherited by later pages exactly like an image wallpaper.
 ///
@@ -76,10 +76,6 @@ public partial class WallpaperFill
     public partial double Vignette { get; set; }
     partial void OnVignetteChanged(double value) => RaiseChanged();
 
-    /// <summary>Strength (0..1) of a fixed fine grain that breaks up colour banding.</summary>
-    [ObservableProperty]
-    public partial double Noise { get; set; }
-    partial void OnNoiseChanged(double value) => RaiseChanged();
 
     /// <summary>Raised whenever a property that affects the painted background changes.</summary>
     public event EventHandler Changed;
@@ -107,7 +103,6 @@ public partial class WallpaperFill
         CenterY = other.CenterY;
         Radius = other.Radius;
         Vignette = other.Vignette;
-        Noise = other.Noise;
     }
 
     /// <summary>Resets to the disabled default.</summary>
