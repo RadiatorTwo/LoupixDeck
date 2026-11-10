@@ -371,14 +371,14 @@ public sealed class WallpaperAnimationSource : IAnimationSource, IDisposable
     }
 
     /// <summary>
-    /// Draws a side display's own still image over its column of the panel, dimmed by that slot's
-    /// opacity. A side slot without an image is left alone, so the video shows through it — the
+    /// Draws a side display's own still image (or generated background) over its column of the panel,
+    /// dimmed by that slot's opacity. A side slot without either is left alone, so the video shows through it — the
     /// same precedence the static path has, where an empty side slot falls back to the main
     /// wallpaper's region.
     /// </summary>
     private void DrawSideSlot(SKCanvas canvas, WallpaperSlot slot, int columnX)
     {
-        if (slot is not { HasImage: true }) return;
+        if (slot is not { HasStill: true }) return;
 
         var baked = BitmapHelper.GetOrBakeSlot(slot, _geometry.StripWidth, _geometry.PanelHeight);
         if (baked == null) return;
