@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Input;
+using LoupixDeck.Localization;
 using LoupixDeck.Models;
 using LoupixDeck.Registry;
 using LoupixDeck.Services;
@@ -91,7 +92,9 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
 
     public override void Initialize(TouchButtonPage parameter)
     {
+        UnwatchSlots();
         _targetPage = parameter;
+        WatchSlots();
 
         // Snapshot every slot so Cancel can restore the persisted state.
         _mainSnapshot = _targetPage?.MainWallpaper?.Clone() ?? new WallpaperSlot();
@@ -184,6 +187,7 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
         OnPropertyChanged(nameof(SelectedMediaName));
         OnPropertyChanged(nameof(ShowImageAdjustments));
         OnPropertyChanged(nameof(VideoFps));
+        NotifyFillChanged();
     }
 
     // ───────── Active-slot setting proxies ─────────
@@ -198,6 +202,7 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
     {
         { HasVideo: true } => "Video clip",
         { HasImage: true } => "Image",
+        { HasFill: true } => Loc.Tr("Wallpaper_Fill_Kind"),
         _ => "Empty",
     };
 
@@ -253,6 +258,72 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
     {
         get => ActiveSlot?.Mirror ?? false;
         set { if (ActiveSlot != null) { ActiveSlot.Mirror = value; OnPropertyChanged(); RefreshPreviews(); } }
+    }
+
+    // ───────── Generated background (issue #577) ─────────
+
+    /// <summary>The active slot's generated background; the dialog binds its fields directly.</summary>
+    public WallpaperFill ActiveFill => ActiveSlot?.Fill;
+
+    /// <summary>
+    /// The generated background is an alternative to a wallpaper, so its editor only shows while the
+    /// slot holds no image or clip. Its settings stay stored either way.
+    /// </summary>
+    public bool ShowFillEditor => !HasActiveImage && !HasActiveVideo;
+
+    /// <summary>Whether the generated background is switched on, gating its other controls.</summary>
+    public bool IsFillEnabled
+    {
+        get => ActiveFill?.Enabled ?? false;
+        set { if (ActiveFill != null) ActiveFill.Enabled = value; }
+    }
+
+    /// <summary>Index into the mode combo box (Solid, Linear, Radial — the enum's order).</summary>
+    public int FillModeIndex
+    {
+        get => (int)(ActiveFill?.Mode ?? WallpaperFillMode.Linear);
+        set { if (ActiveFill != null && value >= 0) ActiveFill.Mode = (WallpaperFillMode)value; }
+    }
+
+    public bool IsFillGradient => ActiveFill is { Mode: not WallpaperFillMode.Solid };
+    public bool IsFillLinear => ActiveFill is { Mode: WallpaperFillMode.Linear };
+    public bool IsFillRadial => ActiveFill is { Mode: WallpaperFillMode.Radial };
+
+    private void NotifyFillChanged()
+    {
+        OnPropertyChanged(nameof(ActiveFill));
+        OnPropertyChanged(nameof(ShowFillEditor));
+        OnPropertyChanged(nameof(IsFillEnabled));
+        OnPropertyChanged(nameof(FillModeIndex));
+        OnPropertyChanged(nameof(IsFillGradient));
+        OnPropertyChanged(nameof(IsFillLinear));
+        OnPropertyChanged(nameof(IsFillRadial));
+        OnPropertyChanged(nameof(ActiveContentKind));
+    }
+
+    // The fill's fields are bound straight to the model, so the previews follow its change signal
+    // instead of a proxy per field.
+    private void WatchSlots()
+    {
+        foreach (WallpaperSlot slot in Slots())
+            slot.Changed += OnSlotChanged;
+    }
+
+    private void UnwatchSlots()
+    {
+        foreach (WallpaperSlot slot in Slots())
+            slot.Changed -= OnSlotChanged;
+    }
+
+    private IEnumerable<WallpaperSlot> Slots() =>
+        new[] { _targetPage?.MainWallpaper, _targetPage?.LeftWallpaper, _targetPage?.RightWallpaper }
+            .Where(static slot => slot != null);
+
+    private void OnSlotChanged(object sender, EventArgs e)
+    {
+        if (ReferenceEquals(sender, ActiveSlot))
+            NotifyFillChanged();
+        RefreshPreviews();
     }
 
     // ───────── Video clip (main target only) ─────────
@@ -471,6 +542,8 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
     /// <summary>Frees the preview buffers and the poster frame. Call once the window has closed.</summary>
     public void Cleanup()
     {
+        UnwatchSlots();
+
         _mainPreviewBuffer.Dispose();
         _leftPreviewBuffer.Dispose();
         _rightPreviewBuffer.Dispose();

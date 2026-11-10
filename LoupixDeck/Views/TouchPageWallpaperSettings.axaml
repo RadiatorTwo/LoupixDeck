@@ -38,9 +38,12 @@
 
         <Grid Grid.Row="1" ColumnDefinitions="Auto,16,*">
 
-            <!-- ░░░ Left: device preview ░░░ -->
-            <Border Grid.Column="0"
-                    Background="{DynamicResource AppSurface}"
+            <!-- ░░░ Left: device preview and generated background ░░░ -->
+            <ScrollViewer Grid.Column="0"
+                          HorizontalScrollBarVisibility="Disabled"
+                          VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="12" Margin="0,0,14,0">
+            <Border Background="{DynamicResource AppSurface}"
                     BorderBrush="{DynamicResource AppBorderSubtle}"
                     BorderThickness="1"
                     CornerRadius="8"
@@ -86,6 +89,103 @@
                     </StackPanel>
                 </StackPanel>
             </Border>
+
+            <!-- Generated background (issue #577): an alternative to a wallpaper, so it is offered
+                 only while the selected display has no image or clip. -->
+            <Border Background="{DynamicResource AppSurface}"
+                    BorderBrush="{DynamicResource AppBorderSubtle}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="16"
+                    IsVisible="{Binding ShowFillEditor}">
+                <StackPanel Spacing="10">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                            <TextBlock Classes="card-title" Margin="0" Text="{loc:Tr Wallpaper_Fill_Title}" />
+                            <TextBlock Classes="hint" TextWrapping="Wrap" Text="{loc:Tr Wallpaper_Fill_Hint}" />
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" OnContent="" OffContent="" VerticalAlignment="Center"
+                                      IsChecked="{Binding IsFillEnabled, Mode=TwoWay}" />
+                    </Grid>
+
+                    <Grid ColumnDefinitions="90,*,48" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                          RowSpacing="6" IsEnabled="{Binding IsFillEnabled}">
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="{loc:Tr Wallpaper_Fill_Style}" VerticalAlignment="Center" />
+                        <ComboBox  Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" HorizontalAlignment="Stretch"
+                                   SelectedIndex="{Binding FillModeIndex, Mode=TwoWay}">
+                            <ComboBoxItem Content="{loc:Tr Wallpaper_Fill_Solid}" />
+                            <ComboBoxItem Content="{loc:Tr Wallpaper_Fill_Linear}" />
+                            <ComboBoxItem Content="{loc:Tr Wallpaper_Fill_Radial}" />
+                        </ComboBox>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="{loc:Tr Wallpaper_Fill_Colors}" VerticalAlignment="Center" />
+                        <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="8">
+                            <ColorPicker Width="90" Color="{Binding ActiveFill.StartColor, Mode=TwoWay}"
+                                         ToolTip.Tip="{loc:Tr Wallpaper_Fill_StartColor}" />
+                            <ColorPicker Width="90" Color="{Binding ActiveFill.MidColor, Mode=TwoWay}"
+                                         ToolTip.Tip="{loc:Tr Wallpaper_Fill_MidColor}">
+                                <ColorPicker.IsVisible>
+                                    <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                        <Binding Path="IsFillGradient" />
+                                        <Binding Path="ActiveFill.UseMidColor" />
+                                    </MultiBinding>
+                                </ColorPicker.IsVisible>
+                            </ColorPicker>
+                            <ColorPicker Width="90" Color="{Binding ActiveFill.EndColor, Mode=TwoWay}"
+                                         ToolTip.Tip="{loc:Tr Wallpaper_Fill_EndColor}"
+                                         IsVisible="{Binding IsFillGradient}" />
+                        </StackPanel>
+
+                        <CheckBox  Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2"
+                                   Content="{loc:Tr Wallpaper_Fill_UseMidColor}"
+                                   IsChecked="{Binding ActiveFill.UseMidColor, Mode=TwoWay}"
+                                   IsVisible="{Binding IsFillGradient}" />
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Classes="label" Text="{loc:Tr Wallpaper_Fill_Angle}" VerticalAlignment="Center"
+                                   IsVisible="{Binding IsFillLinear}" />
+                        <Slider    Grid.Row="3" Grid.Column="1" Minimum="0" Maximum="359" TickFrequency="1" IsSnapToTickEnabled="True"
+                                   Value="{Binding ActiveFill.Angle, Mode=TwoWay}" IsVisible="{Binding IsFillLinear}" />
+                        <TextBlock Grid.Row="3" Grid.Column="2" Classes="value" Text="{Binding ActiveFill.Angle, StringFormat={}{0:0}°}"
+                                   VerticalAlignment="Center" HorizontalAlignment="Right" IsVisible="{Binding IsFillLinear}" />
+
+                        <TextBlock Grid.Row="4" Grid.Column="0" Classes="label" Text="{loc:Tr Wallpaper_Fill_CenterX}" VerticalAlignment="Center"
+                                   IsVisible="{Binding IsFillRadial}" />
+                        <Slider    Grid.Row="4" Grid.Column="1" Minimum="0" Maximum="100" TickFrequency="1" IsSnapToTickEnabled="True"
+                                   Value="{Binding ActiveFill.CenterX, Mode=TwoWay}" IsVisible="{Binding IsFillRadial}" />
+                        <TextBlock Grid.Row="4" Grid.Column="2" Classes="value" Text="{Binding ActiveFill.CenterX, StringFormat={}{0:0}%}"
+                                   VerticalAlignment="Center" HorizontalAlignment="Right" IsVisible="{Binding IsFillRadial}" />
+
+                        <TextBlock Grid.Row="5" Grid.Column="0" Classes="label" Text="{loc:Tr Wallpaper_Fill_CenterY}" VerticalAlignment="Center"
+                                   IsVisible="{Binding IsFillRadial}" />
+                        <Slider    Grid.Row="5" Grid.Column="1" Minimum="0" Maximum="100" TickFrequency="1" IsSnapToTickEnabled="True"
+                                   Value="{Binding ActiveFill.CenterY, Mode=TwoWay}" IsVisible="{Binding IsFillRadial}" />
+                        <TextBlock Grid.Row="5" Grid.Column="2" Classes="value" Text="{Binding ActiveFill.CenterY, StringFormat={}{0:0}%}"
+                                   VerticalAlignment="Center" HorizontalAlignment="Right" IsVisible="{Binding IsFillRadial}" />
+
+                        <TextBlock Grid.Row="6" Grid.Column="0" Classes="label" Text="{loc:Tr Wallpaper_Fill_Radius}" VerticalAlignment="Center"
+                                   IsVisible="{Binding IsFillRadial}" />
+                        <Slider    Grid.Row="6" Grid.Column="1" Minimum="10" Maximum="200" TickFrequency="1" IsSnapToTickEnabled="True"
+                                   Value="{Binding ActiveFill.Radius, Mode=TwoWay}" IsVisible="{Binding IsFillRadial}" />
+                        <TextBlock Grid.Row="6" Grid.Column="2" Classes="value" Text="{Binding ActiveFill.Radius, StringFormat={}{0:0}%}"
+                                   VerticalAlignment="Center" HorizontalAlignment="Right" IsVisible="{Binding IsFillRadial}" />
+
+                        <TextBlock Grid.Row="7" Grid.Column="0" Classes="label" Text="{loc:Tr Wallpaper_Fill_Vignette}" VerticalAlignment="Center" />
+                        <Slider    Grid.Row="7" Grid.Column="1" Minimum="0" Maximum="1" TickFrequency="0.05" IsSnapToTickEnabled="True"
+                                   Value="{Binding ActiveFill.Vignette, Mode=TwoWay}" />
+                        <TextBlock Grid.Row="7" Grid.Column="2" Classes="value" Text="{Binding ActiveFill.Vignette, StringFormat={}{0:P0}}"
+                                   VerticalAlignment="Center" HorizontalAlignment="Right" />
+
+                        <TextBlock Grid.Row="8" Grid.Column="0" Classes="label" Text="{loc:Tr Wallpaper_Fill_Noise}" VerticalAlignment="Center" />
+                        <Slider    Grid.Row="8" Grid.Column="1" Minimum="0" Maximum="1" TickFrequency="0.05" IsSnapToTickEnabled="True"
+                                   Value="{Binding ActiveFill.Noise, Mode=TwoWay}" />
+                        <TextBlock Grid.Row="8" Grid.Column="2" Classes="value" Text="{Binding ActiveFill.Noise, StringFormat={}{0:P0}}"
+                                   VerticalAlignment="Center" HorizontalAlignment="Right" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+            </StackPanel>
+            </ScrollViewer>
 
             <!-- ░░░ Right: settings for the active target ░░░ -->
             <Border Grid.Column="2"
