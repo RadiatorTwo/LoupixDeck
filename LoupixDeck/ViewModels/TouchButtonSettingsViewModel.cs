@@ -1918,6 +1918,14 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     public IRelayCommand CopyLayerCommand => field ??= Relay.Create(CopySelectedLayer);
     public IRelayCommand CutLayerCommand => field ??= Relay.Create(CutSelectedLayer);
     public IRelayCommand PasteLayerCommand => field ??= Relay.Create(PasteLayer);
+    public IRelayCommand DeleteLayerKeyCommand => field ??= Relay.Create(DeleteLayerByKey);
+
+    /// <summary>The Delete key: removes the selected layer under the same rules as the delete button.</summary>
+    private void DeleteLayerByKey()
+    {
+        if (CanCopySelectedLayer && CanDeleteSelectedLayer)
+            RemoveSelectedLayer();
+    }
 
     /// <summary>True when a real layer is selected on an editable canvas (issue #583).</summary>
     public bool CanCopySelectedLayer =>

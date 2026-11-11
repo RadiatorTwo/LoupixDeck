@@ -25,13 +25,14 @@
     mc:Ignorable="d"
     CanResize="True">
 
-    <!-- Copy/cut/paste of the selected layer (issue #583), the same gestures as for buttons in the
-         main window. A focused TextBox consumes them first, so text fields keep normal text
-         copy/paste. -->
+    <!-- Copy/cut/paste/delete of the selected layer (issue #583), the same gestures as for buttons
+         in the main window. A focused TextBox consumes them first, so text fields keep normal text
+         copy/paste and Delete. -->
     <Window.KeyBindings>
         <KeyBinding Gesture="Ctrl+C" Command="{Binding CopyLayerCommand}" />
         <KeyBinding Gesture="Ctrl+X" Command="{Binding CutLayerCommand}" />
         <KeyBinding Gesture="Ctrl+V" Command="{Binding PasteLayerCommand}" />
+        <KeyBinding Gesture="Delete" Command="{Binding DeleteLayerKeyCommand}" />
     </Window.KeyBindings>
 
     <Window.Resources>
