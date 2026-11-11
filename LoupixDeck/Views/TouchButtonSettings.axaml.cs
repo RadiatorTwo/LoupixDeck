@@ -136,6 +136,9 @@ public partial class TouchButtonSettings : Window
         // press itself.
         AddHandler(PointerPressedEvent, OnAnyPointerPressed, RoutingStrategies.Tunnel);
 
+        // Copy/cut/paste/delete of the selected layer (issue #583).
+        AddHandler(KeyDownEvent, OnLayerShortcutKeyDown, RoutingStrategies.Bubble);
+
         // Card-based command picker → sequence-strip assignment (issue #171).
         PickerControl.CommandActivated += Picker_CommandActivated;
         PickerControl.CommandDragStarted += Picker_CommandDragStarted;
@@ -700,26 +703,87 @@ public partial class TouchButtonSettings : Window
     }
 
     /// <summary>Right-click on a row of the layer list: selects that layer and opens its menu.</summary>
+    private static readonly KeyGesture CopyGesture = new(Key.C, KeyModifiers.Control);
+    private static readonly KeyGesture CutGesture = new(Key.X, KeyModifiers.Control);
+    private static readonly KeyGesture PasteGesture = new(Key.V, KeyModifiers.Control);
+    private static readonly KeyGesture DeleteGesture = new(Key.Delete);
+
+    /// <summary>
+    /// Ctrl+C / Ctrl+X / Ctrl+V / Delete act on the selected layer, the same gestures as for buttons
+    /// in the main window. Not while a text field has focus: its own text editing wins, also when it
+    /// leaves the key unhandled (Delete at the end of the text).
+    /// </summary>
+    private void OnLayerShortcutKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Handled || DataContext is not TouchButtonSettingsViewModel vm) return;
+        if (FocusManager?.GetFocusedElement() is Visual focused && focused.FindAncestorOfType<TextBox>(includeSelf: true) != null)
+            return;
+
+        System.Windows.Input.ICommand command =
+            CopyGesture.Matches(e) ? vm.CopyLayerCommand :
+            CutGesture.Matches(e) ? vm.CutLayerCommand :
+            PasteGesture.Matches(e) ? vm.PasteLayerCommand :
+            DeleteGesture.Matches(e) ? vm.DeleteLayerKeyCommand :
+            null;
+        if (command == null) return;
+
+        command.Execute(null);
+        e.Handled = true;
+    }
+
     private void LayerList_ContextRequested(object sender, ContextRequestedEventArgs e)
     {
         if (DataContext is not TouchButtonSettingsViewModel vm) return;
 
-        if ((e.Source as Visual)?.FindAncestorOfType<ListBoxItem>(includeSelf: true)?.DataContext is not LayerBase layer)
-            return;
+        // Off a layer the menu only offers to paste one.
+        LayerBase layer = (e.Source as Visual)?.FindAncestorOfType<ListBoxItem>(includeSelf: true)?.DataContext as LayerBase;
+        if (layer != null)
+            vm.SelectedLayer = layer;
 
-        vm.SelectedLayer = layer;
-        e.Handled = ShowLayerMenu(vm, (Control)sender);
+        e.Handled = ShowLayerMenu(vm, (Control)sender, onLayer: layer != null);
     }
 
     /// <summary>
-    /// The context menu of the selected layer, shared by the layer list and the preview: take it as the
-    /// default for new layers, move it up or down, delete it. Opens nothing without a selected layer.
+    /// The context menu of the selected layer, shared by the layer list and the preview: copy, cut or
+    /// paste it, take it as the default for new layers, move it up or down, delete it. Off a layer
+    /// (<paramref name="onLayer"/> false) it only offers to paste, and opens nothing when there is
+    /// nothing to paste.
     /// </summary>
-    private static bool ShowLayerMenu(TouchButtonSettingsViewModel vm, Control target)
+    private static bool ShowLayerMenu(TouchButtonSettingsViewModel vm, Control target, bool onLayer = true)
     {
-        if (!vm.HasSelectedLayer || !vm.CanEditCanvas) return false;
+        if (!vm.CanEditCanvas) return false;
 
         MenuFlyout menu = new();
+
+        if (!onLayer)
+        {
+            if (!vm.CanPasteLayer) return false;
+            menu.Items.Add(new MenuItem { Header = Loc.Tr("ButtonMenu_Paste"), Command = vm.PasteLayerCommand });
+            menu.ShowAt(target, showAtPointer: true);
+            return true;
+        }
+
+        if (!vm.HasSelectedLayer) return false;
+
+        menu.Items.Add(new MenuItem
+        {
+            Header = Loc.Tr("ButtonMenu_Copy"),
+            Command = vm.CopyLayerCommand,
+            IsEnabled = vm.CanCopySelectedLayer
+        });
+        menu.Items.Add(new MenuItem
+        {
+            Header = Loc.Tr("ButtonMenu_Cut"),
+            Command = vm.CutLayerCommand,
+            IsEnabled = vm.CanCopySelectedLayer && vm.CanDeleteSelectedLayer
+        });
+        menu.Items.Add(new MenuItem
+        {
+            Header = Loc.Tr("ButtonMenu_Paste"),
+            Command = vm.PasteLayerCommand,
+            IsEnabled = vm.CanPasteLayer
+        });
+        menu.Items.Add(new Separator());
 
         if (vm.CanUseLayerAsDefault)
         {
@@ -760,11 +824,10 @@ public partial class TouchButtonSettings : Window
                             IsInside(pos, vm.SelectionLeft, vm.SelectionTop, vm.SelectionWidth, vm.SelectionHeight)
                 ? vm.SelectedLayer
                 : HitTestLayer(vm, pos);
-            if (hit == null) return;
+            if (hit != null)
+                vm.SelectedLayer = hit;
 
-            vm.SelectedLayer = hit;
-            ShowLayerMenu(vm, EditorRoot);
-            e.Handled = true;
+            e.Handled = ShowLayerMenu(vm, EditorRoot, onLayer: hit != null);
             return;
         }
 

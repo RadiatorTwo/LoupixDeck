@@ -77,6 +77,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     private readonly IAssetService _assetService;
     private readonly IDialogService _dialogService;
     private readonly IButtonTemplateService _buttonTemplates;
+    private readonly ILayerClipboardService _layerClipboard;
     private readonly ISideStripProviderRegistry _sideStripRegistry;
     private readonly IDynamicTextManager _dynamicTextManager;
     private readonly Services.Animation.IButtonAnimationManager _buttonAnimationManager;
@@ -1549,9 +1550,11 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         Services.Companion.ICommandLockService commandLock,
         IButtonTemplateService buttonTemplates,
         AppPickerViewModel appList,
+        ILayerClipboardService layerClipboard,
         IButtonStateService buttonStates = null)
     {
         AppList = appList;
+        _layerClipboard = layerClipboard;
         _buttonStates = buttonStates;
         _commandLock = commandLock;
         _buttonTemplates = buttonTemplates;
@@ -1910,6 +1913,75 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         var next = (idx < ButtonData.Layers.Count) ? ButtonData.Layers[idx]
             : (ButtonData.Layers.Count > 0 ? ButtonData.Layers[^1] : null);
         ReselectAfterMove(next);
+    }
+
+    public IRelayCommand CopyLayerCommand => field ??= Relay.Create(CopySelectedLayer);
+    public IRelayCommand CutLayerCommand => field ??= Relay.Create(CutSelectedLayer);
+    public IRelayCommand PasteLayerCommand => field ??= Relay.Create(PasteLayer);
+    public IRelayCommand DeleteLayerKeyCommand => field ??= Relay.Create(DeleteLayerByKey);
+
+    /// <summary>The Delete key: removes the selected layer under the same rules as the delete button.</summary>
+    private void DeleteLayerByKey()
+    {
+        if (CanCopySelectedLayer && CanDeleteSelectedLayer)
+            RemoveSelectedLayer();
+    }
+
+    /// <summary>True when a real layer is selected on an editable canvas (issue #583).</summary>
+    public bool CanCopySelectedLayer =>
+        CanEditCanvas && _selectedLayer is not null and not WheelSegmentsMarker;
+
+    /// <summary>
+    /// True when the copied layer fits this surface: the same kinds the add buttons offer here. A live
+    /// image only exists on the wheel, an indicator only where there is a value to indicate.
+    /// </summary>
+    public bool CanPasteLayer
+    {
+        get
+        {
+            if (ButtonData == null || !CanEditCanvas) return false;
+
+            return _layerClipboard.CurrentKind switch
+            {
+                null => false,
+                PluginLayer.Kind => IsWheelCanvas,
+                DialIndicatorLayer.Kind => CanAddIndicator,
+                _ => true
+            };
+        }
+    }
+
+    private void CopySelectedLayer()
+    {
+        if (CanCopySelectedLayer)
+            _layerClipboard.Copy(_selectedLayer);
+    }
+
+    private void CutSelectedLayer()
+    {
+        if (!CanCopySelectedLayer || !CanDeleteSelectedLayer) return;
+        _layerClipboard.Copy(_selectedLayer);
+        RemoveSelectedLayer();
+    }
+
+    /// <summary>Adds the copied layer as a new one, on top like a freshly added layer, and selects it.</summary>
+    private void PasteLayer()
+    {
+        if (!CanPasteLayer) return;
+
+        LayerBase layer = _layerClipboard.CreateCopy();
+        if (layer == null) return;
+
+        layer.Name = GetUniqueLayerName(string.IsNullOrWhiteSpace(layer.Name) ? layer.LayerKind : layer.Name);
+
+        // The image is runtime-only, so it is loaded again like a reopened button does.
+        if (layer is ImageLayer { IsAnimated: false } image && !string.IsNullOrEmpty(image.AssetRelativePath))
+            image.CachedImage = _assetService.Load(image.AssetRelativePath);
+
+        AddLayer(layer);
+        SeedAnimatedLayerPreviews();
+        SelectedLayer = layer;
+        UpdateEditorPreview();
     }
 
     /// <summary>True when the layer belongs to the command currently bound to the button.</summary>

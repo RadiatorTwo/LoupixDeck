@@ -243,6 +243,10 @@ public static class ServiceCollectionExtensions
         // snapshot copied on one device can be pasted onto another.
         collection.AddSingleton<IButtonClipboardService, ButtonClipboardService>();
 
+        // In-app clipboard for layer copy/paste in the button editor (issue #583). Root singleton
+        // so a layer copied on one button can be pasted onto another, on any device.
+        collection.AddSingleton<ILayerClipboardService, LayerClipboardService>();
+
         // User-defined macros: in-memory store (macros.json), shared across devices.
         collection.AddSingleton<IMacroManager, MacroManager>();
 
@@ -332,6 +336,7 @@ public static class ServiceCollectionExtensions
         collection.Forward<IDialPresetStore>(root);
         collection.Forward<IMacroStopCoordinator>(root);
         collection.Forward<IButtonClipboardService>(root);
+        collection.Forward<ILayerClipboardService>(root);
         collection.Forward<IDeviceHostRegistry>(root);
         collection.Forward<IDeviceRouter>(root);
         collection.Forward<IPluginManager>(root);
