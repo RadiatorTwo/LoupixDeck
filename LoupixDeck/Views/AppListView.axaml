@@ -1,0 +1,88 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:LoupixDeck.Localization"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:LoupixDeck.ViewModels"
+             mc:Ignorable="d"
+             x:Class="LoupixDeck.Views.AppListView"
+             x:DataType="vm:AppPickerViewModel"
+             x:CompileBindings="True">
+
+    <UserControl.Styles>
+        <StyleInclude Source="avares://LoupixDeck/Views/Styles/SettingsStyles.axaml" />
+    </UserControl.Styles>
+
+    <!-- Installed applications, as in the Apps tab of the touch button editor. Double-click one to
+         activate it, or drag it out; the host decides where the launch command goes. -->
+    <Grid RowDefinitions="Auto,Auto,*">
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,6">
+            <TextBox Grid.Column="0"
+                     PlaceholderText="{loc:Tr AppPicker_SearchApplications}"
+                     Text="{Binding SearchText, Mode=TwoWay}"
+                     IsEnabled="{Binding ShowContent}" />
+            <!-- mdi-plus: a program the scan does not find, picked by hand. -->
+            <Button Grid.Column="1" Classes="toolbar"
+                    Width="32" Height="32" Padding="0" Margin="6,0,0,0"
+                    FontFamily="{DynamicResource MdiFont}" FontSize="16"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"
+                    ToolTip.Tip="{loc:Tr ActionPanel_AddAnApplicationTheScan}"
+                    Command="{Binding AddApplicationCommand}"
+                    Content="&#xF0415;" />
+        </Grid>
+
+        <TextBlock Grid.Row="1" Classes="hint" Margin="0,0,0,6"
+                   Text="{Binding CountLabel}"
+                   IsVisible="{Binding ShowContent}" />
+
+        <Panel Grid.Row="2">
+            <!-- A ListBox for its virtualization: a machine can have several hundred applications. -->
+            <ListBox Name="AppListBox"
+                     ItemsSource="{Binding Apps}"
+                     SelectedItem="{Binding SelectedApp, Mode=TwoWay}"
+                     DoubleTapped="AppList_DoubleTapped"
+                     IsVisible="{Binding ShowContent}"
+                     Background="Transparent"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                <ListBox.Styles>
+                    <Style Selector="ListBoxItem">
+                        <Setter Property="Padding" Value="0" />
+                    </Style>
+                </ListBox.Styles>
+                <ListBox.ItemTemplate>
+                    <DataTemplate DataType="vm:AppRowViewModel">
+                        <Grid ColumnDefinitions="Auto,*,Auto" Margin="8,4" ColumnSpacing="10">
+                            <Border Grid.Column="0" Width="32" Height="32" CornerRadius="6"
+                                    Background="{DynamicResource AppSurfaceLow}">
+                                <Image Source="{Binding Icon}" Stretch="Uniform" />
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding SourceLabel}" FontSize="11"
+                                           Foreground="{DynamicResource AppTextSecondary}" />
+                            </StackPanel>
+                            <Border Grid.Column="2" IsVisible="{Binding IsGame}"
+                                    VerticalAlignment="Center" CornerRadius="4" Padding="6,2"
+                                    Background="{DynamicResource AppSurfaceLow}">
+                                <TextBlock Text="{loc:Tr AppPicker_Game}" FontSize="10"
+                                           Foreground="{DynamicResource AppTextSecondary}" />
+                            </Border>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <TextBlock Text="{loc:Tr AppPicker_SearchingForInstalledApplications}"
+                       IsVisible="{Binding IsLoading}"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                       Foreground="{DynamicResource AppTextSecondary}" />
+
+            <TextBlock Text="{Binding BlockReason}"
+                       IsVisible="{Binding HasBlockReason}"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                       TextWrapping="Wrap" TextAlignment="Center"
+                       Foreground="{DynamicResource AppTextSecondary}" />
+        </Panel>
+    </Grid>
+</UserControl>

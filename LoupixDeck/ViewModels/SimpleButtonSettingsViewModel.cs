@@ -266,8 +266,10 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
         Services.Commands.ICommandStateMaterializer stateMaterializer,
         IDialogService dialogService,
         Services.Companion.ICommandLockService commandLock,
+        AppPickerViewModel appList,
         IButtonStateService buttonStates = null)
     {
+        AppList = appList;
         _buttonStates = buttonStates;
         _commandBuilder = commandBuilder;
         _menuTreeBuilder = menuTreeBuilder;
@@ -349,12 +351,51 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
     {
         if (ButtonData == null || menuEntry == null) return;
 
-        var formattedCommand = _commandBuilder.CreateCommandFromMenuEntry(menuEntry);
+        InsertRawAt(_commandBuilder.CreateCommandFromMenuEntry(menuEntry), index);
+    }
+
+    /// <summary>Inserts the launch command of <paramref name="app"/> (Apps tab) at the given card
+    /// index; double-click passes the end of the chain.</summary>
+    public void InsertApplicationAt(Services.AppLauncher.InstalledApp app, int index)
+    {
+        if (ButtonData == null || app == null) return;
+
+        InsertRawAt(Services.AppLauncher.AppAssignment.BuildLaunchCommand(app), index);
+    }
+
+    private void InsertRawAt(string formattedCommand, int index)
+    {
         if (string.IsNullOrWhiteSpace(formattedCommand)) return;
 
         index = Math.Clamp(index, 0, Commands.Count);
         Commands.Insert(index, CreateSegment(formattedCommand));
         RebuildCommandString();
+    }
+
+    /// <summary>
+    /// The installed applications listed in the Apps tab, scanned the first time the tab is opened.
+    /// </summary>
+    public AppPickerViewModel AppList { get; }
+
+    private bool _appsLoading;
+
+    private const int AppsTabIndex = 1;
+
+    /// <summary>Index of the selected right-hand tab (0 Commands, 1 Apps).</summary>
+    public int RightTabIndex
+    {
+        get;
+        set
+        {
+            if (!SetProperty(ref field, value)) return;
+
+            // The scan runs the first time the tab is opened, not with every editor.
+            if (value == AppsTabIndex && !_appsLoading)
+            {
+                _appsLoading = true;
+                _ = AppList.InitializeAsync();
+            }
+        }
     }
 
     public void RemoveSegment(CommandSegment segment)
@@ -480,5 +521,6 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
             segment.Changed -= OnSegmentChanged;
 
         CommandPicker.Cleanup();
+        AppList.StopLoading();
     }
 }
