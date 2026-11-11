@@ -46,7 +46,10 @@
                 <StackPanel Orientation="Horizontal" Spacing="8">
                     <ccp:ColorPicker Color="{Binding Color, Mode=TwoWay}" IsAlphaEnabled="False"
                                      Width="110" />
-                    <TextBlock Text="{Binding Value}" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding Value}" VerticalAlignment="Center"
+                               IsVisible="{Binding HasValue}" />
+                    <TextBlock Classes="hint" Text="{loc:Tr Plugins_ColorNotSet}"
+                               VerticalAlignment="Center" IsVisible="{Binding !HasValue}" />
                     <Button Content="{loc:Tr Plugins_ColorClear}" Command="{Binding ClearCommand}"
                             IsVisible="{Binding HasValue}" />
                 </StackPanel>
