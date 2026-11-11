@@ -216,6 +216,7 @@ public partial class LoupedeckLiveSController(
     private readonly ISideStripSession[] _stripSession = new ISideStripSession[2];
     private readonly ISideStripProvider[] _stripProvider = new ISideStripProvider[2];
     private readonly RotaryButtonPage[] _stripPage = new RotaryButtonPage[2];
+    private readonly string[] _stripBindingSig = new string[2];
     // The open plugin folder that owns the side's strip (#378), or null outside a folder. While
     // set, _stripSession holds the session that folder created (or null when it declined), so
     // drawing, animation and input reuse the plugin-override paths unchanged.
@@ -1776,8 +1777,9 @@ public partial class LoupedeckLiveSController(
     /// current rotary page: a PluginOverride page with a resolvable provider gets a fresh
     /// session (with that page's dial bindings in the context); any other state disposes
     /// the previous one. Recreates when the page object or bound provider changes — so
-    /// navigating between two plugin pages rebinds the session to the new page's dials —
-    /// but an idempotent refresh on the same page/provider is a no-op.
+    /// navigating between two plugin pages rebinds the session to the new page's dials — and
+    /// when the dials' bindings change on the same page (an editor edit), because the session
+    /// only sees the bindings it was created with. An idempotent refresh is a no-op.
     /// </summary>
     private void EnsureStripAttachment(RotarySide side)
     {
@@ -1790,15 +1792,19 @@ public partial class LoupedeckLiveSController(
         if (page is { StripMode: StripMode.PluginOverride })
             desired = sideStripRegistry.Get(page.StripPluginId);
 
-        // Nothing changed (same page object, same resolved provider) → keep the session. A
+        var sig = desired == null ? null : BuildBindingSignature(page);
+
+        // Nothing changed (same page object, provider and bindings) → keep the session. A
         // session a folder left behind never counts as unchanged.
         if (_stripFolder[idx] == null &&
-            ReferenceEquals(_stripPage[idx], page) && ReferenceEquals(_stripProvider[idx], desired))
+            ReferenceEquals(_stripPage[idx], page) && ReferenceEquals(_stripProvider[idx], desired)
+            && _stripBindingSig[idx] == sig)
             return;
 
         DetachStripAt(idx);
         _stripPage[idx] = page;
         _stripProvider[idx] = desired;
+        _stripBindingSig[idx] = sig;
         if (desired == null) return;
 
         var context = new SideStripContext
@@ -1860,6 +1866,7 @@ public partial class LoupedeckLiveSController(
         _stripSession[idx] = null;
         _stripProvider[idx] = null;
         _stripPage[idx] = null;
+        _stripBindingSig[idx] = null;
         _stripFolder[idx] = null;
         // Clear the animation slot before disposing, so no new frame starts on a dying session.
         DetachAnimatedStripSession(idx);
@@ -1929,16 +1936,18 @@ public partial class LoupedeckLiveSController(
         }
     }
 
-    /// <summary>Concatenates the 3 dials' Left/Right/Press command strings so a binding change
-    /// (e.g. assigning an audio command in the editor) is detectable without a page-object swap.</summary>
+    /// <summary>Concatenates the 3 dials' Left/Right/Press command strings and labels so a binding
+    /// change (e.g. assigning an audio command in the editor) is detectable without a page-object
+    /// swap. The label is part of it because the session receives it as a snapshot too.</summary>
     private static string BuildBindingSignature(RotaryButtonPage page)
     {
         var rotaries = page?.RotaryButtons;
         if (rotaries == null || rotaries.Count == 0) return string.Empty;
 
-        var parts = new List<string>(rotaries.Count * 3);
+        var parts = new List<string>(rotaries.Count * 4);
         foreach (var r in rotaries)
         {
+            parts.Add(r?.DisplayText ?? string.Empty);
             parts.Add(r?.RotaryLeftCommand ?? string.Empty);
             parts.Add(r?.RotaryRightCommand ?? string.Empty);
             parts.Add(r?.Command ?? string.Empty);
