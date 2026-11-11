@@ -1310,6 +1310,7 @@
   "Plugins_Connection": "Conexión",
   "Plugins_Save": "Guardar",
   "Plugins_Discard": "Descartar",
+  "Plugins_ColorClear": "Borrar",
   "Plugins_Saved": "Guardado.",
   "Plugins_ActionFailed": "Error: {0}",
   "Plugins_UnsavedOne": "1 cambio sin guardar",

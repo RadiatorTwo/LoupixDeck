@@ -1310,6 +1310,7 @@
   "Plugins_Connection": "Verbindung",
   "Plugins_Save": "Speichern",
   "Plugins_Discard": "Verwerfen",
+  "Plugins_ColorClear": "Leeren",
   "Plugins_Saved": "Gespeichert.",
   "Plugins_ActionFailed": "Fehlgeschlagen: {0}",
   "Plugins_UnsavedOne": "1 nicht gespeicherte Änderung",
