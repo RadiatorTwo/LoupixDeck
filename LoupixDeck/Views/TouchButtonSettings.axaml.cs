@@ -136,7 +136,7 @@ public partial class TouchButtonSettings : Window
         // press itself.
         AddHandler(PointerPressedEvent, OnAnyPointerPressed, RoutingStrategies.Tunnel);
 
-        // Copy/cut/paste/delete of the selected layer (issue #583).
+        // Copy/cut/paste of the selected layer (issue #583).
         AddHandler(KeyDownEvent, OnLayerShortcutKeyDown, RoutingStrategies.Bubble);
 
         // Card-based command picker → sequence-strip assignment (issue #171).
@@ -706,12 +706,11 @@ public partial class TouchButtonSettings : Window
     private static readonly KeyGesture CopyGesture = new(Key.C, KeyModifiers.Control);
     private static readonly KeyGesture CutGesture = new(Key.X, KeyModifiers.Control);
     private static readonly KeyGesture PasteGesture = new(Key.V, KeyModifiers.Control);
-    private static readonly KeyGesture DeleteGesture = new(Key.Delete);
 
     /// <summary>
-    /// Ctrl+C / Ctrl+X / Ctrl+V / Delete act on the selected layer, the same gestures as for buttons
-    /// in the main window. Not while a text field has focus: its own text editing wins, also when it
-    /// leaves the key unhandled (Delete at the end of the text).
+    /// Ctrl+C / Ctrl+X / Ctrl+V act on the selected layer, the same gestures as for buttons in the
+    /// main window. Not while a text field has focus: its own text editing wins, also when it leaves
+    /// the key unhandled.
     /// </summary>
     private void OnLayerShortcutKeyDown(object sender, KeyEventArgs e)
     {
@@ -723,7 +722,6 @@ public partial class TouchButtonSettings : Window
             CopyGesture.Matches(e) ? vm.CopyLayerCommand :
             CutGesture.Matches(e) ? vm.CutLayerCommand :
             PasteGesture.Matches(e) ? vm.PasteLayerCommand :
-            DeleteGesture.Matches(e) ? vm.DeleteLayerKeyCommand :
             null;
         if (command == null) return;
 
