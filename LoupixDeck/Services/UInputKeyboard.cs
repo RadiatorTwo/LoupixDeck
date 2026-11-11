@@ -459,15 +459,47 @@ public partial class WindowsUInputKeyboard : IUInputKeyboard
 
         // Unicode injection: send each UTF-16 code unit directly, independent of the
         // active keyboard layout (handles umlauts, accents, emoji, ...).
-        var inputs = new INPUT[text.Length * 2];
-        var i = 0;
-        foreach (var c in text)
+        //
+        // One character per SendInput call with a short pause in between. Sent as one block,
+        // a remote desktop client forwarded the characters slowly enough that a following Tab
+        // or Enter overtook them ("administrator" + Tab arrived as "admini", Tab, "strator").
+        // A surrogate pair stays in one call so the two halves cannot be split.
+        INPUT[] pair = new INPUT[4];
+        for (int i = 0; i < text.Length; i++)
         {
-            inputs[i++] = UnicodeInput(c, false);
-            inputs[i++] = UnicodeInput(c, true);
-        }
+            if (i > 0)
+                Pause(UnicodeCharPauseMs);
 
-        Send(inputs);
+            int count = 0;
+            pair[count++] = UnicodeInput(text[i], false);
+            pair[count++] = UnicodeInput(text[i], true);
+            if (char.IsHighSurrogate(text[i]) && (i + 1 < text.Length) && char.IsLowSurrogate(text[i + 1]))
+            {
+                i++;
+                pair[count++] = UnicodeInput(text[i], false);
+                pair[count++] = UnicodeInput(text[i], true);
+            }
+
+            Send(pair.AsSpan(0, count));
+        }
+    }
+
+    /// <summary>
+    /// Pause between two typed characters. 1 ms was already enough over RDP; 5 ms leaves
+    /// headroom for slower connections at a negligible cost for typical macro texts.
+    /// </summary>
+    private const int UnicodeCharPauseMs = 5;
+
+    // Thread.Sleep rounds up to the system timer tick (often 15.6 ms), which would triple the
+    // pause; wait on a Stopwatch instead and yield the time slice while waiting.
+    private static void Pause(int milliseconds)
+    {
+        if (milliseconds <= 0)
+            return;
+
+        long end = Stopwatch.GetTimestamp() + ((milliseconds * Stopwatch.Frequency) / 1000);
+        while (Stopwatch.GetTimestamp() < end)
+            Thread.Yield();
     }
 
     /// <summary>How long a key combination stays held before it is released.</summary>
@@ -661,7 +693,7 @@ public partial class WindowsUInputKeyboard : IUInputKeyboard
         };
     }
 
-    private static void Send(INPUT[] inputs)
+    private static void Send(ReadOnlySpan<INPUT> inputs)
     {
         if (inputs.Length == 0)
             return;
