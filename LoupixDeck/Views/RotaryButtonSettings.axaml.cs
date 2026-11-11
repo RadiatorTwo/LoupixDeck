@@ -34,6 +34,9 @@ public partial class RotaryButtonSettings : Window
     // pointer capture and threshold; this window positions the ghost / per-strip marker.
     private MenuEntry _pickerDragEntry;
 
+    // The application being dragged from the Apps tab; null when idle.
+    private Services.AppLauncher.InstalledApp _appDragApp;
+
     public RotaryButtonSettings()
     {
         InitializeComponent();
@@ -62,6 +65,12 @@ public partial class RotaryButtonSettings : Window
         PickerControl.CommandDragStarted += Picker_CommandDragStarted;
         PickerControl.CommandDragMoved += Picker_CommandDragMoved;
         PickerControl.CommandDragReleased += Picker_CommandDragReleased;
+
+        // Apps tab → launch command in a sequence strip (issue #582).
+        AppListControl.AppActivated += AppList_AppActivated;
+        AppListControl.AppDragStarted += AppList_AppDragStarted;
+        AppListControl.AppDragMoved += AppList_AppDragMoved;
+        AppListControl.AppDragReleased += AppList_AppDragReleased;
 
         // Clicking anywhere inside a strip makes it the double-click target. Tunnel
         // so it fires even when a child (button, chip grip) handles the press itself.
@@ -342,6 +351,54 @@ public partial class RotaryButtonSettings : Window
         }
 
         _pickerDragEntry = null;
+        HideDragGhost();
+        HideDropMarker();
+        foreach (var (zone, _) in Strips())
+            zone.Classes.Set("drop-active", false);
+    }
+
+    // ───────── Apps tab: double-click or drag an application into a strip ─────────
+
+    private void AppList_AppActivated(object sender, Services.AppLauncher.InstalledApp app)
+    {
+        if (DataContext is RotaryButtonSettingsViewModel vm)
+            vm.InsertApplication(app);
+    }
+
+    private void AppList_AppDragStarted(object sender, AppDragEventArgs e)
+    {
+        _appDragApp = e.App;
+        ShowDragGhost(e.App?.Name);
+        AppList_AppDragMoved(sender, e);
+    }
+
+    private void AppList_AppDragMoved(object sender, AppDragEventArgs e)
+    {
+        if (_appDragApp == null)
+            return;
+
+        UpdateDragGhost(e.Pointer);
+
+        var target = StripUnderPointer(e.Pointer);
+        foreach (var (zone, _) in Strips())
+            zone.Classes.Set("drop-active", target.HasValue && ReferenceEquals(zone, target.Value.Zone));
+
+        if (target.HasValue)
+            UpdateDropMarker(target.Value.List, FindDropIndex(target.Value.List, e.Pointer));
+        else
+            HideDropMarker();
+    }
+
+    private void AppList_AppDragReleased(object sender, AppDragEventArgs e)
+    {
+        if (_appDragApp != null && DataContext is RotaryButtonSettingsViewModel vm &&
+            StripUnderPointer(e.Pointer) is { } target &&
+            target.List.DataContext is CommandSequenceSlot slot)
+        {
+            vm.InsertApplication(_appDragApp, slot, FindDropIndex(target.List, e.Pointer));
+        }
+
+        _appDragApp = null;
         HideDragGhost();
         HideDropMarker();
         foreach (var (zone, _) in Strips())

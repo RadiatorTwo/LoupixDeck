@@ -14,7 +14,7 @@
     x:DataType="vm:SimpleButtonSettingsViewModel"
     Title="{Binding ButtonLabel}"
     Width="1080"
-    Height="820"
+    Height="860"
     MinWidth="900"
     MinHeight="640"
     mc:Ignorable="d"
@@ -342,13 +342,30 @@
                     </Border>
                 </Grid>
 
-                <!-- Right: master-detail command picker, full height (issue #171) -->
-                <Border Grid.Column="1"
-                        BorderBrush="{DynamicResource AppBorderSubtle}" BorderThickness="1" CornerRadius="4"
-                        Padding="4">
-                    <views:CommandPickerView Name="PickerControl"
-                                             DataContext="{Binding CommandPicker}" />
-                </Border>
+                <!-- Right: tabs with the master-detail command picker (issue #171) and the
+                     installed applications (issue #582), full height. -->
+                <TabControl Grid.Column="1" SelectedIndex="{Binding RightTabIndex, Mode=TwoWay}">
+                    <TabItem Header="{loc:Tr TouchButton_Commands}">
+                        <Border BorderBrush="{DynamicResource AppBorderSubtle}" BorderThickness="1" CornerRadius="4"
+                                Padding="4">
+                            <views:CommandPickerView Name="PickerControl"
+                                                     DataContext="{Binding CommandPicker}" />
+                        </Border>
+                    </TabItem>
+
+                    <!-- Double-click an application to append its launch command to the sequence,
+                         or drag it into the sequence. -->
+                    <TabItem Header="{loc:Tr ActionPanel_Apps}">
+                        <Border Classes="editor-panel">
+                            <Grid RowDefinitions="Auto,*">
+                                <TextBlock Grid.Row="0" Classes="hint" Margin="0,0,0,8" TextWrapping="Wrap"
+                                           Text="{loc:Tr SimpleButton_AppsHint}" />
+                                <views:AppListView Grid.Row="1" Name="AppListControl"
+                                                   DataContext="{Binding AppList}" />
+                            </Grid>
+                        </Border>
+                    </TabItem>
+                </TabControl>
             </Grid>
         </Grid>
 

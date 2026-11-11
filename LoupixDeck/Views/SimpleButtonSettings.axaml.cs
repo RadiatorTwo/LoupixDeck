@@ -25,6 +25,9 @@ public partial class SimpleButtonSettings : Window
     // drag lifecycle events; this window only positions the ghost / drop marker.
     private MenuEntry _pickerDragEntry;
 
+    // The application being dragged from the Apps tab; null when idle.
+    private Services.AppLauncher.InstalledApp _appDragApp;
+
     public SimpleButtonSettings()
     {
         InitializeComponent();
@@ -39,6 +42,12 @@ public partial class SimpleButtonSettings : Window
         PickerControl.CommandDragStarted += Picker_CommandDragStarted;
         PickerControl.CommandDragMoved += Picker_CommandDragMoved;
         PickerControl.CommandDragReleased += Picker_CommandDragReleased;
+
+        // Apps tab → launch command in the sequence (issue #582).
+        AppListControl.AppActivated += AppList_AppActivated;
+        AppListControl.AppDragStarted += AppList_AppDragStarted;
+        AppListControl.AppDragMoved += AppList_AppDragMoved;
+        AppListControl.AppDragReleased += AppList_AppDragReleased;
 
         DataContextChanged += (_, _) =>
         {
@@ -295,6 +304,50 @@ public partial class SimpleButtonSettings : Window
         }
 
         _pickerDragEntry = null;
+        HideDragGhost();
+        HideDropMarker();
+        CommandDropZone.Classes.Set("drop-active", false);
+    }
+
+    // Double-click or drag an application from the Apps tab into the chain.
+
+    private void AppList_AppActivated(object sender, Services.AppLauncher.InstalledApp app)
+    {
+        if (DataContext is SimpleButtonSettingsViewModel vm)
+            vm.InsertApplicationAt(app, vm.Commands.Count);
+    }
+
+    private void AppList_AppDragStarted(object sender, AppDragEventArgs e)
+    {
+        _appDragApp = e.App;
+        ShowDragGhost(e.App?.Name);
+        AppList_AppDragMoved(sender, e);
+    }
+
+    private void AppList_AppDragMoved(object sender, AppDragEventArgs e)
+    {
+        if (_appDragApp == null)
+            return;
+
+        UpdateDragGhost(e.Pointer);
+
+        var over = IsOverDropZone(e.Pointer);
+        CommandDropZone.Classes.Set("drop-active", over);
+        if (over)
+            UpdateDropMarker(FindDropIndex(e.Pointer));
+        else
+            HideDropMarker();
+    }
+
+    private void AppList_AppDragReleased(object sender, AppDragEventArgs e)
+    {
+        if (_appDragApp != null && IsOverDropZone(e.Pointer) &&
+            DataContext is SimpleButtonSettingsViewModel vm)
+        {
+            vm.InsertApplicationAt(_appDragApp, FindDropIndex(e.Pointer));
+        }
+
+        _appDragApp = null;
         HideDragGhost();
         HideDropMarker();
         CommandDropZone.Classes.Set("drop-active", false);

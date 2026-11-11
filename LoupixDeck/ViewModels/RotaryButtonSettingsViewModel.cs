@@ -149,8 +149,10 @@ public partial class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryB
         IMenuTreeBuilder menuTreeBuilder,
         ICommandRegistry commandRegistry,
         IDialogService dialogService,
-        Services.Companion.ICommandLockService commandLock)
+        Services.Companion.ICommandLockService commandLock,
+        AppPickerViewModel appList)
     {
+        AppList = appList;
         _commandBuilder = commandBuilder;
         _menuTreeBuilder = menuTreeBuilder;
         _commandRegistry = commandRegistry;
@@ -164,6 +166,46 @@ public partial class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryB
     public async Task InitializeAsync()
     {
         await _menuTreeBuilder.BuildInto(SystemCommandMenus, ButtonTargets.RotaryEncoder);
+    }
+
+    /// <summary>
+    /// The installed applications listed in the Apps tab, scanned the first time the tab is opened.
+    /// </summary>
+    public AppPickerViewModel AppList { get; }
+
+    private bool _appsLoading;
+
+    private const int AppsTabIndex = 1;
+
+    /// <summary>Index of the selected right-hand tab (0 Commands, 1 Apps).</summary>
+    public int RightTabIndex
+    {
+        get;
+        set
+        {
+            if (!SetProperty(ref field, value)) return;
+
+            // The scan runs the first time the tab is opened, not with every editor.
+            if (value == AppsTabIndex && !_appsLoading)
+            {
+                _appsLoading = true;
+                _ = AppList.InitializeAsync();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Adds the launch command of <paramref name="app"/> to <paramref name="slot"/> (the active
+    /// sequence when null) at <paramref name="index"/> (the end when negative).
+    /// </summary>
+    public void InsertApplication(Services.AppLauncher.InstalledApp app, CommandSequenceSlot slot = null,
+        int index = -1)
+    {
+        slot ??= ActiveSlot;
+        if (app == null || slot == null) return;
+
+        string command = Services.AppLauncher.AppAssignment.BuildLaunchCommand(app);
+        slot.InsertRawAt(command, index < 0 ? slot.Commands.Count : index);
     }
 
     /// <summary>Marks <paramref name="slot"/> as the active double-click target and
@@ -220,5 +262,6 @@ public partial class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryB
             slot.Cleanup();
 
         CommandPicker.Cleanup();
+        AppList.StopLoading();
     }
 }
