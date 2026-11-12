@@ -63,6 +63,13 @@ public class CommandBuilder : ICommandBuilder
                     {
                         parameters.Add(parameter.Name, menuEntry.Parameters.First().Value);
                     }
+                    else if (IsCommandOwnEntry(command, menuEntry))
+                    {
+                        // The entry is the command itself, so its name is just the command's
+                        // label. Pre-filling it would leave stock text in the value field that
+                        // the user has to delete before typing (#585).
+                        parameters.Add(parameter.Name, EmptyValue(parameter.ParameterType));
+                    }
                     else
                     {
                         parameters.Add(parameter.Name, menuEntry.Name);
@@ -77,6 +84,21 @@ public class CommandBuilder : ICommandBuilder
 
         return BuildCommandString(command, parameters);
     }
+
+    /// <summary>
+    /// True when the menu entry names the command itself (its display name or id) rather than a
+    /// target such as a macro or plugin item.
+    /// </summary>
+    private static bool IsCommandOwnEntry(CommandInfo command, MenuEntry menuEntry) =>
+        string.Equals(menuEntry.Name, command.DisplayName, StringComparison.Ordinal)
+        || string.Equals(menuEntry.Name, command.CommandName, StringComparison.Ordinal);
+
+    /// <summary>
+    /// An empty text field for typed-in values; checkbox and combo parameters keep their type
+    /// default so they still show a valid choice.
+    /// </summary>
+    private static object EmptyValue(Type type) =>
+        type == typeof(bool) || type.IsEnum ? ParameterDefaults.GetDefaultValue(type) : string.Empty;
 
     /// <summary>
     /// Maps the menu entry's parameter values onto the command's parameter names,
