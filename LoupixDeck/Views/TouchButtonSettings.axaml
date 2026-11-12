@@ -998,6 +998,8 @@
 
                                             <TextBlock Classes="label" Text="{loc:Tr TouchButton_Text2}" />
                                             <TextBox x:Name="LayerTextBox"
+                                                     GotFocus="LayerTextBox_GotFocus"
+                                                     LostFocus="LayerTextBox_LostFocus"
                                                      Text="{Binding Text, Mode=TwoWay}" Margin="0,2,0,2"
                                                      IsReadOnly="{Binding IsCommandOwned}"
                                                      IsEnabled="{Binding !IsDynamicText}" />

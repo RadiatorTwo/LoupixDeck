@@ -828,6 +828,12 @@ public partial class TouchButtonSettings : Window
         }, Avalonia.Threading.DispatcherPriority.Loaded);
     }
 
+    private void LayerTextBox_GotFocus(object sender, FocusChangedEventArgs e) =>
+        (DataContext as TouchButtonSettingsViewModel)?.BeginTextTyping();
+
+    private void LayerTextBox_LostFocus(object sender, FocusChangedEventArgs e) =>
+        (DataContext as TouchButtonSettingsViewModel)?.EndTextTyping();
+
     private void Editor_PointerPressed(object sender, PointerPressedEventArgs e)
     {
         if (DataContext is not TouchButtonSettingsViewModel vm || vm.ButtonData == null) return;
