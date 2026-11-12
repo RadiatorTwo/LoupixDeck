@@ -161,6 +161,8 @@ public partial class TouchButtonSettings : Window
             {
                 vm.StateReleaseRequested -= OnStateReleaseRequested;
                 vm.StateReleaseRequested += OnStateReleaseRequested;
+                vm.TextEditRequested -= OnTextEditRequested;
+                vm.TextEditRequested += OnTextEditRequested;
             }
         };
 
@@ -811,6 +813,27 @@ public partial class TouchButtonSettings : Window
         return true;
     }
 
+    // The properties panel builds the text layer's template on the next layout pass, so the box is
+    // looked up once that pass ran. A command-owned or dynamic layer's box takes no typing.
+    private void OnTextEditRequested(object sender, EventArgs e)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            TextBox box = this.GetVisualDescendants().OfType<TextBox>()
+                .FirstOrDefault(t => t.Name == "LayerTextBox");
+            if (box == null || box.IsReadOnly || !box.IsEffectivelyEnabled) return;
+
+            box.Focus();
+            box.SelectAll();
+        }, Avalonia.Threading.DispatcherPriority.Loaded);
+    }
+
+    private void LayerTextBox_GotFocus(object sender, FocusChangedEventArgs e) =>
+        (DataContext as TouchButtonSettingsViewModel)?.BeginTextTyping();
+
+    private void LayerTextBox_LostFocus(object sender, FocusChangedEventArgs e) =>
+        (DataContext as TouchButtonSettingsViewModel)?.EndTextTyping();
+
     private void Editor_PointerPressed(object sender, PointerPressedEventArgs e)
     {
         if (DataContext is not TouchButtonSettingsViewModel vm || vm.ButtonData == null) return;
@@ -851,6 +874,14 @@ public partial class TouchButtonSettings : Window
         {
             if (!ReferenceEquals(picked, vm.SelectedLayer))
                 vm.SelectedLayer = picked;
+
+            // A double-click on a text layer starts typing instead of dragging it.
+            if (e.ClickCount == 2 && picked is TextLayer)
+            {
+                vm.RequestTextEdit();
+                e.Handled = true;
+                return;
+            }
 
             BeginMoveDrag(vm, picked, pos);
             e.Handled = true;

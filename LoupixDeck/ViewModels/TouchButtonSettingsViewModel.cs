@@ -1723,11 +1723,13 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         // 60×270 side strip) doesn't get a text box spanning the whole panel. A normal
         // 90×90 button is unaffected (min(90,90) = 90).
         var box = Math.Min(DeviceWidth, DeviceHeight);
+        // A key that launches an application most likely gets captioned with that application.
+        string caption = AssignedAppName() ?? DefaultTextLayerName;
         var layer = new TextLayer
         {
             FontFamily = TextFontSettings.DefaultFamily,
-            Name = GetUniqueLayerName("Text"),
-            Text = "Text",
+            Name = GetUniqueLayerName(caption),
+            Text = caption,
             BoxWidth = box,
             BoxHeight = box
         };
@@ -1738,6 +1740,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
         AddLayer(layer);
         SelectedLayer = layer;
+        RequestTextEdit();
     }
 
     /// <summary>
@@ -2255,6 +2258,113 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     public event EventHandler<StateReleaseRequest> StateReleaseRequested;
 
     /// <summary>
+    /// Raised when the selected text layer's text should be typed right away: after a text layer
+    /// was added and on a double-click on one. The view moves the focus into the text box.
+    /// </summary>
+    public event EventHandler TextEditRequested;
+
+    /// <summary>Asks the view to focus the text box of the selected text layer.</summary>
+    public void RequestTextEdit()
+    {
+        if (SelectedLayer is TextLayer)
+            TextEditRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private const string DefaultTextLayerName = "Text";
+    private const int MaxNameFromTextLength = 32;
+
+    private TextLayer _typedTextLayer;
+    private string _textBeforeEdit;
+
+    /// <summary>
+    /// The name of the application the active command slot launches, or null when it launches
+    /// none. Prefers the name the app list shows, then the target's file name, then the process.
+    /// </summary>
+    private string AssignedAppName()
+    {
+        string command = ActiveSlot?.CommandText;
+        if (string.IsNullOrWhiteSpace(command)) return null;
+
+        Services.AppLauncher.LaunchAppSpec spec = Services.AppLauncher.LaunchAppSpec.FromCommand(command);
+        if (string.IsNullOrWhiteSpace(spec?.Target)) return null;
+
+        string name = AppList?.FindAppName(spec.Target);
+        if (string.IsNullOrWhiteSpace(name) && Path.IsPathRooted(spec.Target))
+            name = Path.GetFileNameWithoutExtension(spec.Target);
+        if (string.IsNullOrWhiteSpace(name))
+            name = spec.ResolveProcessName();
+
+        return string.IsNullOrWhiteSpace(name) ? null : name.Trim();
+    }
+
+    /// <summary>
+    /// The user started typing into the selected text layer's text box. While it lasts, a layer
+    /// still carrying its default or text-derived name takes its name from the text.
+    /// </summary>
+    /// <remarks>
+    /// Layer names are targets of commands that write text at runtime, so only typing renames a
+    /// layer, never a text change from elsewhere. A name the user typed matches neither pattern and
+    /// is kept, which needs no stored flag and works for layers saved before this existed.
+    /// </remarks>
+    public void BeginTextTyping()
+    {
+        EndTextTyping();
+        if (SelectedLayer is not TextLayer layer || layer.IsCommandOwned || layer.IsDynamicText) return;
+
+        _typedTextLayer = layer;
+        layer.PropertyChanging += TypedTextLayer_PropertyChanging;
+        layer.PropertyChanged += TypedTextLayer_PropertyChanged;
+    }
+
+    /// <summary>The user left the text box; see <see cref="BeginTextTyping"/>.</summary>
+    public void EndTextTyping()
+    {
+        if (_typedTextLayer == null) return;
+
+        _typedTextLayer.PropertyChanging -= TypedTextLayer_PropertyChanging;
+        _typedTextLayer.PropertyChanged -= TypedTextLayer_PropertyChanged;
+        _typedTextLayer = null;
+    }
+
+    private void TypedTextLayer_PropertyChanging(object sender, System.ComponentModel.PropertyChangingEventArgs e)
+    {
+        if (e.PropertyName == nameof(TextLayer.Text) && sender is TextLayer layer)
+            _textBeforeEdit = layer.Text;
+    }
+
+    private void TypedTextLayer_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(TextLayer.Text) || sender is not TextLayer layer) return;
+        if (!NameFollowsText(layer.Name, _textBeforeEdit)) return;
+
+        string name = ButtonTemplateService.UniqueLayerName(
+            ButtonData?.Layers.Where(l => !ReferenceEquals(l, layer)), NameFromText(layer.Text));
+        if (!string.Equals(layer.Name, name, StringComparison.Ordinal))
+            layer.Name = name;
+    }
+
+    /// <summary>
+    /// True when <paramref name="name"/> is the default layer name or the one derived from
+    /// <paramref name="text"/>, each optionally with the " N" suffix that keeps names unique.
+    /// </summary>
+    private static bool NameFollowsText(string name, string text)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return true;
+
+        string pattern = $"^(?:{DefaultTextLayerName}|{System.Text.RegularExpressions.Regex.Escape(NameFromText(text))})(?: \\d+)?$";
+        return System.Text.RegularExpressions.Regex.IsMatch(name, pattern);
+    }
+
+    /// <summary>The first non-empty line of <paramref name="text"/>, shortened to a list-friendly length.</summary>
+    private static string NameFromText(string text)
+    {
+        string line = text?.Split('\n').Select(l => l.Trim()).FirstOrDefault(l => l.Length > 0);
+        if (string.IsNullOrEmpty(line)) return DefaultTextLayerName;
+
+        return line.Length > MaxNameFromTextLength ? line[..MaxNameFromTextLength].TrimEnd() : line;
+    }
+
+    /// <summary>
     /// Applies the user's answer to a <see cref="StateReleaseRequested"/> prompt, then lets a
     /// replacement command that declares states create its own.
     /// </summary>
@@ -2390,6 +2500,8 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// </summary>
     public void Cleanup()
     {
+        EndTextTyping();
+
         if (ButtonData != null)
         {
             // Restore the runtime active state so editor state-switching is not persisted as the
