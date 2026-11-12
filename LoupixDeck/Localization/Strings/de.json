@@ -1061,6 +1061,7 @@
   "SimpleButton_RemoveAllAssignedCommandsKeeps": "Alle zugewiesenen Befehle entfernen (die Tastenfarbe bleibt)",
   "SimpleButton_RemoveCommand": "Befehl entfernen",
   "SimpleButton_ResetToDefaultOnRestart": "Beim Neustart auf den Standard zurücksetzen",
+  "SimpleButton_ResetToDefaultOnWorkspaceChange": "Beim Wechsel des Arbeitsbereichs auf den Standard zurücksetzen",
   "SimpleButton_RunAlsoWhenDeviceIs": "Auch ausführen, wenn das Gerät AUS ist",
   "SimpleButton_Sequence": "Folge",
   "SimpleButton_SetAsDefaultState": "Als Standardzustand festlegen",

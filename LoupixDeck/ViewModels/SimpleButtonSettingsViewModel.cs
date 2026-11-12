@@ -30,6 +30,7 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
         OnPropertyChanged(nameof(AreStatesLocked));
         OnPropertyChanged(nameof(CanEditStates));
         OnPropertyChanged(nameof(ResetOnRestart));
+        OnPropertyChanged(nameof(ResetOnWorkspaceChange));
         OnPropertyChanged(nameof(ButtonLabel));
         OnPropertyChanged(nameof(ButtonData));
         NotifyCommandChanged();
@@ -140,6 +141,17 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
             if (ButtonData == null || ButtonData.ResetOnRestart == value) return;
             ButtonData.ResetOnRestart = value;
             OnPropertyChanged(nameof(ResetOnRestart));
+        }
+    }
+
+    public bool ResetOnWorkspaceChange
+    {
+        get => ButtonData?.ResetOnWorkspaceChange ?? false;
+        set
+        {
+            if (ButtonData == null || ButtonData.ResetOnWorkspaceChange == value) return;
+            ButtonData.ResetOnWorkspaceChange = value;
+            OnPropertyChanged(nameof(ResetOnWorkspaceChange));
         }
     }
 
@@ -496,6 +508,7 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
         OnPropertyChanged(nameof(CanEditStates));
         OnPropertyChanged(nameof(CanDeleteState));
         OnPropertyChanged(nameof(ResetOnRestart));
+        OnPropertyChanged(nameof(ResetOnWorkspaceChange));
         OnPropertyChanged(nameof(ButtonData));
         LoadSegments();
     }

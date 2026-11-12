@@ -1061,6 +1061,7 @@
   "SimpleButton_RemoveAllAssignedCommandsKeeps": "Remove all assigned commands (keeps the button color)",
   "SimpleButton_RemoveCommand": "Remove command",
   "SimpleButton_ResetToDefaultOnRestart": "Reset to default on restart",
+  "SimpleButton_ResetToDefaultOnWorkspaceChange": "Reset to default on workspace change",
   "SimpleButton_RunAlsoWhenDeviceIs": "Run also when device is OFF",
   "SimpleButton_Sequence": "Sequence",
   "SimpleButton_SetAsDefaultState": "Set as default state",

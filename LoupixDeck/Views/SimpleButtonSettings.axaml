@@ -168,6 +168,9 @@
                             <CheckBox Content="{loc:Tr SimpleButton_ResetToDefaultOnRestart}"
                                       IsChecked="{Binding ResetOnRestart, Mode=TwoWay}"
                                       IsEnabled="{Binding CanEditStates}" />
+                            <CheckBox Content="{loc:Tr SimpleButton_ResetToDefaultOnWorkspaceChange}"
+                                      IsChecked="{Binding ResetOnWorkspaceChange, Mode=TwoWay}"
+                                      IsEnabled="{Binding CanEditStates}" />
                         </StackPanel>
                     </Border>
 
