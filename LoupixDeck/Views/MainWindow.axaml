@@ -432,6 +432,15 @@
                     <!-- mdi-puzzle-outline -->
                     <TextBlock Classes="HeaderGlyph" Text="&#xF0A66;" />
                 </Button>
+                <!-- Community profiles import into the selected device, so they need one. -->
+                <Button Classes="HeaderAction"
+                        VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                        IsEnabled="{Binding HasDevice}"
+                        Command="{Binding SelectedDevice.ProfileMenu.BrowseCommunityProfilesCommand}"
+                        ToolTip.Tip="{loc:Tr ProfileStore_Title}">
+                    <!-- mdi-account-group-outline -->
+                    <TextBlock Classes="HeaderGlyph" Text="&#xF0B58;" />
+                </Button>
                 <!-- Only for a device that runs without hardware (virtual-device switch). -->
                 <Button Classes="HeaderAction"
                         VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
@@ -550,6 +559,8 @@
                                                       Command="{Binding SelectedDevice.ProfileMenu.ImportPackageCommand}" />
                                             <MenuItem Header="{loc:Tr MainWindow_ImportLoupedeck}"
                                                       Command="{Binding SelectedDevice.ProfileMenu.ImportLoupedeckCommand}" />
+                                            <MenuItem Header="{loc:Tr MainWindow_BrowseCommunityProfiles}"
+                                                      Command="{Binding SelectedDevice.ProfileMenu.BrowseCommunityProfilesCommand}" />
                                             <MenuItem Header="{loc:Tr MainWindow_ExportProfile}"
                                                       Command="{Binding SelectedDevice.ProfileMenu.ExportProfileCommand}" />
                                             <Separator />
@@ -594,6 +605,8 @@
                                             <Separator />
                                             <MenuItem Header="{loc:Tr MainWindow_ImportWorkspace}"
                                                       Command="{Binding SelectedDevice.ProfileMenu.ImportPackageCommand}" />
+                                            <MenuItem Header="{loc:Tr MainWindow_BrowseCommunityProfiles}"
+                                                      Command="{Binding SelectedDevice.ProfileMenu.BrowseCommunityProfilesCommand}" />
                                             <MenuItem Header="{loc:Tr MainWindow_ExportWorkspace}"
                                                       Command="{Binding SelectedDevice.ProfileMenu.ExportWorkspaceCommand}" />
                                             <Separator />

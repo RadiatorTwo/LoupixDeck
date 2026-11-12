@@ -11,6 +11,7 @@ using LoupixDeck.Services.Portable;
 using LoupixDeck.Services.Profiles;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
+using LoupixDeck.ViewModels.ProfileStore;
 
 namespace LoupixDeck.ViewModels;
 
@@ -102,6 +103,8 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
     // A companion's profiles and workspaces mirror its master's, so it cannot import them.
     public IAsyncRelayCommand ImportPackageCommand => field ??= Relay.Create(ImportPackage, () => CanEditStructure);
     public IAsyncRelayCommand ImportLoupedeckCommand => field ??= Relay.Create(ImportLoupedeck, () => CanEditStructure);
+    public IAsyncRelayCommand BrowseCommunityProfilesCommand =>
+        field ??= Relay.Create(BrowseCommunityProfiles, () => CanEditStructure);
 
     /// <summary>Linking needs foreground-app detection, which exists only on Windows and Linux.</summary>
     public bool IsAppLinkingSupported => OperatingSystem.IsWindows() || OperatingSystem.IsLinux();
@@ -138,6 +141,7 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
         ExportWorkspaceCommand.NotifyCanExecuteChanged();
         ImportPackageCommand.NotifyCanExecuteChanged();
         ImportLoupedeckCommand.NotifyCanExecuteChanged();
+        BrowseCommunityProfilesCommand.NotifyCanExecuteChanged();
     }
 
     /// <summary>
@@ -162,6 +166,13 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
                 confirmText: Loc.Tr("Confirm_Ok"), showCancel: false));
     }
 
+    /// <summary>Opens the community profile store (issue #587). Each import reports its own outcome there.</summary>
+    private async Task BrowseCommunityProfiles()
+    {
+        if (await ProfileStoreViewModel.ShowAsync(_dialogService))
+            Refresh();
+    }
+
     /// <summary>Opens the starter profile picker (issue #301) and reports the outcome in a notice.</summary>
     private Task NewStarterProfile() => ShowStarterProfiles(replaceUntouchedDefault: false);
 
@@ -175,10 +186,11 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
     private async Task ShowStarterProfiles(bool replaceUntouchedDefault)
     {
         string message = await StarterProfilePickerViewModel.ShowAsync(_dialogService, replaceUntouchedDefault);
+
+        // Also after a null result: the picker's community link may have imported something.
+        Refresh();
         if (message == null)
             return;
-
-        Refresh();
 
         await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
             vm.Configure(message, title: Loc.Tr("StarterPicker_ResultTitle"),

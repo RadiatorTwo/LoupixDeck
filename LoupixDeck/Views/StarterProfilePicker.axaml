@@ -110,13 +110,18 @@
                 BorderBrush="{DynamicResource AppBorderSubtle}"
                 BorderThickness="0,1,0,0"
                 Padding="16,12">
-            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
-                <Button Classes="dialogBtn cancel" Content="{loc:Tr StarterPicker_Cancel}"
-                        Command="{Binding CancelCommand}" />
-                <Button Classes="dialogBtn confirm" Content="{loc:Tr StarterPicker_Create}"
-                        IsDefault="True"
-                        Command="{Binding CreateCommand}" />
-            </StackPanel>
+            <Grid ColumnDefinitions="*,Auto">
+                <Button Grid.Column="0" Classes="dialogBtn cancel" HorizontalAlignment="Left"
+                        Content="{loc:Tr StarterPicker_BrowseCommunity}"
+                        Command="{Binding BrowseCommunityCommand}" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+                    <Button Classes="dialogBtn cancel" Content="{loc:Tr StarterPicker_Cancel}"
+                            Command="{Binding CancelCommand}" />
+                    <Button Classes="dialogBtn confirm" Content="{loc:Tr StarterPicker_Create}"
+                            IsDefault="True"
+                            Command="{Binding CreateCommand}" />
+                </StackPanel>
+            </Grid>
         </Border>
     </Grid>
 </Window>

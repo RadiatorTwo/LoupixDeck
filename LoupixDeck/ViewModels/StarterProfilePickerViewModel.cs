@@ -9,6 +9,7 @@ using LoupixDeck.Services.StarterProfiles;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
 using LoupixDeck.ViewModels.Plugins;
+using LoupixDeck.ViewModels.ProfileStore;
 
 namespace LoupixDeck.ViewModels;
 
@@ -61,6 +62,13 @@ public sealed partial class StarterProfilePickerViewModel : DialogViewModelBase<
         DialogResult result = await dialogService.ShowDialogAsync<StarterProfilePickerViewModel, DialogResult>(
             vm => picker = vm);
 
+        // The community link closes the picker and opens the store, which reports its own imports.
+        if (picker?.BrowseCommunityRequested == true)
+        {
+            await ProfileStoreViewModel.ShowAsync(dialogService);
+            return null;
+        }
+
         if (result?.IsConfirmed != true || picker?.SelectedTemplate == null)
             return null;
 
@@ -83,6 +91,16 @@ public sealed partial class StarterProfilePickerViewModel : DialogViewModelBase<
         Confirm(new DialogResult(true));
         CloseWindow?.Invoke();
     }, () => SelectedTemplate != null && _starter.CanCreate);
+
+    /// <summary>Set by the community link: <see cref="ShowAsync"/> opens the profile store once the picker is closed.</summary>
+    public bool BrowseCommunityRequested { get; private set; }
+
+    public IRelayCommand BrowseCommunityCommand => field ??= Relay.Create(() =>
+    {
+        BrowseCommunityRequested = true;
+        Cancel();
+        CloseWindow?.Invoke();
+    });
 
     public IRelayCommand CancelCommand => field ??= Relay.Create(() =>
     {

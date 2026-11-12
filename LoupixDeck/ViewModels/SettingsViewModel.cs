@@ -20,6 +20,7 @@ using LoupixDeck.Services.Updates;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
 using LoupixDeck.ViewModels.Diagnostics;
+using LoupixDeck.ViewModels.ProfileStore;
 using SkiaSharp;
 
 namespace LoupixDeck.ViewModels;
@@ -719,6 +720,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         ActivateWorkspaceCommand.NotifyCanExecuteChanged();
         ImportPackageCommand.NotifyCanExecuteChanged();
         ImportLoupedeckCommand.NotifyCanExecuteChanged();
+        BrowseCommunityProfilesCommand.NotifyCanExecuteChanged();
         AddStarterProfileCommand.NotifyCanExecuteChanged();
     }
 
@@ -765,16 +767,28 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
             BuildProfileRows();
     }
 
+    public IAsyncRelayCommand BrowseCommunityProfilesCommand =>
+        field ??= Relay.Create(BrowseCommunityProfiles, () => CanEditProfiles);
+
+    /// <summary>Opens the community profile store (issue #587); the tree is rebuilt when something was imported.</summary>
+    private async Task BrowseCommunityProfiles()
+    {
+        if (await ProfileStoreViewModel.ShowAsync(_dialogService))
+            BuildProfileRows();
+    }
+
     public IAsyncRelayCommand AddStarterProfileCommand => field ??= Relay.Create(AddStarterProfile, () => CanEditProfiles);
 
     private async Task AddStarterProfile()
     {
         string message = await StarterProfilePickerViewModel.ShowAsync(_dialogService);
+
+        // Also after a null result: the picker's community link may have imported something.
+        BuildProfileRows();
         if (message == null)
             return;
 
         PackageStatusMessage = message;
-        BuildProfileRows();
     }
 
     public IAsyncRelayCommand ImportLoupedeckCommand => field ??= Relay.Create(ImportLoupedeck, () => CanEditProfiles);

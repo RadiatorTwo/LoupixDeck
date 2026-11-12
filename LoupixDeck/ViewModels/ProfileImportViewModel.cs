@@ -64,11 +64,20 @@ public sealed partial class ProfileImportViewModel : DialogViewModelBase<DialogR
         if (string.IsNullOrEmpty(source))
             return null;
 
+        return await ShowAsync(dialogService, source);
+    }
+
+    /// <summary>
+    /// Shows the import preview for a package file that is already on disk and returns the import
+    /// result, or null when the user cancelled.
+    /// </summary>
+    public static async Task<ProfilePackageResult> ShowAsync(IDialogService dialogService, string packagePath)
+    {
         ProfileImportViewModel importViewModel = null;
         DialogResult dialogResult = await dialogService.ShowDialogAsync<ProfileImportViewModel, DialogResult>(vm =>
         {
             importViewModel = vm;
-            vm.Configure(source);
+            vm.Configure(packagePath);
         });
 
         return dialogResult?.IsConfirmed == true ? importViewModel?.Result : null;
