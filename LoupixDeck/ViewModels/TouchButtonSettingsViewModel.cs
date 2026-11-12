@@ -1723,11 +1723,13 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         // 60×270 side strip) doesn't get a text box spanning the whole panel. A normal
         // 90×90 button is unaffected (min(90,90) = 90).
         var box = Math.Min(DeviceWidth, DeviceHeight);
+        // A key that launches an application most likely gets captioned with that application.
+        string caption = AssignedAppName() ?? DefaultTextLayerName;
         var layer = new TextLayer
         {
             FontFamily = TextFontSettings.DefaultFamily,
-            Name = GetUniqueLayerName(DefaultTextLayerName),
-            Text = DefaultTextLayerName,
+            Name = GetUniqueLayerName(caption),
+            Text = caption,
             BoxWidth = box,
             BoxHeight = box
         };
@@ -2273,6 +2275,27 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
     private TextLayer _typedTextLayer;
     private string _textBeforeEdit;
+
+    /// <summary>
+    /// The name of the application the active command slot launches, or null when it launches
+    /// none. Prefers the name the app list shows, then the target's file name, then the process.
+    /// </summary>
+    private string AssignedAppName()
+    {
+        string command = ActiveSlot?.CommandText;
+        if (string.IsNullOrWhiteSpace(command)) return null;
+
+        Services.AppLauncher.LaunchAppSpec spec = Services.AppLauncher.LaunchAppSpec.FromCommand(command);
+        if (string.IsNullOrWhiteSpace(spec?.Target)) return null;
+
+        string name = AppList?.FindAppName(spec.Target);
+        if (string.IsNullOrWhiteSpace(name) && Path.IsPathRooted(spec.Target))
+            name = Path.GetFileNameWithoutExtension(spec.Target);
+        if (string.IsNullOrWhiteSpace(name))
+            name = spec.ResolveProcessName();
+
+        return string.IsNullOrWhiteSpace(name) ? null : name.Trim();
+    }
 
     /// <summary>
     /// The user started typing into the selected text layer's text box. While it lasts, a layer

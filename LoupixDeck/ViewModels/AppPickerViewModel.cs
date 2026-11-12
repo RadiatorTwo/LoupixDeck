@@ -291,6 +291,28 @@ public partial class AppPickerViewModel : DialogViewModelBase<AppPickerRequest, 
         CloseRequested?.Invoke();
     }
 
+    /// <summary>
+    /// The display name of the application that <paramref name="target"/> launches, or null when
+    /// neither the user's own entries nor a finished scan list it. Never waits for a scan.
+    /// </summary>
+    public string FindAppName(string target)
+    {
+        if (string.IsNullOrWhiteSpace(target)) return null;
+
+        InstalledApp app = _customApps.Apps.FirstOrDefault(a => IsTarget(a));
+        if (app == null && _discovery.IsSupported)
+        {
+            Task<IReadOnlyList<InstalledApp>> scan = _discovery.GetAppsAsync();
+            if (scan.IsCompletedSuccessfully)
+                app = scan.Result.FirstOrDefault(a => IsTarget(a));
+        }
+
+        return app?.Name;
+
+        bool IsTarget(InstalledApp candidate) =>
+            string.Equals(candidate?.Target, target, StringComparison.Ordinal);
+    }
+
     /// <summary>Stops the icon stream. Called from the View when the window closes, however it was
     /// closed — including the title-bar X, which never reaches Confirm or Cancel.</summary>
     public void StopLoading()

@@ -70,6 +70,9 @@ public class CommandSequenceSlot : ViewModelBase
     /// <summary>True when the slot has a non-empty command assigned.</summary>
     public bool HasCommand => !string.IsNullOrWhiteSpace(_read());
 
+    /// <summary>The slot's command chain as stored on the button.</summary>
+    public string CommandText => _read();
+
     /// <summary>Parses the persisted command string into editable chips. Does not write
     /// back — opening (and closing without edits) leaves the string byte-for-byte unchanged.</summary>
     private void LoadSegments()
