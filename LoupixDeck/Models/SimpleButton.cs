@@ -16,6 +16,12 @@ public class SimpleButton : StatefulButton
 {
     public Constants.ButtonType Id { get; set; }
 
+    /// <summary>
+    /// Reset to the default state whenever the active workspace changes (#592). Off by default,
+    /// so a config written before this existed loads unchanged.
+    /// </summary>
+    public bool ResetOnWorkspaceChange { get; set; }
+
     protected override void RaiseActiveStateProjections()
     {
         OnPropertyChanged(nameof(ButtonColor));

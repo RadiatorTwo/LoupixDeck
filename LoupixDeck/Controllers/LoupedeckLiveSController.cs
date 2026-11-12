@@ -2230,6 +2230,9 @@ public partial class LoupedeckLiveSController(
         if (button.Mode == ButtonStateMode.Local)
             ApplyStateTransition(button, button.ActiveState);
 
+        lock (_runningSimpleButtons)
+            _runningSimpleButtons.Add(button);
+
         _ = Task.Run(async () =>
         {
             try
@@ -2242,6 +2245,38 @@ public partial class LoupedeckLiveSController(
             {
                 Console.WriteLine($"Command failed ({wrapped}): {ex.Message}");
             }
+            finally
+            {
+                lock (_runningSimpleButtons)
+                    _runningSimpleButtons.Remove(button);
+            }
+        });
+    }
+
+    // Simple buttons whose command is still running. A workspace switch skips them when it resets
+    // buttons to their default state: the press that switched the workspace has already applied
+    // its own transition, and resetting it would undo that (#592).
+    private readonly HashSet<SimpleButton> _runningSimpleButtons = [];
+
+    /// <summary>
+    /// Resets the simple buttons that opt into <see cref="SimpleButton.ResetOnWorkspaceChange"/>
+    /// to their default state. Posted to the UI thread, so it runs after a transition the
+    /// switching press posted earlier. External (plugin-driven) buttons keep their state.
+    /// </summary>
+    private void ResetSimpleButtonsForWorkspaceChange()
+    {
+        SimpleButton[] buttons = config.SimpleButtons?
+            .Where(b => b is { ResetOnWorkspaceChange: true, Mode: ButtonStateMode.Local })
+            .ToArray();
+        if (buttons is not { Length: > 0 }) return;
+
+        lock (_runningSimpleButtons)
+            buttons = buttons.Where(b => !_runningSimpleButtons.Contains(b)).ToArray();
+
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            foreach (SimpleButton button in buttons)
+                button.ResetToDefaultState();
         });
     }
 
@@ -3578,6 +3613,8 @@ public partial class LoupedeckLiveSController(
     {
         // The workspace being left may own a macro that is waiting for its trigger to come up (#185).
         ReleaseAllPresses();
+
+        ResetSimpleButtonsForWorkspaceChange();
 
         Interlocked.Increment(ref _workspaceApplyDepth);
         try

@@ -1061,6 +1061,7 @@
   "SimpleButton_RemoveAllAssignedCommandsKeeps": "Quitar todos los comandos asignados (conserva el color del botón)",
   "SimpleButton_RemoveCommand": "Quitar comando",
   "SimpleButton_ResetToDefaultOnRestart": "Restablecer al predeterminado al reiniciar",
+  "SimpleButton_ResetToDefaultOnWorkspaceChange": "Restablecer al predeterminado al cambiar de espacio de trabajo",
   "SimpleButton_RunAlsoWhenDeviceIs": "Ejecutar también cuando el dispositivo está APAGADO",
   "SimpleButton_Sequence": "Secuencia",
   "SimpleButton_SetAsDefaultState": "Fijar como estado predeterminado",
