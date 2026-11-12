@@ -1,0 +1,156 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:LoupixDeck.Localization"
+        xmlns:vms="using:LoupixDeck.ViewModels.ProfileStore"
+        x:Class="LoupixDeck.Views.ProfileStoreWindow"
+        x:DataType="vms:ProfileStoreViewModel"
+        Title="{loc:Tr ProfileStore_Title}"
+        Width="1040"
+        Height="720"
+        MinWidth="760"
+        MinHeight="520"
+        WindowStartupLocation="CenterOwner">
+
+    <Window.Styles>
+        <StyleInclude Source="avares://LoupixDeck/Views/Styles/SettingsStyles.axaml" />
+        <StyleInclude Source="avares://LoupixDeck/Views/Styles/PluginsStyles.axaml" />
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <!-- ===== Header ===== -->
+        <StackPanel Grid.Row="0" Margin="24,22,24,0" Spacing="8">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <TextBlock Grid.Column="0" Classes="page-title" Margin="0"
+                           Text="{loc:Tr ProfileStore_Title}" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10"
+                            VerticalAlignment="Center">
+                    <CheckBox IsChecked="{Binding ShowAllDevices}"
+                              Content="{loc:Tr ProfileStore_ShowAllDevices}" />
+                    <Panel Width="200">
+                        <TextBox Classes="search" Text="{Binding SearchText, Mode=TwoWay}"
+                                 PlaceholderText="{loc:Tr ProfileStore_Search}" />
+                        <!-- mdi-magnify -->
+                        <TextBlock Classes="search-icon" Text="&#xF0349;" />
+                    </Panel>
+                    <Button Content="{loc:Tr PluginStore_Refresh}"
+                            Command="{Binding RefreshCommand}" />
+                </StackPanel>
+            </Grid>
+
+            <TextBlock Classes="hint" FontSize="12" TextWrapping="Wrap" MaxWidth="720"
+                       HorizontalAlignment="Left" Text="{loc:Tr ProfileStore_Intro}" />
+
+            <Border Classes="notice" IsVisible="{Binding HasNotice}">
+                <TextBlock Text="{Binding NoticeText}" />
+            </Border>
+
+            <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsLoading}" />
+
+            <TextBlock Classes="hint" FontSize="12" TextWrapping="Wrap"
+                       Text="{Binding StatusText}" IsVisible="{Binding HasStatus}" />
+
+            <TextBlock Classes="hint" FontSize="12" TextWrapping="Wrap"
+                       IsVisible="{Binding HasNoMatches}"
+                       Text="{loc:Tr ProfileStore_NoMatches}" />
+
+            <TextBlock Classes="hint" FontSize="12" TextWrapping="Wrap"
+                       IsVisible="{Binding HasHiddenDeviceEntries}"
+                       Text="{loc:Tr ProfileStore_HiddenEntries}" />
+        </StackPanel>
+
+        <!-- ===== Tiles =====
+             The right inset is a content margin, never ScrollViewer padding, so the last row
+             stays reachable and the scrollbar gets a real gutter. -->
+        <ScrollViewer Grid.Row="1">
+            <ItemsControl ItemsSource="{Binding Items}" Margin="24,16,10,24">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <UniformGrid Columns="2" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vms:ProfileStoreRowViewModel">
+                        <Border Classes="tile" Classes.unavailable="{Binding HasMismatch}">
+                            <StackPanel Spacing="8">
+
+                                <!-- Preview: a photo or screenshot of the device; a placeholder until it loads. -->
+                                <Border CornerRadius="6" ClipToBounds="True" Height="180"
+                                        Background="{DynamicResource AppSurfaceLow}">
+                                    <Panel>
+                                        <Image Source="{Binding Preview}" Stretch="Uniform"
+                                               IsVisible="{Binding HasPreview}" />
+                                        <!-- mdi-view-grid -->
+                                        <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF0570;"
+                                                   FontSize="40" Foreground="{DynamicResource AppTextMuted}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   IsVisible="{Binding !HasPreview}" />
+                                    </Panel>
+                                </Border>
+
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                    <StackPanel Grid.Column="0" Spacing="2">
+                                        <TextBlock Classes="card-title" Margin="0" Text="{Binding Name}"
+                                                   TextWrapping="Wrap" />
+                                        <TextBlock Classes="meta" Text="{Binding MetaText}" />
+                                    </StackPanel>
+                                    <Border Grid.Column="1" Classes="pill info" VerticalAlignment="Top">
+                                        <TextBlock Text="{Binding KindText}" />
+                                    </Border>
+                                </Grid>
+
+                                <TextBlock Classes="hint" FontSize="12" TextWrapping="Wrap"
+                                           Text="{Binding Description}"
+                                           IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+                                <TextBlock Classes="meta" TextWrapping="Wrap" Text="{Binding DeviceText}" />
+
+                                <TextBlock Classes="meta accent" TextWrapping="Wrap" Text="{Binding TagsText}"
+                                           IsVisible="{Binding HasTags}" />
+
+                                <TextBlock Classes="meta" TextWrapping="Wrap" Text="{Binding PluginsText}"
+                                           IsVisible="{Binding HasPlugins}" />
+
+                                <TextBlock Classes="meta warn" TextWrapping="Wrap" Text="{Binding MismatchText}"
+                                           IsVisible="{Binding HasMismatch}" />
+
+                                <ProgressBar Classes="thin" IsIndeterminate="True" IsVisible="{Binding IsBusy}" />
+
+                                <!-- Action row: links on the left, the one action on the right. -->
+                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" Margin="0,6,0,0">
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8"
+                                                VerticalAlignment="Center">
+                                        <Button Classes="ghost"
+                                                Content="{loc:Tr ProfileStore_OpenPage}"
+                                                Command="{Binding $parent[ItemsControl].((vms:ProfileStoreViewModel)DataContext).OpenPageCommand}"
+                                                CommandParameter="{Binding}" />
+                                        <TextBlock Classes="meta" VerticalAlignment="Center"
+                                                   Text="{Binding LicenseText}" />
+                                    </StackPanel>
+                                    <Button Grid.Column="2" Classes="primary"
+                                            Content="{loc:Tr ProfileStore_Import}"
+                                            IsEnabled="{Binding IsIdle}"
+                                            Command="{Binding $parent[ItemsControl].((vms:ProfileStoreViewModel)DataContext).ImportCommand}"
+                                            CommandParameter="{Binding}" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <!-- ===== Footer ===== -->
+        <Border Grid.Row="2" Classes="pane-bar" Padding="24,10">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <TextBlock Classes="meta" VerticalAlignment="Center" Text="{loc:Tr ProfileStore_ShareHint}" />
+                    <Button Classes="ghost" Content="{loc:Tr ProfileStore_OpenRepository}"
+                            Command="{Binding OpenRepositoryCommand}" />
+                </StackPanel>
+                <Button Grid.Column="1" Content="{loc:Tr PluginStore_Close}"
+                        Command="{Binding CloseCommand}" />
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

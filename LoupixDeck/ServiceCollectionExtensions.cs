@@ -172,6 +172,9 @@ public static class ServiceCollectionExtensions
         // app, like the plugins themselves.
         collection.AddSingleton<Services.PluginStore.IPluginStoreService, Services.PluginStore.PluginStoreService>();
 
+        // Community profiles (issue #587): the shared list is device-agnostic, the import is per device.
+        collection.AddSingleton<Services.ProfileStore.IProfileStoreService, Services.ProfileStore.ProfileStoreService>();
+
         // Notice strip of the main window (issue #315): one list the app update hint, the plugin update
         // hint and the plugin requirement notices all post to.
         collection.AddSingleton<Services.Notices.INoticeService, Services.Notices.NoticeService>();
@@ -322,6 +325,7 @@ public static class ServiceCollectionExtensions
         collection.Forward<Services.Updates.IUpdateService>(root);
         collection.Forward<Services.Updates.IUpdateInstaller>(root);
         collection.Forward<Services.PluginStore.IPluginStoreService>(root);
+        collection.Forward<Services.ProfileStore.IProfileStoreService>(root);
         collection.Forward<ICommandRunner>(root);
         collection.Forward<ISystemPowerService>(root);
         collection.Forward<IDisplayStateService>(root);
@@ -651,6 +655,9 @@ public static class ServiceCollectionExtensions
         collection.AddTransient<StarterProfilePicker>();
         collection.AddTransient<StarterProfilePickerViewModel>();
 
+        collection.AddTransient<ProfileStoreWindow>();
+        collection.AddTransient<ViewModels.ProfileStore.ProfileStoreViewModel>();
+
         collection.AddSingleton<IDialogService, DialogService>();
     }
 
@@ -712,6 +719,7 @@ public static class ServiceCollectionExtensions
         dialogService.Register<LoupedeckImportViewModel, LoupedeckImport>();
         dialogService.Register<ProfileExportViewModel, ProfileExport>();
         dialogService.Register<StarterProfilePickerViewModel, StarterProfilePicker>();
+        dialogService.Register<ViewModels.ProfileStore.ProfileStoreViewModel, ProfileStoreWindow>();
 
         // Heal configs that were saved before HapticSteps had ObjectCreationHandling.Replace —
         // those files accumulated duplicate steps on every save+load round.

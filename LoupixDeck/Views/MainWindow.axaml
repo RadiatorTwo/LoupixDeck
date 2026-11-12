@@ -550,6 +550,8 @@
                                                       Command="{Binding SelectedDevice.ProfileMenu.ImportPackageCommand}" />
                                             <MenuItem Header="{loc:Tr MainWindow_ImportLoupedeck}"
                                                       Command="{Binding SelectedDevice.ProfileMenu.ImportLoupedeckCommand}" />
+                                            <MenuItem Header="{loc:Tr MainWindow_BrowseCommunityProfiles}"
+                                                      Command="{Binding SelectedDevice.ProfileMenu.BrowseCommunityProfilesCommand}" />
                                             <MenuItem Header="{loc:Tr MainWindow_ExportProfile}"
                                                       Command="{Binding SelectedDevice.ProfileMenu.ExportProfileCommand}" />
                                             <Separator />
@@ -594,6 +596,8 @@
                                             <Separator />
                                             <MenuItem Header="{loc:Tr MainWindow_ImportWorkspace}"
                                                       Command="{Binding SelectedDevice.ProfileMenu.ImportPackageCommand}" />
+                                            <MenuItem Header="{loc:Tr MainWindow_BrowseCommunityProfiles}"
+                                                      Command="{Binding SelectedDevice.ProfileMenu.BrowseCommunityProfilesCommand}" />
                                             <MenuItem Header="{loc:Tr MainWindow_ExportWorkspace}"
                                                       Command="{Binding SelectedDevice.ProfileMenu.ExportWorkspaceCommand}" />
                                             <Separator />

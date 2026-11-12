@@ -543,6 +543,8 @@
                                 Command="{Binding ImportPackageCommand}" />
                         <Button Content="{loc:Tr Settings_ImportLoupedeck}" ToolTip.Tip="{loc:Tr Settings_ImportLoupedeckHint}"
                                 Command="{Binding ImportLoupedeckCommand}" />
+                        <Button Content="{loc:Tr Settings_BrowseCommunityProfiles}" ToolTip.Tip="{loc:Tr Settings_BrowseCommunityProfilesHint}"
+                                Command="{Binding BrowseCommunityProfilesCommand}" />
                     </StackPanel>
 
                     <!-- Result of the last export/import, including any non-fatal notes. -->
