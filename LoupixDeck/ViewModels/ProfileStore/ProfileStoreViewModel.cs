@@ -150,9 +150,17 @@ public sealed partial class ProfileStoreViewModel : DialogViewModelBase<DialogRe
             _previewLoads?.Cancel();
             _previewLoads = new CancellationTokenSource();
 
+            // Models with the same keys, dials and strips share packages: the Loupedeck Live and the
+            // Razer Stream Controller are the same hardware under two names.
+            HashSet<string> compatibleSlugs = DeviceRegistry.SupportedDevices
+                .Where(d => d.Geometry == _device.Info.Geometry)
+                .Select(d => d.Slug)
+                .Append(_device.Slug)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
             _allItems.Clear();
             _allItems.AddRange(result.Entries
-                .Select(e => new ProfileStoreRowViewModel(e, _device.Slug))
+                .Select(e => new ProfileStoreRowViewModel(e, compatibleSlugs))
                 .OrderByDescending(r => r.MatchesDevice)
                 .ThenBy(r => r.Name, StringComparer.CurrentCultureIgnoreCase));
 
@@ -234,10 +242,11 @@ public sealed partial class ProfileStoreViewModel : DialogViewModelBase<DialogRe
 /// <summary>One entry of the community profile list.</summary>
 public sealed partial class ProfileStoreRowViewModel : ObservableObject
 {
-    public ProfileStoreRowViewModel(ProfileCatalogEntry entry, string deviceSlug)
+    /// <param name="compatibleSlugs">Slugs of the models whose packages fit this device.</param>
+    public ProfileStoreRowViewModel(ProfileCatalogEntry entry, IReadOnlySet<string> compatibleSlugs)
     {
         Entry = entry;
-        MatchesDevice = string.Equals(entry.Device?.Slug, deviceSlug, StringComparison.OrdinalIgnoreCase)
+        MatchesDevice = entry.Device?.Slug is { } slug && compatibleSlugs.Contains(slug)
                         && entry.SupportsCurrentPlatform();
     }
 
@@ -289,7 +298,7 @@ public sealed partial class ProfileStoreRowViewModel : ObservableObject
     public string LicenseText => Loc.Tr("ProfileStore_License",
         string.IsNullOrWhiteSpace(Entry.License) ? "CC-BY-4.0" : Entry.License);
 
-    /// <summary>True when the entry was made on this kind of device and for this system.</summary>
+    /// <summary>True when the entry was made on this model (or one with the same layout) and for this system.</summary>
     public bool MatchesDevice { get; }
 
     /// <summary>Why the entry may not fit; only shown with "Show all devices".</summary>
