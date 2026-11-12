@@ -1738,6 +1738,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
         AddLayer(layer);
         SelectedLayer = layer;
+        RequestTextEdit();
     }
 
     /// <summary>
@@ -2253,6 +2254,19 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// the user and answers through <see cref="CompleteStateRelease"/>.
     /// </summary>
     public event EventHandler<StateReleaseRequest> StateReleaseRequested;
+
+    /// <summary>
+    /// Raised when the selected text layer's text should be typed right away: after a text layer
+    /// was added and on a double-click on one. The view moves the focus into the text box.
+    /// </summary>
+    public event EventHandler TextEditRequested;
+
+    /// <summary>Asks the view to focus the text box of the selected text layer.</summary>
+    public void RequestTextEdit()
+    {
+        if (SelectedLayer is TextLayer)
+            TextEditRequested?.Invoke(this, EventArgs.Empty);
+    }
 
     /// <summary>
     /// Applies the user's answer to a <see cref="StateReleaseRequested"/> prompt, then lets a
