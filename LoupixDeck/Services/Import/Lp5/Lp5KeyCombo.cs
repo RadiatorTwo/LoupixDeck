@@ -8,7 +8,9 @@ internal static class Lp5KeyCombo
 {
     private static readonly Dictionary<string, string> KeyMap = new(StringComparer.Ordinal)
     {
-        ["ControlOrCommand"] = "Ctrl",
+        // Loupedeck's platform-neutral primary modifier: Ctrl on Windows and Linux, Command on a Mac
+        // (sent there as Win).
+        ["ControlOrCommand"] = OperatingSystem.IsMacOS() ? "Win" : "Ctrl",
         ["Control"] = "Ctrl",
         ["AltOrOption"] = "Alt",
         ["Windows"] = "Win",
