@@ -55,6 +55,9 @@ internal static class Lp5PluginActions
         if (Commands.TryGetValue(actionRef, out string command))
             return command;
 
+        if (FinalCutProCommand(actionRef) is { } finalCutPro)
+            return finalCutPro;
+
         foreach ((string prefix, string name) in ParameterizedCommands)
         {
             if (actionRef.Length > prefix.Length && actionRef.StartsWith(prefix, StringComparison.Ordinal))
@@ -111,6 +114,71 @@ internal static class Lp5PluginActions
         string file = path[(path.LastIndexOf('\\') + 1)..];
         string name = Path.GetFileNameWithoutExtension(file).ToLowerInvariant();
         return name.Length > 0 ? name : null;
+    }
+
+    private const string FinalCutPro = "$FinalCutPro___";
+
+    /// <summary>
+    /// Final Cut Pro dial turns and the two Apple command-set ids they step through, left turn first.
+    /// </summary>
+    private static readonly Dictionary<string, (string Left, string Right)> FinalCutProDials = new(StringComparer.Ordinal)
+    {
+        ["Navigate1Frame"] = ("JumpToPreviousFrame", "JumpToNextFrame"),
+        ["Navigate10Frames"] = ("JumpBackward10Frames", "JumpForward10Frames"),
+        ["Navigate1Subframe"] = ("JumpToPreviousSubframe", "JumpToNextSubframe"),
+        ["NudgeHorizontally"] = ("NudgeLeft", "NudgeRight"),
+        ["NudgeManyHorizontally"] = ("NudgeLeftMany", "NudgeRightMany"),
+        ["NudgeVertically"] = ("NudgeDown", "NudgeUp"),
+        ["NudgeManyVertically"] = ("NudgeDownMany", "NudgeUpMany"),
+        ["NudgeAudioSubframe"] = ("NudgeLeftAudio", "NudgeRightAudio"),
+        ["NudgeAudioSubframeMany"] = ("NudgeLeftAudioMany", "NudgeRightAudioMany"),
+        ["NudgeMarker"] = ("NudgeMarkerLeft", "NudgeMarkerRight"),
+        ["SelectNextEdit"] = ("PreviousEdit", "NextEdit"),
+        ["SelectClip"] = ("SelectPreviousItem", "SelectNextItem"),
+        ["ChangeMarker"] = ("PreviousMarker", "NextMarker"),
+        ["ChangeKeyframe"] = ("PreviousKeyframe", "NextKeyframe"),
+        ["AdjustTimelineZoom"] = ("ZoomOut", "ZoomIn"),
+        ["AdjustVolume"] = ("VolumeDown", "VolumeUp"),
+        ["AdjustClipHeight"] = ("DecreaseThumbnailSize", "IncreaseThumbnailSize"),
+        ["AdjustWaveformSize"] = ("ClipAppearanceAudioSmaller", "ClipAppearanceAudioBigger"),
+        ["SelectAngle"] = ("SelectPreviousAngle", "SelectNextAngle"),
+        ["SelectVideoAngle"] = ("SelectPreviousVideoAngle", "SelectNextVideoAngle"),
+        ["SelectAudioAngle"] = ("SelectPreviousAudioAngle", "SelectNextAudioAngle"),
+        ["ChangeBank"] = ("SelectPreviousAngleBank", "SelectNextAngleBank")
+    };
+
+    /// <summary>Final Cut Pro actions that are a single Apple command, including dial presses.</summary>
+    private static readonly Dictionary<string, string> FinalCutProCommands = new(StringComparer.Ordinal)
+    {
+        ["SelectAboveTimelineItem"] = "SelectUpperItem",
+        ["SelectBelowTimelineItem"] = "SelectLowerItem",
+        ["ResetAdjustVolume"] = "VolumeZero",
+        ["ResetAdjustTimelineZoom"] = "ZoomToFit"
+    };
+
+    /// <summary>The Final Cut Pro plugin command that presses the shortcut of Apple command <paramref name="id"/>.</summary>
+    private static string FinalCutProShortcut(string id) => $"FinalCutPro.Shortcut({CommandParameterEncoding.Encode(id)})";
+
+    /// <summary>The command for a Final Cut Pro action that is not a plain shortcut, or null when none is known.</summary>
+    private static string FinalCutProCommand(string actionRef) =>
+        actionRef.StartsWith(FinalCutPro, StringComparison.Ordinal) &&
+        FinalCutProCommands.TryGetValue(actionRef[FinalCutPro.Length..], out string id)
+            ? FinalCutProShortcut(id)
+            : null;
+
+    /// <summary>
+    /// The left and right turn commands for a Loupedeck plugin dial that steps through two separate commands,
+    /// or null when none is known.
+    /// </summary>
+    public static (string Left, string Right)? AdjustmentPair(string rotateRef)
+    {
+        if (!rotateRef.StartsWith(FinalCutPro, StringComparison.Ordinal) ||
+            !FinalCutProDials.TryGetValue(rotateRef[FinalCutPro.Length..], out (string Left, string Right) ids))
+        {
+            return null;
+        }
+
+        return (FinalCutProShortcut(ids.Left), FinalCutProShortcut(ids.Right));
     }
 
     /// <summary>The adjustment command for a Loupedeck plugin dial turn, or null when none is known.</summary>
