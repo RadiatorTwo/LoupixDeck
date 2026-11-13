@@ -31,7 +31,9 @@ internal static class Lp5PluginActions
         ("$@Generic___@AdjustmentAsCommand___$HomeAssistantByBatu#¤%&+?Loupedeck.HomeAssistantByBatuPlugin.Adjustments.ClimateAdjustment#¤%&+?",
             "HomeAssistant.OpenEntityControls"),
         // Loupedeck stores the playlist URI; the Spotify API takes the bare id.
-        ("$Spotify___SaveToPlaylist___spotify:playlist:", "SpotifyPremium.SaveToPlaylist")
+        ("$Spotify___SaveToPlaylist___spotify:playlist:", "SpotifyPremium.SaveToPlaylist"),
+        // Apple's command-set id; the Final Cut Pro plugin presses its shortcut from the active command set.
+        ("$FinalCutPro___Shortcuts___", "FinalCutPro.Shortcut")
     ];
 
     /// <summary>Dial turns taken over by one adjustment command, which handles both directions.</summary>
