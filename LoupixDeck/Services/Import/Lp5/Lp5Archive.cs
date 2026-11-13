@@ -16,6 +16,12 @@ public sealed class Lp5Archive
     private const string ImagesFolder = "ActionImages/";
     private const string IconsFolder = "ActionIcons/";
 
+    /// <summary>
+    /// The prefix of Loupedeck's built-in actions. Older exports (Loupedeck 4.x / 5.0) write it in lower
+    /// case (<c>$@generic___</c>); the importer matches the current spelling only.
+    /// </summary>
+    private const string GenericPrefix = "$@Generic___";
+
     private readonly Dictionary<string, byte[]> _images;
     private readonly Dictionary<string, byte[]> _icons;
 
@@ -60,6 +66,7 @@ public sealed class Lp5Archive
         JObject application = ReadJson(zip, "ApplicationInfo.json") ?? new JObject();
         JObject profile = ReadJson(zip, "ProfileInfo.json")
                           ?? throw new InvalidDataException("ProfileInfo.json is missing.");
+        CanonicalizeStrings(profile);
 
         Dictionary<string, byte[]> images = new(StringComparer.Ordinal);
         Dictionary<string, byte[]> icons = new(StringComparer.Ordinal);
@@ -115,7 +122,24 @@ public sealed class Lp5Archive
     {
         string file = entryName[(entryName.LastIndexOf('/') + 1)..];
         int dot = file.LastIndexOf('.');
-        return Uri.UnescapeDataString(dot > 0 ? file[..dot] : file);
+        return Canonical(Uri.UnescapeDataString(dot > 0 ? file[..dot] : file));
+    }
+
+    /// <summary>An action reference with the built-in prefix in its current spelling.</summary>
+    private static string Canonical(string actionRef) =>
+        actionRef.StartsWith(GenericPrefix, StringComparison.OrdinalIgnoreCase) &&
+        !actionRef.StartsWith(GenericPrefix, StringComparison.Ordinal)
+            ? GenericPrefix + actionRef[GenericPrefix.Length..]
+            : actionRef;
+
+    /// <summary>Rewrites every action reference in <paramref name="root"/> to its current spelling.</summary>
+    private static void CanonicalizeStrings(JContainer root)
+    {
+        foreach (JValue value in root.Descendants().OfType<JValue>())
+        {
+            if (value.Type == JTokenType.String && value.Value is string text)
+                value.Value = Canonical(text);
+        }
     }
 
     private static JObject ReadJson(ZipArchive zip, string entryName)
