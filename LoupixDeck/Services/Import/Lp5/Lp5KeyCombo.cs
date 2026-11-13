@@ -12,6 +12,9 @@ internal static class Lp5KeyCombo
         ["Control"] = "Ctrl",
         ["AltOrOption"] = "Alt",
         ["Windows"] = "Win",
+        // macOS profiles name the Mac modifiers; LoupixDeck sends Win as Command on a Mac.
+        ["Command"] = "Win",
+        ["Option"] = "Alt",
         ["ArrowUp"] = "Up",
         ["ArrowDown"] = "Down",
         ["ArrowLeft"] = "Left",
@@ -23,6 +26,7 @@ internal static class Lp5KeyCombo
         // WPF OEM names -> the physical US-position names LoupixDeck uses.
         ["Oem1"] = "Semicolon",
         ["Oem2"] = "Slash",
+        ["Oem3"] = "Grave",
         ["Oem4"] = "LeftBracket",
         ["Oem5"] = "Backslash",
         ["Oem6"] = "RightBracket",
