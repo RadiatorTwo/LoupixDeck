@@ -228,6 +228,11 @@ internal sealed class Lp5ActionResolver
                 left = "System.KeyCombination(VolumeDown)";
                 right = "System.KeyCombination(VolumeUp)";
             }
+            else if (Lp5PluginActions.AdjustmentPair(rotateRef) is { } pair)
+            {
+                left = pair.Left;
+                right = pair.Right;
+            }
             else if (Lp5PluginActions.Adjustment(rotateRef) is { } adjustment)
             {
                 left = adjustment;
