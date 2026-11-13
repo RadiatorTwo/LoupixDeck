@@ -221,6 +221,36 @@
       }
     },
     {
+      "id": "finalcutpro",
+      "name": "Final Cut Pro",
+      "description": "Run Final Cut Pro commands through the shortcuts of the active command set; imports Loupedeck Final Cut Pro profiles (macOS only).",
+      "author": "RadiatorTwo",
+      "repository": "RadiatorTwo/LoupixDeck.Plugin.FinalCutPro",
+      "icon": "https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck.Plugin.FinalCutPro/master/icon.png",
+      "platforms": [
+        "macOS"
+      ],
+      "minSdkVersion": "1.37.0",
+      "commandPrefixes": [
+        "FinalCutPro."
+      ],
+      "release": {
+        "version": "1.0.0",
+        "tag": "v1.0.0",
+        "publishedAt": "2026-11-13T22:09:14Z",
+        "sdkVersion": "1.37",
+        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.FinalCutPro/releases/tag/v1.0.0",
+        "packages": [
+          {
+            "platform": "macos",
+            "fileName": "finalcutpro-1.0.0-macos.zip",
+            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.FinalCutPro/releases/download/v1.0.0/finalcutpro-1.0.0-macos.zip",
+            "sha256": "419e84f43e07706773410f8ed63101807404d85720bd83ced52defec79a4bda1"
+          }
+        ]
+      }
+    },
+    {
       "id": "govee",
       "name": "Govee Lights",
       "description": "Control Govee lights from the deck: power, brightness, colour, white temperature, scenes and segments, with live state on the keys.",
