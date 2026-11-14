@@ -131,6 +131,8 @@
         <Setter Property="VerticalAlignment" Value="Center" />
         <Setter Property="Margin" Value="10,0,0,0" />
         <Setter Property="FontSize" Value="13" />
+        <!-- A long translation ends in an ellipsis instead of running under the sidebar edge. -->
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
     </Style>
 
     <Style Selector="Border.nav-accent">

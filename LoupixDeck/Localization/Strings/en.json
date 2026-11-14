@@ -963,7 +963,7 @@
   "Settings_Profile": "Profile",
   "Settings_ProfileName": "Profile name",
   "Settings_ProfileRules": "Profile Rules",
-  "Settings_Profiles": "Profiles",
+  "Settings_Profiles": "Profiles & Workspaces",
   "Settings_ProfilesFollowMasterFmt": "This device is a companion of {0}. Its profiles, workspaces and profile rules follow the master: switch and edit them there. The pages inside each workspace stay this device's own.",
   "Settings_ProfilesFollowOfflineMasterFmt": "This device is a companion of {0}, which is offline right now, so this device stays on its current profile and workspace. Its profiles, workspaces and profile rules follow the master: switch and edit them there. The pages inside each workspace stay this device's own.",
   "Settings_ProfilesFollowPausedMasterFmt": "This device is a companion of {0}. The group is paused, so this device switches between the mirrored profiles and workspaces on its own for now. Adding, renaming and removing them still happens on the master. The pages inside each workspace stay this device's own.",

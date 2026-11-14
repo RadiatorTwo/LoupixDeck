@@ -963,7 +963,7 @@
   "Settings_Profile": "Profil",
   "Settings_ProfileName": "Profilname",
   "Settings_ProfileRules": "Profilregeln",
-  "Settings_Profiles": "Profile",
+  "Settings_Profiles": "Profile & Arbeitsbereiche",
   "Settings_ProfilesFollowMasterFmt": "Dieses Gerät ist ein Companion von {0}. Seine Profile, Arbeitsbereiche und Profilregeln folgen dem Master: Wechsle und bearbeite sie dort. Die Seiten in jedem Arbeitsbereich bleiben die eigenen dieses Geräts.",
   "Settings_ProfilesFollowOfflineMasterFmt": "Dieses Gerät ist ein Companion von {0}. Der Master ist gerade offline, daher bleibt dieses Gerät auf seinem aktuellen Profil und Arbeitsbereich. Seine Profile, Arbeitsbereiche und Profilregeln folgen dem Master: Wechsle und bearbeite sie dort. Die Seiten in jedem Arbeitsbereich bleiben die eigenen dieses Geräts.",
   "Settings_ProfilesFollowPausedMasterFmt": "Dieses Gerät ist ein Companion von {0}. Die Gruppe ist pausiert, daher wechselt dieses Gerät vorerst selbst zwischen den gespiegelten Profilen und Arbeitsbereichen. Hinzufügen, Umbenennen und Entfernen geschieht weiterhin auf dem Master. Die Seiten in jedem Arbeitsbereich bleiben die eigenen dieses Geräts.",
