@@ -1874,8 +1874,9 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         int zoneHeight = segment >= 0 ? DeviceHeight / RotaryButtonPage.StripSegmentCount : DeviceHeight;
         int keySize = Math.Min(DeviceWidth, zoneHeight);
 
-        ImageLayer layer = Services.AppLauncher.AppAssignment.AddIconLayer(
-            ButtonData, app, relative, replaceLayers: false, GetUniqueLayerName(app.Name), keySize);
+        SKBitmap icon = _assetService.Load(relative);
+        SymbolLayer layer = Services.AppLauncher.AppAssignment.AddIconLayer(
+            ButtonData, app, relative, icon, replaceLayers: false, GetUniqueLayerName(app.Name), keySize);
         if (layer == null) return;
 
         // Stamped like every layer the editor adds, so the size fields report real device pixels
@@ -1888,8 +1889,9 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         // the zone's centre.
         if (segment >= 0)
         {
-            layer.Scale = Services.AppLauncher.AppAssignment.IconScaleFor(
-                Services.AppLauncher.AppAssignment.StripIconSizePx, Math.Min(DeviceWidth, DeviceHeight));
+            layer.FitScaleToAspect(Services.AppLauncher.AppAssignment.IconScaleFor(
+                    Services.AppLauncher.AppAssignment.StripIconSizePx, Math.Min(DeviceWidth, DeviceHeight)),
+                IconColorAnalysis.GetContentAspectRatio(icon) ?? 1.0);
             layer.PositionY = (int)Math.Round(((segment + 0.5) * zoneHeight) - (DeviceHeight / 2.0));
         }
         else if (!IsStripCanvas)
@@ -1897,7 +1899,6 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             LayerDefaults.ApplyToNewIcon(layer, DeviceWidth, DeviceHeight);
         }
 
-        layer.CachedImage = _assetService.Load(relative);
         SelectedLayer = layer;
         UpdateEditorPreview();
     }

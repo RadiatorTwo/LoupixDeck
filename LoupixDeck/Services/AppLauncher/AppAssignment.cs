@@ -2,12 +2,13 @@ using LoupixDeck.Models;
 using LoupixDeck.Models.Layers;
 using LoupixDeck.Services.AppActivation;
 using LoupixDeck.Utils;
+using SkiaSharp;
 
 namespace LoupixDeck.Services.AppLauncher;
 
 /// <summary>
-/// Puts a discovered application onto a touch button: the launch command, and the app's icon as the
-/// button's image.
+/// Puts a discovered application onto a touch button: the launch command, and the app's icon as a
+/// symbol layer.
 /// </summary>
 public static class AppAssignment
 {
@@ -22,7 +23,7 @@ public static class AppAssignment
     /// Converts <see cref="DefaultIconSizePx"/> into the <c>Scale</c> multiplier a layer persists.
     /// </summary>
     /// <remarks>
-    /// For a fitted image the renderer resolves the long edge to
+    /// For an icon layer the renderer resolves the long edge to
     /// <c>min(keyWidth, keyHeight) * Scale</c>, so the scale depends on the key actually being
     /// edited — key size is per-device and user-calibratable. Clamped to 1.0 so a key smaller than
     /// 64px gets a full-bleed icon instead of one hanging over the edge.
@@ -37,7 +38,7 @@ public static class AppAssignment
     public const int StripIconSizePx = 47;
 
     /// <summary>
-    /// Converts an icon size in device pixels into the <c>Scale</c> of a fitted image layer on a
+    /// Converts an icon size in device pixels into the <c>Scale</c> of an icon layer on a
     /// surface whose short edge is <paramref name="surfaceSizePx"/>, clamped like
     /// <see cref="DefaultIconScaleFor"/>.
     /// </summary>
@@ -57,7 +58,7 @@ public static class AppAssignment
     }
 
     /// <summary>
-    /// Assigns <paramref name="app"/> to <paramref name="button"/>. Returns the created image layer,
+    /// Assigns <paramref name="app"/> to <paramref name="button"/>. Returns the created icon layer,
     /// or null when no icon was available — the command is set either way.
     /// </summary>
     /// <remarks>
@@ -66,14 +67,15 @@ public static class AppAssignment
     /// the caller knowingly assigns a command without one. Resolving it here would mean extracting
     /// an icon — file IO and P/Invoke — in the middle of mutating the button, on the UI thread.
     /// </remarks>
-    public static ImageLayer ApplyToTouchButton(TouchButton button, InstalledApp app,
-        string iconRelativePath, bool replaceLayers, string layerName, int keySizePx)
+    public static SymbolLayer ApplyToTouchButton(TouchButton button, InstalledApp app,
+        string iconRelativePath, SKBitmap iconBitmap, bool replaceLayers, string layerName, int keySizePx)
     {
         if (button == null || app == null)
             return null;
 
         button.Command = BuildLaunchCommand(app);
-        ImageLayer layer = AddIconLayer(button, app, iconRelativePath, replaceLayers, layerName, keySizePx);
+        SymbolLayer layer = AddIconLayer(button, app, iconRelativePath, iconBitmap, replaceLayers, layerName,
+            keySizePx);
 
         // A key's icon follows the defaults from Settings; a tap zone of a side strip, which calls
         // AddIconLayer directly, keeps its own size.
@@ -82,12 +84,12 @@ public static class AppAssignment
     }
 
     /// <summary>
-    /// Adds <paramref name="app"/>'s icon as an image layer to <paramref name="button"/> and leaves its
+    /// Adds <paramref name="app"/>'s icon as a symbol layer to <paramref name="button"/> and leaves its
     /// command alone. Used where the launch command lives elsewhere, such as a side-strip tap zone.
     /// Returns the created layer, or null when no icon was available.
     /// </summary>
-    public static ImageLayer AddIconLayer(TouchButton button, InstalledApp app,
-        string iconRelativePath, bool replaceLayers, string layerName, int keySizePx)
+    public static SymbolLayer AddIconLayer(TouchButton button, InstalledApp app,
+        string iconRelativePath, SKBitmap iconBitmap, bool replaceLayers, string layerName, int keySizePx)
     {
         if (button == null || app == null)
             return null;
@@ -101,15 +103,31 @@ public static class AppAssignment
         if (replaceLayers)
             button.Layers.Clear();
 
-        ImageLayer layer = new()
-        {
-            Name = string.IsNullOrWhiteSpace(layerName) ? app.Name : layerName,
-            AssetRelativePath = iconRelativePath,
-            Scale = DefaultIconScaleFor(keySizePx)
-        };
+        SymbolLayer layer = CreateIconSymbol(string.IsNullOrWhiteSpace(layerName) ? app.Name : layerName,
+            iconRelativePath, iconBitmap, DefaultIconScaleFor(keySizePx));
 
         button.Layers.Add(layer);
         button.RewireLayerHandlers();
+        return layer;
+    }
+
+    /// <summary>
+    /// Builds a symbol layer that shows an application icon, the way an icon from an icon pack is
+    /// placed: an app icon has a transparent background, so its visible part is a shape that takes
+    /// Outline, Shadow, Tint and Gradient fill (issue #602). A colored icon keeps its own colors; a
+    /// monochrome one, such as a symbolic Linux icon, is tinted like a glyph.
+    /// </summary>
+    /// <param name="size">Long edge of the layer box as a <see cref="LayerBase.Scale"/> multiplier.</param>
+    public static SymbolLayer CreateIconSymbol(string name, string iconRelativePath, SKBitmap iconBitmap,
+        double size)
+    {
+        SymbolLayer layer = new()
+        {
+            Name = name,
+            IconAssetPath = iconRelativePath,
+            KeepOriginalColors = iconBitmap != null && !IconColorAnalysis.IsMonochrome(iconBitmap)
+        };
+        layer.FitScaleToAspect(size, IconColorAnalysis.GetContentAspectRatio(iconBitmap) ?? 1.0);
         return layer;
     }
 }

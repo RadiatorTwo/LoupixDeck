@@ -5,6 +5,7 @@ using LoupixDeck.Services.AppLauncher;
 using LoupixDeck.Services.Commands;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.ActionPanel;
+using SkiaSharp;
 
 namespace LoupixDeck.Services.Actions;
 
@@ -148,11 +149,9 @@ public sealed class PanelAssignmentService(
         // leave it half-applied — the same order the button editor's app assignment uses.
         string relative = await ImportIconAsync(app);
 
-        Models.Layers.ImageLayer layer = AppAssignment.ApplyToTouchButton(
-            touch, app, relative, replaceLayers: true, layerName: app.Name, keySizePx: _geometry.KeySize);
-
-        if (layer != null)
-            layer.CachedImage = assetService.Load(relative);
+        SKBitmap icon = string.IsNullOrEmpty(relative) ? null : assetService.Load(relative);
+        AppAssignment.ApplyToTouchButton(touch, app, relative, icon, replaceLayers: true, layerName: app.Name,
+            keySizePx: _geometry.KeySize);
 
         ReconcileStates(touch);
         return true;
@@ -218,14 +217,9 @@ public sealed class PanelAssignmentService(
             layers = [];
             if (!string.IsNullOrEmpty(relative))
             {
-                layers.Add(new Models.Layers.ImageLayer
-                {
-                    Name = app.Name,
-                    AssetRelativePath = relative,
-                    // Fitted against the canvas's short edge, which is what the renderer resolves.
-                    Scale = AppAssignment.IconScaleFor(AppAssignment.StripIconSizePx, Math.Min(width, height)),
-                    CachedImage = assetService.Load(relative)
-                });
+                // Fitted against the canvas's short edge, which is what the renderer resolves.
+                layers.Add(AppAssignment.CreateIconSymbol(app.Name, relative, assetService.Load(relative),
+                    AppAssignment.IconScaleFor(AppAssignment.StripIconSizePx, Math.Min(width, height))));
             }
         }
         else
