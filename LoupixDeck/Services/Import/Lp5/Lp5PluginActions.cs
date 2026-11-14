@@ -61,10 +61,41 @@ internal static class Lp5PluginActions
         foreach ((string prefix, string name) in ParameterizedCommands)
         {
             if (actionRef.Length > prefix.Length && actionRef.StartsWith(prefix, StringComparison.Ordinal))
-                return $"{name}({CommandParameterEncoding.Encode(actionRef[prefix.Length..])})";
+                return WithParameter(name, actionRef[prefix.Length..]);
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// <c>name(value)</c>, or null when the command parser would not hand <paramref name="value"/> to
+    /// the plugin unchanged.
+    /// </summary>
+    /// <remarks>
+    /// Plugins receive their parameters exactly as the parser cuts them and do not undo
+    /// <see cref="CommandParameterEncoding"/>, so an escaped value would reach them as
+    /// <c>Scene %281%29</c>. The value is therefore written as it is, and an action whose value the
+    /// parser would split (a <c>,</c> or <c>&amp;&amp;</c>), trim, or cut at an unbalanced parenthesis
+    /// is reported as not convertible instead of becoming a button that targets the wrong thing.
+    /// </remarks>
+    internal static string WithParameter(string name, string value)
+    {
+        if (string.IsNullOrEmpty(value) || value.Trim() != value || value.Contains(',') ||
+            value.Contains("&&", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        int depth = 0;
+        foreach (char c in value)
+        {
+            if (c == '(')
+                depth++;
+            else if ((c == ')') && (--depth < 0))
+                return null;
+        }
+
+        return depth == 0 ? $"{name}({value})" : null;
     }
 
     /// <summary>
@@ -80,13 +111,13 @@ internal static class Lp5PluginActions
                 string scene = parameter("sceneName");
                 return !string.IsNullOrEmpty(scene) && string.IsNullOrEmpty(parameter("profileName"))
                                                     && string.IsNullOrEmpty(parameter("collectionName"))
-                    ? $"System.ObsSetScene({CommandParameterEncoding.Encode(scene)})"
+                    ? WithParameter("System.ObsSetScene", scene)
                     : null;
 
             case "$AudioControl___Loupedeck.AudioControlPlugin.AudioControlVolumeAdjustment":
                 // Used both as the dial turn and as its press ("reset"); Audio.AppVolume mutes on a press.
                 string app = parameter("type") == "application" ? AppId(parameter("endpoint")) : null;
-                return app != null ? $"Audio.AppVolume({CommandParameterEncoding.Encode(app)})" : null;
+                return app != null ? WithParameter("Audio.AppVolume", app) : null;
 
             default:
                 return null;
@@ -157,7 +188,7 @@ internal static class Lp5PluginActions
     };
 
     /// <summary>The Final Cut Pro plugin command that presses the shortcut of Apple command <paramref name="id"/>.</summary>
-    private static string FinalCutProShortcut(string id) => $"FinalCutPro.Shortcut({CommandParameterEncoding.Encode(id)})";
+    private static string FinalCutProShortcut(string id) => WithParameter("FinalCutPro.Shortcut", id);
 
     /// <summary>The command for a Final Cut Pro action that is not a plain shortcut, or null when none is known.</summary>
     private static string FinalCutProCommand(string actionRef) =>
@@ -190,7 +221,7 @@ internal static class Lp5PluginActions
         foreach ((string prefix, string name) in ParameterizedAdjustments)
         {
             if (rotateRef.Length > prefix.Length && rotateRef.StartsWith(prefix, StringComparison.Ordinal))
-                return $"{name}({CommandParameterEncoding.Encode(rotateRef[prefix.Length..])})";
+                return WithParameter(name, rotateRef[prefix.Length..]);
         }
 
         return null;
