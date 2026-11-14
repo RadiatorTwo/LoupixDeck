@@ -963,7 +963,7 @@
   "Settings_Profile": "Perfil",
   "Settings_ProfileName": "Nombre del perfil",
   "Settings_ProfileRules": "Reglas de perfil",
-  "Settings_Profiles": "Perfiles",
+  "Settings_Profiles": "Perfiles y espacios de trabajo",
   "Settings_ProfilesFollowMasterFmt": "Este dispositivo es un acompañante de {0}. Sus perfiles, espacios de trabajo y reglas de perfil siguen al maestro: cámbialos y edítalos allí. Las páginas de cada espacio de trabajo siguen siendo propias de este dispositivo.",
   "Settings_ProfilesFollowOfflineMasterFmt": "Este dispositivo es un acompañante de {0}, que ahora está sin conexión, así que este dispositivo se queda en su perfil y espacio de trabajo actuales. Sus perfiles, espacios de trabajo y reglas de perfil siguen al maestro: cámbialos y edítalos allí. Las páginas de cada espacio de trabajo siguen siendo propias de este dispositivo.",
   "Settings_ProfilesFollowPausedMasterFmt": "Este dispositivo es un acompañante de {0}. El grupo está en pausa, así que por ahora este dispositivo cambia por su cuenta entre los perfiles y espacios de trabajo reflejados. Añadirlos, renombrarlos y quitarlos sigue haciéndose en el maestro. Las páginas de cada espacio de trabajo siguen siendo propias de este dispositivo.",
