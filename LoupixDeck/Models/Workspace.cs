@@ -179,7 +179,7 @@ public partial class Workspace : ObservableObject
     /// </summary>
     [JsonIgnore]
     public TouchButtonPage CurrentTouchButtonPage =>
-        OpenFolder?.Layout ?? CurrentPageLayout;
+        OpenFolder?.CurrentLayout ?? CurrentPageLayout;
 
     /// <summary>The current page, ignoring any open folder.</summary>
     [JsonIgnore]
@@ -255,7 +255,7 @@ public partial class Workspace : ObservableObject
                 yield return page;
 
         foreach (CustomFolder folder in EnumerateFolders())
-            if (folder.Layout != null)
-                yield return folder.Layout;
+        foreach (TouchButtonPage layout in folder.Pages())
+            yield return layout;
     }
 }

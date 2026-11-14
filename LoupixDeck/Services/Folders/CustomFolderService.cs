@@ -91,7 +91,8 @@ public sealed class CustomFolderService(LoupedeckConfig config, IPageManager pag
         // Pad each layout to this device's grid. Keys beyond it stay in the model, so nothing the
         // source device had is lost; the Back tile is placed when the folder opens.
         foreach (CustomFolder copy in folder.SelfAndDescendants())
-            PortablePayloadNormalizer.Normalize(copy.Layout, deviceService.TouchButtonCount);
+        foreach (TouchButtonPage layout in copy.Pages())
+            PortablePayloadNormalizer.Normalize(layout, deviceService.TouchButtonCount);
 
         target.Add(folder);
 
@@ -136,11 +137,11 @@ public sealed class CustomFolderService(LoupedeckConfig config, IPageManager pag
         HashSet<Guid> ids = [.. removed.Select(static f => f.Id)];
 
         bool hasContent = folder.Children is { Count: > 0 } ||
-                          removed.Any(f => f.Layout?.TouchButtons.Any(b => b != null && !b.IsFolderBackSlot && !ButtonSnapshot.IsEmpty(b)) == true);
+                          removed.Any(f => f.Pages().Any(p => p.TouchButtons.Any(b => b != null && !b.IsFolderBackSlot && !ButtonSnapshot.IsEmpty(b))));
 
         int links = 0;
         Workspace workspace = config.ActiveWorkspace;
-        HashSet<TouchButtonPage> removedLayouts = [.. removed.Where(static f => f.Layout != null).Select(static f => f.Layout)];
+        HashSet<TouchButtonPage> removedLayouts = [.. removed.SelectMany(static f => f.Pages())];
         foreach (TouchButtonPage layout in workspace?.EnumerateTouchLayouts() ?? [])
         {
             if (removedLayouts.Contains(layout)) continue;

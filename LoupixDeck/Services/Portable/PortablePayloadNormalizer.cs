@@ -70,7 +70,8 @@ public static class PortablePayloadNormalizer
         // Custom folder layouts (issue #249) are touch layouts too. Their Back tile is placed when a
         // folder is opened, so padding and wiring is all an import needs here.
         foreach (CustomFolder folder in workspace.EnumerateFolders())
-            Normalize(folder.Layout, touchButtonCount);
+        foreach (TouchButtonPage layout in folder.Pages())
+            Normalize(layout, touchButtonCount);
 
         foreach (RotaryButtonPage page in workspace.RotaryButtonPages ?? [])
             Normalize(page, rotaryButtonCount, sideRotaryButtonCount);
