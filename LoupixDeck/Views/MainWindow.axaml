@@ -602,6 +602,8 @@
                                                       Command="{Binding SelectedDevice.ProfileMenu.NewWorkspaceCommand}" />
                                             <MenuItem Header="{loc:Tr MainWindow_RenameWorkspace}"
                                                       Command="{Binding SelectedDevice.ProfileMenu.RenameWorkspaceCommand}" />
+                                            <MenuItem Header="{loc:Tr MainWindow_ConvertWorkspaceToFolder}"
+                                                      Command="{Binding SelectedDevice.ProfileMenu.ConvertWorkspaceToFolderCommand}" />
                                             <Separator />
                                             <MenuItem Header="{loc:Tr MainWindow_ImportWorkspace}"
                                                       Command="{Binding SelectedDevice.ProfileMenu.ImportPackageCommand}" />

@@ -643,6 +643,9 @@ public static class ServiceCollectionExtensions
         collection.AddTransient<TextInputDialog>();
         collection.AddTransient<TextInputDialogViewModel>();
 
+        collection.AddTransient<ConvertDialog>();
+        collection.AddTransient<ConvertDialogViewModel>();
+
         collection.AddTransient<ProfileImport>();
         collection.AddTransient<ProfileImportViewModel>();
 
@@ -715,6 +718,7 @@ public static class ServiceCollectionExtensions
         dialogService.Register<PluginReleaseNotesViewModel, PluginReleaseNotesDialog>();
         dialogService.Register<ConfirmDialogViewModel, ConfirmDialog>();
         dialogService.Register<TextInputDialogViewModel, TextInputDialog>();
+        dialogService.Register<ConvertDialogViewModel, ConvertDialog>();
         dialogService.Register<ProfileImportViewModel, ProfileImport>();
         dialogService.Register<LoupedeckImportViewModel, LoupedeckImport>();
         dialogService.Register<ProfileExportViewModel, ProfileExport>();
