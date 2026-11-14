@@ -1529,6 +1529,8 @@
   "ProfileStore_NoMatches": "Nichts passt zur Suche.",
   "ProfileStore_HiddenEntries": "Einträge für andere Geräte oder Systeme sind ausgeblendet. Schalte „Alle Geräte anzeigen“ ein, um sie zu sehen.",
   "ProfileStore_OpenPage": "Auf GitHub öffnen",
+  "ProfileStore_PreviousImage": "Vorheriges Bild",
+  "ProfileStore_NextImage": "Nächstes Bild",
   "ProfileStore_Import": "Importieren…",
   "ProfileStore_ShareHint": "Eigenes teilen? Exportieren und einen Pull Request öffnen.",
   "ProfileStore_OpenRepository": "So teilst du",
