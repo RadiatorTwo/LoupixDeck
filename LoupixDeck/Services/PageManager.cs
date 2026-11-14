@@ -125,6 +125,31 @@ public interface IPageManager
 
     /// <summary>Fired with the folder ids of the new path whenever the open-folder path changes.</summary>
     event Action<IReadOnlyList<Guid>> FolderPathChanged;
+
+    // --- Pages of a custom folder (issue #603) -------------------------------
+
+    /// <summary>Shows page <paramref name="pageIndex"/> (0-based) of the open folder.</summary>
+    Task GotoFolderPage(int pageIndex);
+
+    Task NextFolderPage();
+
+    Task PreviousFolderPage();
+
+    /// <summary>What the Back tile does: the previous page, or on the first page leaving the folder.</summary>
+    Task FolderBackTile();
+
+    /// <summary>
+    /// Inserts an empty page after the current page of the open folder and shows it. A key on the
+    /// current page's next-page position moves to the new page's first key, so the next-page tile
+    /// that now takes its place hides nothing.
+    /// </summary>
+    Task AddFolderPage();
+
+    /// <summary>Inserts a copy of the open folder's current page right after it and shows the copy.</summary>
+    Task DuplicateFolderPage();
+
+    /// <summary>Removes the current page of the open folder; a folder keeps at least one page.</summary>
+    Task DeleteFolderPage();
 }
 
 public enum FolderOpenMode
@@ -639,7 +664,13 @@ public class PageManager : IPageManager
         if (workspace.FolderPath.SequenceEqual(path)) return;
 
         if (path.Count > 0)
+        {
+            // A folder opened anew starts on its first page; one returned to from a sub-folder
+            // keeps the page it was left on.
+            if (!workspace.FolderPath.Contains(path[^1]))
+                path[^1].CurrentPageIndex = 0;
             PrepareFolderLayout(path[^1]);
+        }
 
         // The path is committed before a plugin menu is closed: closing it repaints whatever is
         // current, which then already is the folder, instead of racing a second repaint here.
@@ -663,25 +694,166 @@ public class PageManager : IPageManager
         }
     }
 
+    public Task NextFolderPage() =>
+        _config.ActiveWorkspace?.OpenFolder is { } folder ? GotoFolderPage(folder.CurrentPageIndex + 1) : Task.CompletedTask;
+
+    public Task PreviousFolderPage() =>
+        _config.ActiveWorkspace?.OpenFolder is { } folder ? GotoFolderPage(folder.CurrentPageIndex - 1) : Task.CompletedTask;
+
+    public Task FolderBackTile()
+    {
+        CustomFolder folder = _config.ActiveWorkspace?.OpenFolder;
+        if (folder == null) return Task.CompletedTask;
+        return folder.CurrentPageIndex > 0 ? GotoFolderPage(folder.CurrentPageIndex - 1) : FolderBack();
+    }
+
+    public Task GotoFolderPage(int pageIndex)
+    {
+        Workspace workspace = _config.ActiveWorkspace;
+        CustomFolder folder = workspace?.OpenFolder;
+        if (folder == null || pageIndex < 0 || pageIndex >= folder.PageCount || pageIndex == folder.CurrentPageIndex)
+            return Task.CompletedTask;
+
+        folder.CurrentPageIndex = pageIndex;
+        return ShowFolderPage(workspace, folder);
+    }
+
+    public Task AddFolderPage()
+    {
+        Workspace workspace = _config.ActiveWorkspace;
+        CustomFolder folder = workspace?.OpenFolder;
+        if (folder == null) return Task.CompletedTask;
+
+        PrepareFolderLayout(folder);
+        TouchButtonPage current = folder.CurrentLayout;
+        TouchButtonPage page = NewFolderPage();
+
+        // The current page gets a next-page tile on its bottom-right key; what was there moves to
+        // the new page's first key.
+        TouchButton overflow = current.TouchButtons.FindByIndex(_pluginMenus.Grid.NextSlotIndex);
+        TouchButton first = page.TouchButtons.FindByIndex(0);
+        if (overflow != null && first != null && !overflow.IsFolderNavTile && !ButtonSnapshot.IsEmpty(overflow))
+            SwapKeys(current, overflow, page, first);
+
+        List<TouchButtonPage> pages = [.. folder.Pages()];
+        pages.Insert(folder.CurrentPageIndex + 1, page);
+        SetFolderPages(folder, pages);
+
+        folder.CurrentPageIndex++;
+        return ShowFolderPage(workspace, folder);
+    }
+
+    public Task DuplicateFolderPage()
+    {
+        Workspace workspace = _config.ActiveWorkspace;
+        CustomFolder folder = workspace?.OpenFolder;
+        if (folder == null) return Task.CompletedTask;
+
+        PrepareFolderLayout(folder);
+        TouchButtonPage current = folder.CurrentLayout;
+        TouchButtonPage copy = PageCloner.Clone(current, _deviceService.TouchButtonCount);
+
+        // The copy follows the current page, which then gets a next-page tile. A key on that
+        // position stays on the copy only, instead of hiding under the tile.
+        int nextIndex = _pluginMenus.Grid.NextSlotIndex;
+        TouchButton overflow = current.TouchButtons.FindByIndex(nextIndex);
+        if (overflow != null && !overflow.IsFolderNavTile && !ButtonSnapshot.IsEmpty(overflow))
+            current.TouchButtons[current.TouchButtons.IndexOf(overflow)] = new TouchButton(nextIndex);
+
+        List<TouchButtonPage> pages = [.. folder.Pages()];
+        pages.Insert(folder.CurrentPageIndex + 1, copy);
+        SetFolderPages(folder, pages);
+
+        folder.CurrentPageIndex++;
+        return ShowFolderPage(workspace, folder);
+    }
+
+    public Task DeleteFolderPage()
+    {
+        Workspace workspace = _config.ActiveWorkspace;
+        CustomFolder folder = workspace?.OpenFolder;
+        if (folder == null || folder.PageCount <= 1) return Task.CompletedTask;
+
+        List<TouchButtonPage> pages = [.. folder.Pages()];
+        pages.RemoveAt(folder.CurrentPageIndex);
+        SetFolderPages(folder, pages);
+
+        folder.CurrentPageIndex = Math.Min(folder.CurrentPageIndex, pages.Count - 1);
+        return ShowFolderPage(workspace, folder);
+    }
+
+    /// <summary>Repaints the open folder after its current page or its set of pages changed.</summary>
+    private async Task ShowFolderPage(Workspace workspace, CustomFolder folder)
+    {
+        PrepareFolderLayout(folder);
+        workspace.NotifyFolderPageChanged();
+        TouchLayoutChanged?.Invoke();
+
+        if (_pluginMenus.IsActive)
+        {
+            await _pluginMenus.ExitAll();
+            return;
+        }
+
+        await DrawTouchButtons();
+
+        if (_config.ShowPageNameOverlayEnabled && folder.CurrentLayout is { } layout)
+            _ = _deviceService.ShowTemporaryTextButton(0, layout.PageName, 2000);
+    }
+
+    /// <summary>An empty folder page for this device.</summary>
+    private TouchButtonPage NewFolderPage()
+    {
+        // Like a new page, a new folder page has no wallpaper of its own; with
+        // InheritWallpaperFromPreviousPage on it shows the one of the page the folder is opened from.
+        int keyCount = _deviceService.TouchButtonCount;
+        TouchButtonPage page = new(keyCount) { Geometry = _config.Geometry };
+        for (int i = 0; i < keyCount; i++)
+            page.TouchButtons[i] = new TouchButton(i);
+        _preparedLayouts.AddOrUpdate(page, null);
+        return page;
+    }
+
+    /// <summary>Stores <paramref name="pages"/> as the folder's pages, first page first, and numbers them.</summary>
+    private static void SetFolderPages(CustomFolder folder, List<TouchButtonPage> pages)
+    {
+        for (int i = 0; i < pages.Count; i++)
+            pages[i].Page = i + 1;
+
+        // A new list rather than an edit of the old one: the device read thread may be reading it.
+        folder.ExtraPages = pages.GetRange(1, pages.Count - 1);
+        folder.Layout = pages[0];
+    }
+
+    /// <summary>Exchanges two keys, on one layout or across two, so each position keeps its index.</summary>
+    private static void SwapKeys(TouchButtonPage layoutA, TouchButton a, TouchButtonPage layoutB, TouchButton b)
+    {
+        int positionA = layoutA.TouchButtons.IndexOf(a);
+        int positionB = layoutB.TouchButtons.IndexOf(b);
+        (a.Index, b.Index) = (b.Index, a.Index);
+        layoutA.TouchButtons[positionA] = b;
+        layoutB.TouchButtons[positionB] = a;
+    }
+
     /// <summary>
-    /// Makes a folder's layout ready to show: creates it on first open, pads it to the device's key
-    /// count, rewires its layers once and marks the Back tile. A layout made on a device with a
-    /// different grid can hold content on this device's Back key; that content moves to the first
-    /// free key so nothing is hidden behind the tile.
+    /// Makes the current page of a folder ready to show: creates the folder's layout on first open,
+    /// pads the page to the device's key count, rewires its layers once and marks the navigation
+    /// tiles: Back on every page, Next on every page but the last (issue #603). A page made on a
+    /// device with a different grid can hold content on one of those keys; that content moves to the
+    /// first free key so nothing is hidden behind a tile.
     /// </summary>
     private void PrepareFolderLayout(CustomFolder folder)
     {
         int keyCount = _deviceService.TouchButtonCount;
 
-        if (folder.Layout == null)
-        {
-            // Like a new page, a new folder has no wallpaper of its own; with
-            // InheritWallpaperFromPreviousPage on it shows the one of the page it is opened from.
-            folder.Layout = new TouchButtonPage(keyCount);
-            _preparedLayouts.AddOrUpdate(folder.Layout, null);
-        }
+        folder.Layout ??= NewFolderPage();
+        folder.CurrentPageIndex = Math.Clamp(folder.CurrentPageIndex, 0, folder.PageCount - 1);
 
-        TouchButtonPage layout = folder.Layout;
+        int number = 1;
+        foreach (TouchButtonPage page in folder.Pages())
+            page.Page = number++;
+
+        TouchButtonPage layout = folder.CurrentLayout;
         layout.Geometry = _config.Geometry;
 
         for (int i = layout.TouchButtons.Count; i < keyCount; i++)
@@ -698,28 +870,41 @@ public class PageManager : IPageManager
 
         FolderNavigation.FolderGrid grid = _pluginMenus.Grid;
         int backIndex = grid.BackSlotIndex;
+        int nextIndex = folder.CurrentPageIndex < folder.PageCount - 1 ? grid.NextSlotIndex : -1;
 
-        TouchButton back = layout.TouchButtons.FindByIndex(backIndex);
-        if (back != null && !back.IsFolderBackSlot && !ButtonSnapshot.IsEmpty(back))
-        {
-            TouchButton free = layout.TouchButtons.FirstOrDefault(b =>
-                b != null && b.Index != backIndex && grid.IsGridSlot(b.Index) && ButtonSnapshot.IsEmpty(b));
-            if (free != null)
-            {
-                int backPosition = layout.TouchButtons.IndexOf(back);
-                int freePosition = layout.TouchButtons.IndexOf(free);
-                (back.Index, free.Index) = (free.Index, back.Index);
-                layout.TouchButtons[backPosition] = free;
-                layout.TouchButtons[freePosition] = back;
-                Console.WriteLine($"Folder '{folder.Name}': moved the content of key {backIndex} to key {back.Index} to make room for the Back tile.");
-            }
-            else
-            {
-                Console.WriteLine($"Folder '{folder.Name}': key {backIndex} is covered by the Back tile and no free key was left to move its content to.");
-            }
-        }
+        ClearKeyForTile(folder, layout, grid, backIndex, nextIndex, backIndex);
+        if (nextIndex >= 0)
+            ClearKeyForTile(folder, layout, grid, backIndex, nextIndex, nextIndex);
 
         foreach (TouchButton button in layout.TouchButtons)
-            button?.IsFolderBackSlot = button.Index == backIndex;
+        {
+            button?.FolderNavTile = button.Index == backIndex ? FolderNavTile.Back
+                : button.Index == nextIndex ? FolderNavTile.Next
+                : FolderNavTile.None;
+        }
     }
+
+    /// <summary>
+    /// Moves the content of key <paramref name="tileIndex"/>, which a navigation tile is about to
+    /// cover, to the first free key that no tile covers.
+    /// </summary>
+    private static void ClearKeyForTile(CustomFolder folder, TouchButtonPage layout, FolderNavigation.FolderGrid grid,
+        int backIndex, int nextIndex, int tileIndex)
+    {
+        TouchButton covered = layout.TouchButtons.FindByIndex(tileIndex);
+        if (covered == null || covered.IsFolderNavTile || ButtonSnapshot.IsEmpty(covered)) return;
+
+        TouchButton free = layout.TouchButtons.FirstOrDefault(b =>
+            b != null && b.Index != backIndex && b.Index != nextIndex && grid.IsGridSlot(b.Index) && ButtonSnapshot.IsEmpty(b));
+        if (free != null)
+        {
+            SwapKeys(layout, covered, layout, free);
+            Console.WriteLine($"Folder '{folder.Name}': moved the content of key {tileIndex} to key {covered.Index} to make room for a navigation tile.");
+        }
+        else
+        {
+            Console.WriteLine($"Folder '{folder.Name}': key {tileIndex} is covered by a navigation tile and no free key was left to move its content to.");
+        }
+    }
+
 }

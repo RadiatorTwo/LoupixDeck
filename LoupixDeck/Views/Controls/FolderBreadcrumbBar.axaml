@@ -39,34 +39,67 @@
         </Style>
     </UserControl.Styles>
 
-    <!-- Same chrome and height as the touch pager it replaces, so the window never resizes. -->
-    <Border Classes="Pager">
-        <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
-            <Button Classes="PagerBtn PagerNav" Content="‹"
-                    ToolTip.Tip="{loc:Tr Breadcrumb_Back}"
-                    Command="{Binding FolderBackCommand}" />
-            <ItemsControl ItemsSource="{Binding FolderBreadcrumbs}">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <StackPanel Orientation="Horizontal" />
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="vm:FolderBreadcrumbViewModel">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="›" VerticalAlignment="Center" Margin="1,0"
-                                       Foreground="{DynamicResource AppTextSecondary}"
-                                       IsVisible="{Binding ShowSeparator}" />
-                            <Button Classes="Crumb" Classes.current="{Binding IsCurrent}"
-                                    ToolTip.Tip="{Binding Name}"
-                                    Command="{Binding #Root.((vm:MainWindowViewModel)DataContext).NavigateFolderDepthCommand}"
-                                    CommandParameter="{Binding Depth}">
-                                <TextBlock Classes="CrumbText" Text="{Binding Name}" />
-                            </Button>
-                        </StackPanel>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </StackPanel>
-    </Border>
+    <!-- Same chrome and height as the touch pager they replace, so the window never resizes. -->
+    <StackPanel Orientation="Horizontal" Spacing="12">
+        <Border Classes="Pager">
+            <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+                <Button Classes="PagerBtn PagerNav" Content="‹"
+                        ToolTip.Tip="{loc:Tr Breadcrumb_Back}"
+                        Command="{Binding FolderBackCommand}" />
+                <ItemsControl ItemsSource="{Binding FolderBreadcrumbs}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:FolderBreadcrumbViewModel">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="›" VerticalAlignment="Center" Margin="1,0"
+                                           Foreground="{DynamicResource AppTextSecondary}"
+                                           IsVisible="{Binding ShowSeparator}" />
+                                <Button Classes="Crumb" Classes.current="{Binding IsCurrent}"
+                                        ToolTip.Tip="{Binding Name}"
+                                        Command="{Binding #Root.((vm:MainWindowViewModel)DataContext).NavigateFolderDepthCommand}"
+                                        CommandParameter="{Binding Depth}">
+                                    <TextBlock Classes="CrumbText" Text="{Binding Name}" />
+                                </Button>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+
+        <!-- The open folder's own pages (issue #603), managed like the touch pages. -->
+        <Border Classes="Pager">
+            <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+                <Button Classes="PagerBtn PagerNav" Content="‹"
+                        ToolTip.Tip="{loc:Tr Device_PreviousFolderPage}"
+                        Command="{Binding PreviousFolderPageCommand}" />
+                <TextBox Classes="PageName"
+                         Text="{Binding LoupedeckController.Config.CurrentTouchButtonPage.Name, Mode=TwoWay}"
+                         PlaceholderText="{Binding LoupedeckController.Config.CurrentTouchButtonPage.PageName}"
+                         KeyDown="OnPageNameKeyDown" LostFocus="OnPageNameCommit" />
+                <Button Classes="PagerBtn PagerNav" Content="›"
+                        ToolTip.Tip="{loc:Tr Device_NextFolderPage}"
+                        Command="{Binding NextFolderPageCommand}" />
+                <TextBlock Classes="PageCount"
+                           Text="{Binding LoupedeckController.Config.FolderPageLabel}"
+                           ToolTip.Tip="{loc:Tr Device_CurrentTotalFolderPages}" />
+                <Button Classes="PagerBtn" Content="+"
+                        ToolTip.Tip="{loc:Tr Device_AddFolderPage}"
+                        Command="{Binding AddFolderPageCommand}" />
+                <Button Classes="PagerBtn"
+                        ToolTip.Tip="{loc:Tr Device_DuplicateFolderPage}"
+                        Command="{Binding DuplicateFolderPageCommand}">
+                    <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF018F;" />
+                </Button>
+                <Button Classes="PagerBtn delete" Content="✕"
+                        ToolTip.Tip="{loc:Tr Device_DeleteCurrentFolderPage}"
+                        IsEnabled="{Binding HasFolderPages}"
+                        Command="{Binding DeleteFolderPageCommand}" />
+            </StackPanel>
+        </Border>
+    </StackPanel>
 </UserControl>

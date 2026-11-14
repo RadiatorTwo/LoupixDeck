@@ -54,22 +54,27 @@ public class TouchButton : StatefulButton
     public int Index { get; set; }
 
     /// <summary>
-    /// True while this key is the automatic Back tile of an open custom folder (issue #249).
-    /// Runtime only: the flag is set when the folder layout is prepared, the renderer draws the
-    /// Back chevron instead of the button's content, and the editor treats the key as locked.
+    /// Which automatic navigation tile of an open custom folder this key is, if any (issue #249).
+    /// Runtime only: it is set when the folder layout is prepared, the renderer draws the tile's
+    /// chevron instead of the button's content, and the editor treats the key as locked.
     /// </summary>
     [JsonIgnore]
-    public bool IsFolderBackSlot
+    public FolderNavTile FolderNavTile
     {
         get;
         set
         {
             if (field == value) return;
             field = value;
-            OnPropertyChanged(nameof(IsFolderBackSlot));
+            OnPropertyChanged(nameof(FolderNavTile));
+            OnPropertyChanged(nameof(IsFolderNavTile));
             OnPropertyChanged(nameof(ShowsCommandHint));
         }
     }
+
+    /// <summary>True while this key is an automatic navigation tile of an open custom folder.</summary>
+    [JsonIgnore]
+    public bool IsFolderNavTile => FolderNavTile != FolderNavTile.None;
 
     /// <summary>
     /// True when the button has a command but no visible layer, so it would look unused in the
@@ -78,7 +83,7 @@ public class TouchButton : StatefulButton
     /// </summary>
     [JsonIgnore]
     public bool ShowsCommandHint =>
-        !IsFolderBackSlot
+        !IsFolderNavTile
         && !string.IsNullOrWhiteSpace(Command)
         && !(Layers?.Any(layer => layer is { Visible: true }) ?? false);
 

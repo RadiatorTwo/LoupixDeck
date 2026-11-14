@@ -540,6 +540,40 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool IsFolderOpen { get; private set; }
 
+    /// <summary>True while the open custom folder has more than one page, so one can be deleted (issue #603).</summary>
+    [ObservableProperty]
+    public partial bool HasFolderPages { get; private set; }
+
+    [RelayCommand]
+    private Task NextFolderPage()
+    {
+        EndExclusiveModeForPageChange();
+        return LoupedeckController.PageManager.NextFolderPage();
+    }
+
+    [RelayCommand]
+    private Task PreviousFolderPage()
+    {
+        EndExclusiveModeForPageChange();
+        return LoupedeckController.PageManager.PreviousFolderPage();
+    }
+
+    [RelayCommand]
+    private Task AddFolderPage() => EditFolderPages(static pages => pages.AddFolderPage());
+
+    [RelayCommand]
+    private Task DuplicateFolderPage() => EditFolderPages(static pages => pages.DuplicateFolderPage());
+
+    [RelayCommand]
+    private Task DeleteFolderPage() => EditFolderPages(static pages => pages.DeleteFolderPage());
+
+    private async Task EditFolderPages(Func<IPageManager, Task> edit)
+    {
+        EndExclusiveModeForPageChange();
+        await edit(LoupedeckController.PageManager);
+        LoupedeckController.SaveConfig();
+    }
+
     /// <summary>
     /// Zoom of this device's view in the main window, 1 being 100 %. Not saved: every start
     /// begins at 100 %.
@@ -552,6 +586,8 @@ public partial class MainWindowViewModel : ViewModelBase
         // "Name" is forwarded from the active workspace: the breadcrumb root shows it.
         if (e.PropertyName is nameof(LoupedeckConfig.FolderPath) or nameof(LoupedeckConfig.ActiveWorkspace) or nameof(Workspace.Name))
             Avalonia.Threading.Dispatcher.UIThread.Post(RefreshFolderBreadcrumbs);
+        else if (e.PropertyName is nameof(LoupedeckConfig.FolderPageLabel))
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => HasFolderPages = _config.OpenFolder?.PageCount > 1);
     }
 
     private void RefreshFolderBreadcrumbs()
@@ -564,6 +600,7 @@ public partial class MainWindowViewModel : ViewModelBase
             FolderBreadcrumbs.Add(new FolderBreadcrumbViewModel(path[i].Name, i + 1, i == path.Count - 1));
 
         IsFolderOpen = path.Count > 0;
+        HasFolderPages = _config.OpenFolder?.PageCount > 1;
     }
 
     /// <summary>Badge text for the device switcher: "Master", "Companion" (marked while the group is
@@ -769,7 +806,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private async Task TouchButton_Click(TouchButton button)
     {
-        if (button == null || button.IsFolderBackSlot) return;
+        if (button == null || button.IsFolderNavTile) return;
 
         await _dialogService.ShowDialogAsync<TouchButtonSettingsViewModel, DialogResult>(vm => vm.Initialize(button));
 
@@ -828,7 +865,7 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             // The automatic Back tile of a custom folder (issue #249) is not user content: it cannot
             // be copied, pasted over, cleared, dragged or dropped onto.
-            case TouchButton { IsFolderBackSlot: true }:
+            case TouchButton { IsFolderNavTile: true }:
                 return null;
             case TouchButton touch when IsSideStripButton(touch):
                 return ButtonKind.SideDisplay;

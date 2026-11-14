@@ -2513,10 +2513,12 @@ public partial class LoupedeckLiveSController(
             if (config.TouchFeedbackEnabled)
                 _ = ShowTouchFeedback(button);
 
-            // The automatic Back tile of a custom folder (issue #249) has no command of its own.
-            if (button.IsFolderBackSlot)
+            // The automatic navigation tiles of a custom folder (issues #249, #603) have no command of their own.
+            if (button.IsFolderNavTile)
             {
-                Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = pageManager.FolderBack());
+                FolderNavTile tile = button.FolderNavTile;
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    _ = tile == FolderNavTile.Next ? pageManager.NextFolderPage() : pageManager.FolderBackTile());
                 continue;
             }
 
