@@ -598,6 +598,17 @@
         <Setter Property="Opacity" Value="0.5" />
     </Style>
 
+    <!-- ===== Profile cards and workspace rows (Settings > Profiles) ===== -->
+    <Style Selector="Border.workspace-row">
+        <Setter Property="Background" Value="{DynamicResource AppSurfaceAlt}" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="2,6,6,6" />
+        <Setter Property="Margin" Value="0,0,0,6" />
+    </Style>
+    <Style Selector="Border.reorder-row.dragging">
+        <Setter Property="Opacity" Value="0.5" />
+    </Style>
+
     <Style Selector="Border.page-grip">
         <Setter Property="Width" Value="20" />
         <Setter Property="Height" Value="40" />

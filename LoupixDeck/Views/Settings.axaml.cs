@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
 using Avalonia.Input;
 using Avalonia.VisualTree;
 using LoupixDeck.Models;
@@ -10,11 +11,9 @@ namespace LoupixDeck.Views;
 
 public partial class Settings : Window
 {
-    /// <summary>Gap between two page rows; the drop line sits in its middle.</summary>
-    private const double PageRowGap = 8;
-
-    // One drag at a time, in whichever page list (touch, rotary, left or right column) it began.
-    private ButtonPageBase _draggedPage;
+    // One drag at a time, in whichever list it began: a page list (touch, rotary, left or right
+    // column), the profile list, or one profile's workspace list.
+    private object _draggedItem;
     private Control _draggedRow;
     private ItemsControl _dragList;
     private Border _dropLine;
@@ -40,11 +39,11 @@ public partial class Settings : Window
         };
     }
 
-    // ───────── Page reordering (drag handle) ─────────
+    // ───────── Row reordering (drag handle): pages, profiles, workspaces ─────────
 
     private void OnPageGripPressed(object sender, PointerPressedEventArgs e)
     {
-        if (sender is not Control grip || grip.DataContext is not ButtonPageBase page) return;
+        if (sender is not Control grip || grip.DataContext is not (ButtonPageBase or ProfileRow or WorkspaceRow)) return;
         if (!e.GetCurrentPoint(grip).Properties.IsLeftButtonPressed) return;
 
         // Each list sits in a Panel next to a Canvas that holds its drop line.
@@ -55,7 +54,7 @@ public partial class Settings : Window
             .FirstOrDefault(static b => b.Classes.Contains("page-drop-line"));
         if (list == null || line == null) return;
 
-        _draggedPage = page;
+        _draggedItem = grip.DataContext;
         _dragList = list;
         _dropLine = line;
         _draggedRow = grip.FindAncestorOfType<Border>(includeSelf: false);
@@ -67,7 +66,7 @@ public partial class Settings : Window
 
     private void OnPageGripMoved(object sender, PointerEventArgs e)
     {
-        if (_draggedPage == null) return;
+        if (_draggedItem == null) return;
 
         int count = _dragList.ItemCount;
         Point position = e.GetPosition(_dragList);
@@ -84,7 +83,7 @@ public partial class Settings : Window
             }
         }
 
-        int from = _dragList.Items.IndexOf(_draggedPage);
+        int from = _dragList.Items.IndexOf(_draggedItem);
         // Dropping right above or below itself changes nothing, so show no line there.
         if (index == from || index == from + 1)
         {
@@ -104,9 +103,10 @@ public partial class Settings : Window
 
         // Each container includes its row's bottom margin, the gap, so the line goes half a gap
         // above a row's top, or half a gap above the last container's bottom at the end.
+        double gap = (anchor as ContentPresenter)?.Child?.Margin.Bottom ?? 0;
         double y = index < count
-            ? anchor.Bounds.Top - (PageRowGap / 2)
-            : anchor.Bounds.Bottom - (PageRowGap / 2);
+            ? anchor.Bounds.Top - (gap / 2)
+            : anchor.Bounds.Bottom - (gap / 2);
 
         Canvas.SetLeft(_dropLine, 0);
         Canvas.SetTop(_dropLine, y - (_dropLine.Height / 2));
@@ -116,19 +116,24 @@ public partial class Settings : Window
 
     private void OnPageGripReleased(object sender, PointerReleasedEventArgs e)
     {
-        if (_draggedPage == null) return;
+        if (_draggedItem == null) return;
 
-        ButtonPageBase page = _draggedPage;
+        object item = _draggedItem;
         int dropIndex = _dropIndex;
-        int from = _dragList.Items.IndexOf(page);
+        int from = _dragList.Items.IndexOf(item);
         e.Pointer.Capture(null);
         EndPageDrag();
 
         if (dropIndex < 0 || from < 0 || DataContext is not SettingsViewModel vm) return;
 
-        // Removing the page first shifts every later slot up by one.
+        // Removing the row first shifts every later slot up by one.
         int target = dropIndex > from ? dropIndex - 1 : dropIndex;
-        vm.MovePageTo(page, target);
+        switch (item)
+        {
+            case ButtonPageBase page: vm.MovePageTo(page, target); break;
+            case ProfileRow profile: vm.MoveProfileTo(profile, target); break;
+            case WorkspaceRow workspace: vm.MoveWorkspaceTo(workspace, target); break;
+        }
     }
 
     private void OnPageGripCaptureLost(object sender, PointerCaptureLostEventArgs e) => EndPageDrag();
@@ -138,7 +143,7 @@ public partial class Settings : Window
         _draggedRow?.Classes.Remove("dragging");
         if (_dropLine != null) _dropLine.IsVisible = false;
         _draggedRow = null;
-        _draggedPage = null;
+        _draggedItem = null;
         _dragList = null;
         _dropLine = null;
         _dropIndex = -1;

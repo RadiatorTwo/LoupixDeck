@@ -887,6 +887,33 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         RemoveWorkspaceCommand.NotifyCanExecuteChanged();
     }
 
+    /// <summary>Moves a profile to <paramref name="targetIndex"/> — the drop target of a profile
+    /// card's drag handle. The model and the editor rows move together.</summary>
+    public void MoveProfileTo(ProfileRow row, int targetIndex)
+    {
+        if (row == null || !CanEditProfiles) return;
+        int index = ProfileRows.IndexOf(row);
+        if (index < 0 || targetIndex == index || targetIndex < 0 || targetIndex >= ProfileRows.Count) return;
+
+        Config.Profiles.Move(index, targetIndex);
+        ProfileRows.Move(index, targetIndex);
+        foreach (ProfileRow r in ProfileRows) r.RefreshFlags();
+    }
+
+    /// <summary>Moves a workspace within its profile to <paramref name="targetIndex"/> — the drop
+    /// target of a workspace row's drag handle.</summary>
+    public void MoveWorkspaceTo(WorkspaceRow row, int targetIndex)
+    {
+        if (row == null || !CanEditProfiles) return;
+        ObservableCollection<WorkspaceRow> rows = row.Parent.Workspaces;
+        int index = rows.IndexOf(row);
+        if (index < 0 || targetIndex == index || targetIndex < 0 || targetIndex >= rows.Count) return;
+
+        row.Parent.Profile.Workspaces.Move(index, targetIndex);
+        rows.Move(index, targetIndex);
+        row.Parent.RefreshFlags();
+    }
+
     private void SetHomeWorkspace(WorkspaceRow row)
     {
         if (row == null) return;
