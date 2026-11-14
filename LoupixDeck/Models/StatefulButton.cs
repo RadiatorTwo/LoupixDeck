@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Runtime.Serialization;
 using Newtonsoft.Json;
 
 namespace LoupixDeck.Models;
@@ -188,9 +189,26 @@ public abstract class StatefulButton : LoupedeckButton
         _syncingCommand = false;
     }
 
+    // True while Newtonsoft populates this button. The inherited Command is serialized after
+    // States and holds the command of the state that was active when the file was saved; with
+    // ResetOnRestart the active state id is not stored, so a write-back here would copy that
+    // command into the default state (#601).
+    private bool _deserializing;
+
+    [OnDeserializing]
+    private void OnDeserializingMethod(StreamingContext context) => _deserializing = true;
+
+    [OnDeserialized]
+    private void OnDeserializedMethod(StreamingContext context)
+    {
+        _deserializing = false;
+        // The serialized Command may belong to another state; the active state is the source.
+        SyncCommandFromActiveState();
+    }
+
     private void OnSelfPropertyChanged(object sender, PropertyChangedEventArgs e)
     {
-        if (_syncingCommand) return;
+        if (_syncingCommand || _deserializing) return;
         if (e.PropertyName == nameof(Command) && ActiveState != null)
             ActiveState.Command = Command;
     }
