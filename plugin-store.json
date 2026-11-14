@@ -64,17 +64,17 @@
       "minSdkVersion": "1.37.0",
       "commandPrefixes": [ "Audio." ],
       "release": {
-        "version": "1.18.0",
-        "tag": "v1.18.0",
-        "publishedAt": "2026-11-11T23:44:29Z",
+        "version": "1.19.0",
+        "tag": "v1.19.0",
+        "publishedAt": "2026-11-14T20:47:50Z",
         "sdkVersion": "1.37",
-        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Audio/releases/tag/v1.18.0",
+        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Audio/releases/tag/v1.19.0",
         "packages": [
           {
             "platform": "any",
-            "fileName": "audio-1.18.0-any.zip",
-            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Audio/releases/download/v1.18.0/audio-1.18.0-any.zip",
-            "sha256": "cc35737c5c3263a7510f4bdf1bdbd7ade8aa6d0982ef5981bed0ed37e91d9ba3"
+            "fileName": "audio-1.19.0-any.zip",
+            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Audio/releases/download/v1.19.0/audio-1.19.0-any.zip",
+            "sha256": "31443d370a8536c645973ce2700d61f08820a4f9d38562d937d969dee42ed168"
           }
         ]
       }
