@@ -206,10 +206,13 @@ public partial class CommandSectionViewModel : ViewModelBase
     }
 }
 
-/// <summary>A search-result group: the matching commands sharing one folder path.</summary>
-public sealed class CommandSearchGroupViewModel(string title, string icon, IEnumerable<CommandRowViewModel> commands)
+/// <summary>
+/// A search-result group header: the folder path shared by the matching commands that follow it
+/// in the flat result list, and how many of them there are.
+/// </summary>
+public sealed class CommandSearchGroupViewModel(string title, string icon, int count)
 {
     public string Title { get; } = title;
     public string Icon { get; } = icon;
-    public ObservableCollection<CommandRowViewModel> Commands { get; } = new(commands);
+    public int Count { get; } = count;
 }

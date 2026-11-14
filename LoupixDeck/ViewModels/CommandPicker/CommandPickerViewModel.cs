@@ -52,8 +52,14 @@ public partial class CommandPickerViewModel : ViewModelBase
     /// <summary>Sections shown as the card grid when not searching.</summary>
     public ObservableCollection<CommandSectionViewModel> Sections { get; } = [];
 
-    /// <summary>Grouped search results shown instead of the card grid while searching.</summary>
-    public ObservableCollection<CommandSearchGroupViewModel> SearchResults { get; } = [];
+    /// <summary>
+    /// Search results shown instead of the card grid while searching: one flat list of group
+    /// headers (<see cref="CommandSearchGroupViewModel"/>), each followed by its matching
+    /// <see cref="CommandRowViewModel"/>s. Flat so the view can virtualize it, and replaced as a
+    /// whole per query so a keystroke costs one list change, not one per match.
+    /// </summary>
+    [ObservableProperty]
+    public partial IReadOnlyList<object> SearchResults { get; set; } = [];
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSelectedCategory))]
@@ -333,29 +339,42 @@ public partial class CommandPickerViewModel : ViewModelBase
 
     private void ApplyFilter()
     {
-        SearchResults.Clear();
         if (!IsSearching)
+        {
+            SearchResults = [];
             return;
+        }
 
-        var query = SearchText.Trim();
+        string query = SearchText.Trim();
 
-        // Preserve tree order while grouping matches by their group path.
-        var groups = new Dictionary<string, CommandSearchGroupViewModel>(StringComparer.Ordinal);
+        // Group matches by their group path, groups in order of their first match.
+        Dictionary<string, (string Icon, List<CommandRowViewModel> Rows)> groups = new(StringComparer.Ordinal);
+        List<string> order = [];
 
-        foreach (var leaf in _searchLeaves)
+        foreach (SearchLeaf leaf in _searchLeaves)
         {
             if (!Matches(leaf.Row, query))
                 continue;
 
-            if (!groups.TryGetValue(leaf.GroupPath, out var group))
+            if (!groups.TryGetValue(leaf.GroupPath, out (string Icon, List<CommandRowViewModel> Rows) group))
             {
-                group = new CommandSearchGroupViewModel(leaf.GroupPath, leaf.GroupIcon, []);
+                group = (leaf.GroupIcon, []);
                 groups[leaf.GroupPath] = group;
-                SearchResults.Add(group);
+                order.Add(leaf.GroupPath);
             }
 
-            group.Commands.Add(leaf.Row);
+            group.Rows.Add(leaf.Row);
         }
+
+        List<object> results = [];
+        foreach (string path in order)
+        {
+            (string icon, List<CommandRowViewModel> rows) = groups[path];
+            results.Add(new CommandSearchGroupViewModel(path, icon, rows.Count));
+            results.AddRange(rows);
+        }
+
+        SearchResults = results;
     }
 
     private static bool Matches(CommandRowViewModel row, string query) =>
