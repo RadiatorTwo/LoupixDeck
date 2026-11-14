@@ -168,28 +168,32 @@
                     </ContentControl.ContentTemplate>
                 </ContentControl>
 
-                <!-- Search results (search mode): matches grouped by their source path. -->
+                <!-- Search results (search mode): one flat list of group headers, each
+                     followed by its matching command rows. Virtualized, because a short
+                     query matches nearly every command and realizing them all is slow. -->
                 <ScrollViewer IsVisible="{Binding IsSearching}"
                               VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Disabled">
                     <ItemsControl ItemsSource="{Binding SearchResults}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="vm:CommandSearchGroupViewModel">
-                                <StackPanel>
-                                    <Border Classes="picker-result-header">
-                                        <Grid ColumnDefinitions="Auto,*,Auto">
-                                            <TextBlock Grid.Column="0" Classes="picker-rail-icon"
-                                                       Text="{Binding Icon}" />
-                                            <TextBlock Grid.Column="1" Classes="picker-result-group"
-                                                       Text="{Binding Title}" />
-                                            <TextBlock Grid.Column="2" Classes="picker-rail-count"
-                                                       Text="{Binding Commands.Count}" />
-                                        </Grid>
-                                    </Border>
-                                    <ItemsControl ItemsSource="{Binding Commands}" />
-                                </StackPanel>
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <VirtualizingStackPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.DataTemplates>
+                            <DataTemplate DataType="vm:CommandSearchGroupViewModel">
+                                <Border Classes="picker-result-header">
+                                    <Grid ColumnDefinitions="Auto,*,Auto">
+                                        <TextBlock Grid.Column="0" Classes="picker-rail-icon"
+                                                   Text="{Binding Icon}" />
+                                        <TextBlock Grid.Column="1" Classes="picker-result-group"
+                                                   Text="{Binding Title}" />
+                                        <TextBlock Grid.Column="2" Classes="picker-rail-count"
+                                                   Text="{Binding Count}" />
+                                    </Grid>
+                                </Border>
                             </DataTemplate>
-                        </ItemsControl.ItemTemplate>
+                        </ItemsControl.DataTemplates>
                     </ItemsControl>
                 </ScrollViewer>
             </Panel>
