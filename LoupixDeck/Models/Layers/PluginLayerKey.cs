@@ -49,8 +49,11 @@ public static class PluginLayerKey
             return [];
 
         var start = command.IndexOf('(');
-        var end = command.IndexOf(')');
-        if (start == -1 || end == -1 || end <= start)
+        if (start == -1)
+            return [];
+
+        var end = Utils.CommandStringParser.FindParameterListEnd(command, start);
+        if (end == -1)
             return [];
 
         var inner = command.Substring(start + 1, end - start - 1);

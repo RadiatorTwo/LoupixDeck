@@ -153,8 +153,9 @@ internal sealed class Lp5ActionResolver
         {
             // Loupedeck names the output; the Audio plugin needs its endpoint id, found on this computer.
             string device = actionRef[DefaultOutputPrefix.Length..];
-            return Lp5AudioDevices.RenderEndpointId(device) is { } endpoint
-                ? new Lp5Resolution($"Audio.SetDefaultDevice({CommandParameterEncoding.Encode(endpoint)})")
+            return Lp5AudioDevices.RenderEndpointId(device) is { } endpoint &&
+                   Lp5PluginActions.WithParameter("Audio.SetDefaultDevice", endpoint) is { } setDefault
+                ? new Lp5Resolution(setDefault)
                 : new Lp5Resolution(null, Lp5UnsupportedReason.AudioDeviceNotFound, device);
         }
 
