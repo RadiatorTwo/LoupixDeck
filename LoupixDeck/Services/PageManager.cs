@@ -700,7 +700,7 @@ public class PageManager : IPageManager
         int backIndex = grid.BackSlotIndex;
 
         TouchButton back = layout.TouchButtons.FindByIndex(backIndex);
-        if (back != null && !back.IsFolderBackSlot && !ButtonSnapshot.IsEmpty(back))
+        if (back != null && !back.IsFolderNavTile && !ButtonSnapshot.IsEmpty(back))
         {
             TouchButton free = layout.TouchButtons.FirstOrDefault(b =>
                 b != null && b.Index != backIndex && grid.IsGridSlot(b.Index) && ButtonSnapshot.IsEmpty(b));
@@ -720,6 +720,6 @@ public class PageManager : IPageManager
         }
 
         foreach (TouchButton button in layout.TouchButtons)
-            button?.IsFolderBackSlot = button.Index == backIndex;
+            button?.FolderNavTile = button.Index == backIndex ? FolderNavTile.Back : FolderNavTile.None;
     }
 }

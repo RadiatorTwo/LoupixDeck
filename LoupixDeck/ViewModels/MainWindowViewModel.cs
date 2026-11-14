@@ -769,7 +769,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private async Task TouchButton_Click(TouchButton button)
     {
-        if (button == null || button.IsFolderBackSlot) return;
+        if (button == null || button.IsFolderNavTile) return;
 
         await _dialogService.ShowDialogAsync<TouchButtonSettingsViewModel, DialogResult>(vm => vm.Initialize(button));
 
@@ -828,7 +828,7 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             // The automatic Back tile of a custom folder (issue #249) is not user content: it cannot
             // be copied, pasted over, cleared, dragged or dropped onto.
-            case TouchButton { IsFolderBackSlot: true }:
+            case TouchButton { IsFolderNavTile: true }:
                 return null;
             case TouchButton touch when IsSideStripButton(touch):
                 return ButtonKind.SideDisplay;

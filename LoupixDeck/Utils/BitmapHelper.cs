@@ -1398,7 +1398,7 @@ public static class BitmapHelper
         Func<SKBitmap> foreground)
     {
         ArgumentNullException.ThrowIfNull(touchButton);
-        if (touchButton.IsFolderBackSlot)
+        if (touchButton.IsFolderNavTile)
             return RenderTouchButtonContent(touchButton, config, width, height, wallpaperSource);
 
         var (wallpaperToUse, opacityToUse) = ResolveWallpaper(config);
@@ -1456,7 +1456,7 @@ public static class BitmapHelper
 
         var layers = touchButton.Layers;
         int split = layers?.IndexOf(animated) ?? -1;
-        if (touchButton.IsFolderBackSlot || split < 0)
+        if (touchButton.IsFolderNavTile || split < 0)
             return RenderTouchButtonContent(touchButton, config, width, height, wallpaperSource);
 
         var (wallpaperToUse, opacityToUse) = ResolveWallpaper(config);
@@ -1624,7 +1624,7 @@ public static class BitmapHelper
         bool showFolderBadge,
         DialRenderContext? valueContext)
     {
-        if (touchButton.IsFolderBackSlot)
+        if (touchButton.IsFolderNavTile)
         {
             DrawFolderBackTileBackground(canvas, wallpaper, wallpaperSource, width, height);
             DrawBackChevron(canvas, width, height);
@@ -1734,7 +1734,7 @@ public static class BitmapHelper
     /// </summary>
     private static void DrawUnavailableOverlay(SKCanvas canvas, TouchButton touchButton, int width, int height)
     {
-        if (touchButton.IsFolderBackSlot || !Services.Plugins.PluginAvailability.IsUnavailable(touchButton.Command))
+        if (touchButton.IsFolderNavTile || !Services.Plugins.PluginAvailability.IsUnavailable(touchButton.Command))
             return;
 
         using var dim = new SKPaint();
@@ -1770,7 +1770,7 @@ public static class BitmapHelper
                 return;
         }
 
-        if (touchButton.IsFolderBackSlot) return;
+        if (touchButton.IsFolderNavTile) return;
 
         float unit = Math.Min(width, height) / 90f;
         float radius = 6 * unit;
@@ -1870,7 +1870,7 @@ public static class BitmapHelper
             var bitmap = new SKBitmap(width, height);
             using var canvas = new SKCanvas(bitmap);
             canvas.Clear(SKColors.Transparent);
-            if (touchButton.IsFolderBackSlot)
+            if (touchButton.IsFolderNavTile)
             {
                 DrawBackChevron(canvas, width, height);
             }

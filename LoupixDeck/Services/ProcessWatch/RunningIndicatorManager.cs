@@ -165,7 +165,7 @@ public sealed class RunningIndicatorManager(
     /// <summary>The process a key's dot follows, or null when the key shows none.</summary>
     private static string WatchedProcessName(TouchButton button)
     {
-        if (button.IsFolderBackSlot) return null;
+        if (button.IsFolderNavTile) return null;
 
         LaunchAppSpec spec = LaunchAppSpec.FromCommand(button.Command);
         if (spec is not { ShowRunningIndicator: true }) return null;

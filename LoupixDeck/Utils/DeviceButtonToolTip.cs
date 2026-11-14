@@ -29,7 +29,7 @@ public static class DeviceButtonToolTip
         if (sender is not Button { CommandParameter: TouchButton touch } button)
             return;
 
-        string text = touch.IsFolderBackSlot
+        string text = touch.IsFolderNavTile
             ? null
             : (button.DataContext as MainWindowViewModel)?.DescribeCommand(touch.Command);
 

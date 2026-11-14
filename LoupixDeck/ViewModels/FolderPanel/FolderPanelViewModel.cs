@@ -213,7 +213,7 @@ public sealed partial class FolderPanelViewModel : ViewModelBase, IDisposable
         foreach (FolderNodeViewModel node in AllNodes)
         {
             int count = node.Folder.Pages().Sum(static p => p.TouchButtons
-                .Count(static b => b != null && !b.IsFolderBackSlot && !ButtonSnapshot.IsEmpty(b)));
+                .Count(static b => b != null && !b.IsFolderNavTile && !ButtonSnapshot.IsEmpty(b)));
             node.ActionCount = count > 0 ? count.ToString(CultureInfo.CurrentCulture) : string.Empty;
             folders++;
         }

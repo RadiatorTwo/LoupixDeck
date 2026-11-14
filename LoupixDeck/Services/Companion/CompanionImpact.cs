@@ -57,7 +57,7 @@ public static class CompanionImpact
 
             int layouts = workspace.EnumerateFolders()
                 .Where(f => folderIds.Contains(f.Id))
-                .Sum(f => f.Pages().Count(p => p.TouchButtons.Any(b => b != null && !b.IsFolderBackSlot && !ButtonSnapshot.IsEmpty(b))));
+                .Sum(f => f.Pages().Count(p => p.TouchButtons.Any(b => b != null && !b.IsFolderNavTile && !ButtonSnapshot.IsEmpty(b))));
             if (layouts > 0)
                 losses.Add(new CompanionLossEntry(coordinator.GetDisplayName(companionKey), coordinator.IsOnline(companionKey), layouts));
         }

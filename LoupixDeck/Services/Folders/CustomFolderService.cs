@@ -137,7 +137,7 @@ public sealed class CustomFolderService(LoupedeckConfig config, IPageManager pag
         HashSet<Guid> ids = [.. removed.Select(static f => f.Id)];
 
         bool hasContent = folder.Children is { Count: > 0 } ||
-                          removed.Any(f => f.Pages().Any(p => p.TouchButtons.Any(b => b != null && !b.IsFolderBackSlot && !ButtonSnapshot.IsEmpty(b))));
+                          removed.Any(f => f.Pages().Any(p => p.TouchButtons.Any(b => b != null && !b.IsFolderNavTile && !ButtonSnapshot.IsEmpty(b))));
 
         int links = 0;
         Workspace workspace = config.ActiveWorkspace;

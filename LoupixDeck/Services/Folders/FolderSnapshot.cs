@@ -8,7 +8,7 @@ namespace LoupixDeck.Services.Folders;
 /// <summary>
 /// Serialize/instantiate codec for copying a custom folder with its whole subtree (issue #535).
 /// A snapshot is a JSON deep copy of the folder: name, touch layout and sub-folders. The automatic
-/// Back tile is runtime-only (<see cref="TouchButton.IsFolderBackSlot"/> is not serialized), so it
+/// Back tile is runtime-only (<see cref="TouchButton.IsFolderNavTile"/> is not serialized), so it
 /// never travels with the copy.
 /// </summary>
 public static class FolderSnapshot

@@ -42,7 +42,7 @@ public static class DeviceButtonMenu
         }
 
         // The automatic Back tile of a custom folder has nothing to copy, paste or clear.
-        if (target is TouchButton { IsFolderBackSlot: true })
+        if (target is TouchButton { IsFolderNavTile: true })
         {
             vm.SelectButton(null);
             e.Handled = true;
