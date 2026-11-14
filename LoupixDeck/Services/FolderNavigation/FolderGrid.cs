@@ -19,6 +19,9 @@ public sealed record FolderGrid
     /// <summary>Bottom-left key, reserved by the host for the back button.</summary>
     public int BackSlotIndex => Columns * (Rows - 1);
 
+    /// <summary>Bottom-right key, reserved by the host for the next-page button of a custom folder with more pages.</summary>
+    public int NextSlotIndex => GridSlots - 1;
+
     public bool HasSideStrips { get; init; }
 
     /// <summary>

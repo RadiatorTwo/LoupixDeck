@@ -397,6 +397,7 @@ public partial class LoupedeckConfig : ObservableObject
         OnPropertyChanged(nameof(FolderPath));
         OnPropertyChanged(nameof(OpenFolder));
         OnPropertyChanged(nameof(IsFolderOpen));
+        OnPropertyChanged(nameof(FolderPageLabel));
     }
 
     // ───────── Active-workspace facade (forwards to ActiveWorkspace) ─────────
@@ -470,6 +471,9 @@ public partial class LoupedeckConfig : ObservableObject
 
     [JsonIgnore]
     public bool IsFolderOpen => ActiveWorkspace?.IsFolderOpen ?? false;
+
+    [JsonIgnore]
+    public string FolderPageLabel => ActiveWorkspace?.FolderPageLabel ?? "0 / 0";
 
     [JsonIgnore]
     public string RotaryPageLabel => ActiveWorkspace?.RotaryPageLabel ?? "0 / 0";

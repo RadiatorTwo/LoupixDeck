@@ -1271,8 +1271,8 @@ public static class BitmapHelper
     /// <summary>
     /// Picks the page whose wallpapers should be drawn for the current view: the current
     /// page when it has <b>any</b> of its three wallpapers set, otherwise the nearest page
-    /// before it that has one (an open folder starts the search at the page it was opened
-    /// from). Once a page defines a wallpaper it is self-contained — its empty slots stay
+    /// before it that has one (an open folder searches its own earlier pages first, then the
+    /// page it was opened from). Once a page defines a wallpaper it is self-contained — its empty slots stay
     /// empty rather than borrowing from an earlier page (so a page that only sets a main
     /// wallpaper does not inherit another page's side wallpapers). With
     /// <see cref="LoupedeckConfig.InheritWallpaperFromPreviousPage"/> off, the current page
@@ -1285,6 +1285,14 @@ public static class BitmapHelper
         // clip is paused its keys draw on the clip's last frame, never on an earlier page's image.
         if ((current?.HasAnyWallpaper ?? false) || (current?.MainWallpaper?.HasVideo ?? false) ||
             !(config?.InheritWallpaperFromPreviousPage ?? false)) return current;
+
+        // A later page of an open folder inherits from the folder's earlier pages first (issue #603).
+        if (config.OpenFolder is { } folder)
+        {
+            for (int i = folder.CurrentPageIndex - 1; i >= 0; i--)
+                if (folder.PageAt(i) is { HasAnyWallpaper: true } earlier)
+                    return earlier;
+        }
 
         return TouchButtonPage.FindWallpaperSource(config.TouchButtonPages, config.CurrentTouchPageIndex) ?? current;
     }
@@ -1627,7 +1635,7 @@ public static class BitmapHelper
         if (touchButton.IsFolderNavTile)
         {
             DrawFolderBackTileBackground(canvas, wallpaper, wallpaperSource, width, height);
-            DrawBackChevron(canvas, width, height);
+            DrawFolderNavChevron(canvas, touchButton.FolderNavTile, width, height);
         }
         else
         {
@@ -1872,7 +1880,7 @@ public static class BitmapHelper
             canvas.Clear(SKColors.Transparent);
             if (touchButton.IsFolderNavTile)
             {
-                DrawBackChevron(canvas, width, height);
+                DrawFolderNavChevron(canvas, touchButton.FolderNavTile, width, height);
             }
             else
             {
@@ -3089,7 +3097,7 @@ public static class BitmapHelper
         DrawWallpaperOrColor(canvas, config, slotIndex, width, height, gridColumns,
             Color.FromArgb(160, 0, 0, 0), wallpaperSource);
 
-        DrawBackChevron(canvas, width, height);
+        DrawFolderNavChevron(canvas, FolderNavTile.Back, width, height);
 
         canvas.Flush();
         return bitmap;
@@ -3099,7 +3107,8 @@ public static class BitmapHelper
     /// Draws the white chevron-left arrow of a folder Back tile centered on the canvas. Shared by
     /// plugin menus and custom folders so both Back tiles look the same.
     /// </summary>
-    private static void DrawBackChevron(SKCanvas canvas, int width, int height)
+    /// <summary>The chevron of a folder navigation tile: left for Back, right for Next.</summary>
+    private static void DrawFolderNavChevron(SKCanvas canvas, FolderNavTile tile, int width, int height)
     {
         using var arrowPaint = new SKPaint();
         arrowPaint.Color = SKColors.White;
@@ -3113,10 +3122,13 @@ public static class BitmapHelper
         var cy = height / 2f;
         var size = Math.Min(width, height) * 0.30f;
 
+        // Mirrored for Next, so it points right.
+        var direction = tile == FolderNavTile.Next ? -1f : 1f;
+
         using var builder = new SKPathBuilder();
-        builder.MoveTo(cx + (size * 0.5f), cy - size);
-        builder.LineTo(cx - (size * 0.5f), cy);
-        builder.LineTo(cx + (size * 0.5f), cy + size);
+        builder.MoveTo(cx + (direction * size * 0.5f), cy - size);
+        builder.LineTo(cx - (direction * size * 0.5f), cy);
+        builder.LineTo(cx + (direction * size * 0.5f), cy + size);
         using var path = builder.Detach();
 
         canvas.DrawPath(path, arrowPaint);

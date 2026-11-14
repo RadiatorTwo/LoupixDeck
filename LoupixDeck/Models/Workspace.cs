@@ -230,6 +230,20 @@ public partial class Workspace : ObservableObject
     [JsonIgnore]
     public bool IsFolderOpen => FolderPath.Count > 0;
 
+    /// <summary>"current / total" label for the pager of the open folder (1-based, issue #603).</summary>
+    [JsonIgnore]
+    public string FolderPageLabel =>
+        OpenFolder is { } folder
+            ? $"{Math.Clamp(folder.CurrentPageIndex + 1, 1, folder.PageCount)} / {folder.PageCount}"
+            : "0 / 0";
+
+    /// <summary>Refreshes the projections of the open folder's page after it changed.</summary>
+    public void NotifyFolderPageChanged()
+    {
+        OnPropertyChanged(nameof(CurrentTouchButtonPage));
+        OnPropertyChanged(nameof(FolderPageLabel));
+    }
+
     /// <summary>Replaces the open-folder path and refreshes every projection that depends on it.</summary>
     public void SetFolderPath(IReadOnlyList<CustomFolder> path)
     {
@@ -241,6 +255,7 @@ public partial class Workspace : ObservableObject
         OnPropertyChanged(nameof(OpenFolder));
         OnPropertyChanged(nameof(IsFolderOpen));
         OnPropertyChanged(nameof(CurrentTouchButtonPage));
+        OnPropertyChanged(nameof(FolderPageLabel));
     }
 
     /// <summary>Every folder of this workspace, depth first.</summary>
