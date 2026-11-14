@@ -137,8 +137,9 @@ public partial class CommandParameter
 /// Note on the first ("Target") parameter: it is rendered as a plain text field
 /// (or an enum combo when the type is an enum), not as a populated dropdown of
 /// live device/scene values — those are plugin-specific and not retrievable
-/// generically without a plugin round-trip. Values containing ',' or ')' are not
-/// supported by the executor, so the editor does not support them either.
+/// generically without a plugin round-trip. Values containing ',' or unbalanced
+/// parentheses are not supported by the executor, so the editor does not support
+/// them either. Balanced ones such as "Scene (1)" are.
 /// </summary>
 [ObservableObject]
 public partial class CommandSegment

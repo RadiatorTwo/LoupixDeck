@@ -48,6 +48,39 @@ public static class CommandStringParser
         return name.ToString();
     }
 
+    /// <summary>
+    /// Returns the index of the <c>')'</c> that closes the parameter list opened at
+    /// <paramref name="open"/>, or <c>-1</c> when there is none.
+    /// </summary>
+    /// <remarks>
+    /// Balanced parentheses inside a value are skipped, so <c>SetScene(Scene (1))</c> yields
+    /// <c>Scene (1)</c> instead of being cut at the first <c>')'</c>. When the value's parentheses
+    /// do not balance, this falls back to the first <c>')'</c> after <paramref name="open"/>, which
+    /// is exactly what the parser did before. A result therefore only differs from the old one
+    /// where the old one had cut a value apart. The depth search stops at the matching
+    /// <c>')'</c>, so a whole chain (<c>a(x) &amp;&amp; b(y)</c>) still ends after <c>x</c>.
+    /// </remarks>
+    public static int FindParameterListEnd(ReadOnlySpan<char> text, int open)
+    {
+        int depth = 0;
+        for (int i = open; i < text.Length; i++)
+        {
+            if (text[i] == '(')
+            {
+                depth++;
+            }
+            else if (text[i] == ')')
+            {
+                depth--;
+                if (depth == 0)
+                    return i;
+            }
+        }
+
+        int first = text.Slice(open).IndexOf(')');
+        return first < 0 ? -1 : open + first;
+    }
+
     /// <summary>Returns the parameter values inside the segment's parentheses, split on
     /// ',' and trimmed. Empty array when the segment has no parameter list.</summary>
     /// <remarks>
@@ -55,6 +88,7 @@ public static class CommandStringParser
     /// positional, so dropping it would shift every later value onto the wrong parameter.
     /// Trailing empty values are dropped, as they always were, so <c>a(x,)</c> stays
     /// <c>["x"]</c> and commands checking the parameter count see what they did before.
+    /// The list ends at the matching <c>')'</c> (see <see cref="FindParameterListEnd"/>).
     /// </remarks>
     public static string[] GetParameters(string segment)
     {
@@ -63,8 +97,11 @@ public static class CommandStringParser
 
         ReadOnlySpan<char> span = segment.AsSpan();
         int start = span.IndexOf('(');
-        int end = span.IndexOf(')');
-        if (start < 0 || end < 0 || end <= start)
+        if (start < 0)
+            return [];
+
+        int end = FindParameterListEnd(span, start);
+        if (end < 0)
             return [];
 
         ReadOnlySpan<char> inner = span.Slice(start + 1, end - start - 1);
