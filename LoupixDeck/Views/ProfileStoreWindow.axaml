@@ -14,6 +14,34 @@
     <Window.Styles>
         <StyleInclude Source="avares://LoupixDeck/Views/Styles/SettingsStyles.axaml" />
         <StyleInclude Source="avares://LoupixDeck/Views/Styles/PluginsStyles.axaml" />
+
+        <!-- Round arrows over the preview image; dark scrim so they read on any image. -->
+        <Style Selector="Button.image-nav">
+            <Setter Property="FontFamily" Value="{StaticResource MdiFont}" />
+            <Setter Property="FontSize" Value="22" />
+            <Setter Property="Width" Value="34" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="17" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Background" Value="#99000000" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.image-nav:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#CC000000" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Border.image-counter">
+            <Setter Property="Background" Value="#99000000" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="8,2" />
+        </Style>
+        <Style Selector="Border.image-counter TextBlock">
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="FontSize" Value="11" />
+        </Style>
     </Window.Styles>
 
     <Grid RowDefinitions="Auto,*,Auto">
@@ -85,6 +113,24 @@
                                                    FontSize="40" Foreground="{DynamicResource AppTextMuted}"
                                                    HorizontalAlignment="Center" VerticalAlignment="Center"
                                                    IsVisible="{Binding !HasPreview}" />
+
+                                        <!-- Further screenshots (issue #607): arrows and a counter, only with more than one image. -->
+                                        <Panel IsVisible="{Binding HasMultipleImages}">
+                                            <!-- mdi-chevron-left -->
+                                            <Button Classes="image-nav" HorizontalAlignment="Left" Margin="6,0,0,0"
+                                                    Content="&#xF0141;"
+                                                    ToolTip.Tip="{loc:Tr ProfileStore_PreviousImage}"
+                                                    Command="{Binding PreviousImageCommand}" />
+                                            <!-- mdi-chevron-right -->
+                                            <Button Classes="image-nav" HorizontalAlignment="Right" Margin="0,0,6,0"
+                                                    Content="&#xF0142;"
+                                                    ToolTip.Tip="{loc:Tr ProfileStore_NextImage}"
+                                                    Command="{Binding NextImageCommand}" />
+                                            <Border Classes="image-counter" HorizontalAlignment="Right"
+                                                    VerticalAlignment="Bottom" Margin="0,0,8,8">
+                                                <TextBlock Text="{Binding ImageCounterText}" />
+                                            </Border>
+                                        </Panel>
                                     </Panel>
                                 </Border>
 

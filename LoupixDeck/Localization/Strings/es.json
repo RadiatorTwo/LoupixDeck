@@ -1529,6 +1529,8 @@
   "ProfileStore_NoMatches": "Nada coincide con la búsqueda.",
   "ProfileStore_HiddenEntries": "Las entradas para otros dispositivos o sistemas están ocultas. Activa «Mostrar todos los dispositivos» para verlas.",
   "ProfileStore_OpenPage": "Abrir en GitHub",
+  "ProfileStore_PreviousImage": "Imagen anterior",
+  "ProfileStore_NextImage": "Imagen siguiente",
   "ProfileStore_Import": "Importar…",
   "ProfileStore_ShareHint": "¿Quieres compartir el tuyo? Expórtalo y abre un pull request.",
   "ProfileStore_OpenRepository": "Cómo compartir",

@@ -50,6 +50,9 @@ public sealed class ProfileCatalogEntry
     /// <summary>URL of the preview image.</summary>
     public string Preview { get; set; }
 
+    /// <summary>URLs of the optional further images (the entry's <c>screenshots/</c> folder); absent in older lists.</summary>
+    public List<string> Screenshots { get; set; } = [];
+
     public ProfileCatalogPackage Package { get; set; }
 
     public string DisplayName => string.IsNullOrWhiteSpace(Name) ? Id : Name;

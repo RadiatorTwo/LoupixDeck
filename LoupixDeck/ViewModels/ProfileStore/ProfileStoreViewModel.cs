@@ -248,7 +248,18 @@ public sealed partial class ProfileStoreRowViewModel : ObservableObject
         Entry = entry;
         MatchesDevice = entry.Device?.Slug is { } slug && compatibleSlugs.Contains(slug)
                         && entry.SupportsCurrentPlatform();
+        ImageUrls = new[] { entry.Preview }
+            .Concat(entry.Screenshots ?? [])
+            .Where(IsHttpsUrl)
+            .Distinct()
+            .ToList();
     }
+
+    /// <summary>The preview first, then the screenshots; only HTTPS URLs.</summary>
+    private IReadOnlyList<string> ImageUrls { get; }
+
+    /// <summary>Cancels the image downloads when the store closes or refreshes.</summary>
+    private CancellationToken _imageCancellation;
 
     public ProfileCatalogEntry Entry { get; }
 
@@ -322,6 +333,21 @@ public sealed partial class ProfileStoreRowViewModel : ObservableObject
 
     public bool HasPreview => Preview is not null;
 
+    /// <summary>Which of <see cref="ImageUrls"/> is shown.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ImageCounterText))]
+    public partial int ImageIndex { get; set; }
+
+    /// <summary>True when the entry has screenshots besides the preview, so the arrows show.</summary>
+    public bool HasMultipleImages => ImageUrls.Count > 1;
+
+    /// <summary>"2 / 5".</summary>
+    public string ImageCounterText => $"{ImageIndex + 1} / {ImageUrls.Count}";
+
+    public IRelayCommand PreviousImageCommand => field ??= Relay.Create(() => ShowImage(ImageIndex - 1));
+
+    public IRelayCommand NextImageCommand => field ??= Relay.Create(() => ShowImage(ImageIndex + 1));
+
     /// <summary>Case-insensitive match on name, description, author and tags.</summary>
     public bool MatchesSearch(string search)
     {
@@ -335,23 +361,43 @@ public sealed partial class ProfileStoreRowViewModel : ObservableObject
         bool Contains(string value) => value?.Contains(term, StringComparison.CurrentCultureIgnoreCase) == true;
     }
 
-    public async Task LoadPreviewAsync(CancellationToken cancellation)
+    public Task LoadPreviewAsync(CancellationToken cancellation)
     {
-        string url = Entry.Preview;
-        if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url, UriKind.Absolute, out Uri uri)
-                                           || uri.Scheme != Uri.UriSchemeHttps)
-        {
+        _imageCancellation = cancellation;
+        return LoadImageAsync(0);
+    }
+
+    /// <summary>Steps through the images, wrapping at both ends. Each one is fetched on first view.</summary>
+    private void ShowImage(int index)
+    {
+        if (ImageUrls.Count < 2)
             return;
-        }
+
+        ImageIndex = ((index % ImageUrls.Count) + ImageUrls.Count) % ImageUrls.Count;
+        _ = LoadImageAsync(ImageIndex);
+    }
+
+    private async Task LoadImageAsync(int index)
+    {
+        if (index >= ImageUrls.Count)
+            return;
 
         try
         {
-            // Same in-session image cache as the plugin icons: a refresh does not fetch every preview again.
-            Preview = await PluginStoreIconCache.GetAsync(url, cancellation);
+            // Same in-session image cache as the plugin icons: a refresh does not fetch every image again.
+            Bitmap image = await PluginStoreIconCache.GetAsync(ImageUrls[index], _imageCancellation);
+
+            // Fast clicks: only the image still selected may land.
+            if (index == ImageIndex && image is not null)
+                Preview = image;
         }
         catch (OperationCanceledException)
         {
             // The row is gone; the download carries on and stays in the cache.
         }
     }
+
+    private static bool IsHttpsUrl(string url) =>
+        !string.IsNullOrWhiteSpace(url) && Uri.TryCreate(url, UriKind.Absolute, out Uri uri)
+                                        && uri.Scheme == Uri.UriSchemeHttps;
 }
