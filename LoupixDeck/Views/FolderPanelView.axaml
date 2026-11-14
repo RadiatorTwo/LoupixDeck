@@ -190,6 +190,10 @@
                                                           IsEnabled="{Binding Panel.CanEditStructure}"
                                                           Command="{Binding Panel.RenameCommand}"
                                                           CommandParameter="{Binding}" />
+                                                <MenuItem Header="{loc:Tr FolderPanel_ConvertToWorkspace}"
+                                                          IsEnabled="{Binding Panel.CanEditStructure}"
+                                                          Command="{Binding Panel.ConvertToWorkspaceCommand}"
+                                                          CommandParameter="{Binding}" />
                                                 <Separator />
                                                 <MenuItem Header="{loc:Tr FolderPanel_Copy}"
                                                           Command="{Binding Panel.CopyCommand}"

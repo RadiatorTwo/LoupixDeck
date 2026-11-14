@@ -32,6 +32,9 @@ public sealed partial class FolderPanelViewModel : ViewModelBase, IDisposable
     private readonly IButtonClipboardService _clipboard;
     private readonly Services.Plugins.IPastePluginActivation _pastePlugins;
     private readonly string _scopeKey;
+    private readonly IProfileEditingService _profileEditing;
+    private readonly IWorkspaceActivationService _activation;
+    private readonly IDeviceService _deviceService;
 
     // Folders are expanded unless the user collapsed them, so new folders show their children.
     private readonly HashSet<Guid> _collapsed = [];
@@ -40,7 +43,8 @@ public sealed partial class FolderPanelViewModel : ViewModelBase, IDisposable
         LoupedeckLiveSController controller, Services.Companion.ICompanionCoordinator companions,
         Services.Companion.ICompanionContextSync companionSync, IButtonClipboardService clipboard,
         Services.Plugins.IPastePluginActivation pastePlugins, Registry.DeviceRegistry.DeviceInfo deviceInfo,
-        Registry.ResolvedDevice resolved)
+        Registry.ResolvedDevice resolved, IProfileEditingService profileEditing, IWorkspaceActivationService activation,
+        IDeviceService deviceService)
     {
         _config = config;
         _folders = folders;
@@ -50,6 +54,9 @@ public sealed partial class FolderPanelViewModel : ViewModelBase, IDisposable
         _clipboard = clipboard;
         _pastePlugins = pastePlugins;
         _scopeKey = resolved?.ScopeKey ?? deviceInfo.Slug;
+        _profileEditing = profileEditing;
+        _activation = activation;
+        _deviceService = deviceService;
 
         _folders.StructureChanged += Rebuild;
         _config.PropertyChanged += OnConfigPropertyChanged;
@@ -442,6 +449,59 @@ public sealed partial class FolderPanelViewModel : ViewModelBase, IDisposable
         }
 
         await _folders.Delete(node.Folder);
+        _controller.SaveConfig();
+    }
+
+    /// <summary>
+    /// Turns the folder into a new workspace of the active profile, placed after the active workspace,
+    /// and switches to it (issue #606). The folder is kept or deleted afterwards, as chosen.
+    /// </summary>
+    [RelayCommand]
+    private async Task ConvertToWorkspace(FolderNodeViewModel node)
+    {
+        Profile profile = _activation.ActiveProfile;
+        if (node == null || !CanEditStructure || profile?.Workspaces == null) return;
+
+        CustomFolder folder = node.Folder;
+        ConvertDialogViewModel dialog = null;
+        DialogResult result = await _dialogService.ShowDialogAsync<ConvertDialogViewModel, DialogResult>(vm =>
+        {
+            dialog = vm;
+            vm.Configure(Loc.Tr("Convert_FolderToWorkspaceTitle"),
+                Loc.Tr("Convert_FolderToWorkspaceMessage", folder.Name, profile.Name),
+                Loc.Tr("Convert_Convert"),
+                Loc.Tr("Convert_KeepFolder"),
+                Loc.Tr("Convert_DiscardFolder"));
+        });
+
+        if (result?.IsConfirmed != true || dialog == null) return;
+
+        bool discard = !dialog.KeepSource;
+        if (discard)
+        {
+            HashSet<Guid> removed = [.. folder.SelfAndDescendants().Select(static f => f.Id)];
+            IReadOnlyList<Services.Companion.CompanionLossEntry> losses = Services.Companion.CompanionImpact.ForFolders(
+                _companions, _scopeKey, _config.ActiveWorkspaceId, removed);
+            if (losses.Count > 0)
+            {
+                FolderDeleteImpact impact = _folders.GetDeleteImpact(folder);
+                string message = Loc.Tr("Confirm_DeleteFolderMessage", folder.Name, impact.Subfolders, impact.Links) +
+                                 Environment.NewLine + Environment.NewLine + Loc.Tr("Confirm_CompanionPagesLost") +
+                                 Environment.NewLine + Services.Companion.CompanionImpact.Describe(losses);
+                if (!await Ask("Confirm_DeleteFolderTitle", message, "Confirm_Delete")) return;
+            }
+        }
+
+        Workspace workspace = WorkspaceFolderConverter.ToWorkspace(folder, _deviceService.TouchButtonCount, _config.Geometry);
+        if (workspace == null) return;
+
+        int index = profile.Workspaces.IndexOf(_activation.ActiveWorkspace);
+        profile.Workspaces.Insert(index < 0 ? profile.Workspaces.Count : index + 1, workspace);
+
+        if (discard)
+            await _folders.Delete(folder);
+
+        await _activation.ActivateWorkspace(workspace.Id);
         _controller.SaveConfig();
     }
 

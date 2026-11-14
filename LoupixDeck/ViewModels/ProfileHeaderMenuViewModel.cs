@@ -7,6 +7,8 @@ using LoupixDeck.Services;
 using LoupixDeck.Services.AppLauncher;
 using LoupixDeck.Services.AppSwitching;
 using LoupixDeck.Services.Companion;
+using LoupixDeck.Services.FolderNavigation;
+using LoupixDeck.Services.Folders;
 using LoupixDeck.Services.Portable;
 using LoupixDeck.Services.Profiles;
 using LoupixDeck.Utils;
@@ -29,6 +31,9 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
     private readonly LoupedeckLiveSController _controller;
     private readonly ICompanionCoordinator _companions;
     private readonly ResolvedDevice _device;
+    private readonly ICustomFolderService _folders;
+    private readonly IFolderNavigationService _folderNavigation;
+    private readonly IDeviceService _deviceService;
 
     public ProfileHeaderMenuViewModel(LoupedeckConfig config,
         IProfileEditingService editing,
@@ -36,7 +41,10 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
         IDialogService dialogService,
         LoupedeckLiveSController controller,
         ICompanionCoordinator companions,
-        ResolvedDevice device)
+        ResolvedDevice device,
+        ICustomFolderService folders,
+        IFolderNavigationService folderNavigation,
+        IDeviceService deviceService)
     {
         _config = config;
         _editing = editing;
@@ -45,6 +53,9 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
         _controller = controller;
         _companions = companions;
         _device = device;
+        _folders = folders;
+        _folderNavigation = folderNavigation;
+        _deviceService = deviceService;
 
         // Whether delete is allowed depends on the active profile's workspace count, so re-evaluate
         // whenever the context changes. The events can arrive off the UI thread.
@@ -92,6 +103,9 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
     public IAsyncRelayCommand DeleteWorkspaceCommand => field ??= Relay.Create(DeleteWorkspace,
         () => CanEditStructure && _editing.CanRemoveWorkspace(_activation.ActiveProfile, _activation.ActiveWorkspace));
 
+    public IAsyncRelayCommand ConvertWorkspaceToFolderCommand => field ??= Relay.Create(ConvertWorkspaceToFolder,
+        () => CanEditStructure && _activation.ActiveWorkspace != null);
+
     // Export is allowed on a companion too: the pages in its mirrors are its own.
     public IAsyncRelayCommand ExportProfileCommand => field ??= Relay.Create(
         () => Export(_activation.ActiveProfile is { } profile ? ProfileExportRequest.ForProfile(profile) : null),
@@ -135,6 +149,7 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
         NewWorkspaceCommand.NotifyCanExecuteChanged();
         RenameWorkspaceCommand.NotifyCanExecuteChanged();
         DeleteWorkspaceCommand.NotifyCanExecuteChanged();
+        ConvertWorkspaceToFolderCommand.NotifyCanExecuteChanged();
         LinkApplicationCommand.NotifyCanExecuteChanged();
         UnlinkApplicationCommand.NotifyCanExecuteChanged();
         ExportProfileCommand.NotifyCanExecuteChanged();
@@ -302,6 +317,65 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
             _controller.SaveConfig();
 
         Refresh();
+    }
+
+    /// <summary>
+    /// Turns the active workspace into a folder of a workspace the user picks (issue #606) and opens
+    /// it there. The workspace is kept or removed afterwards, as chosen; it is always kept when the
+    /// folder goes into the workspace itself.
+    /// </summary>
+    private async Task ConvertWorkspaceToFolder()
+    {
+        Profile profile = _activation.ActiveProfile;
+        Workspace source = _activation.ActiveWorkspace;
+        if (profile?.Workspaces == null || source == null) return;
+
+        List<ConvertTarget> targets = [.. profile.Workspaces.Where(static w => w != null).Select(w => ReferenceEquals(w, source)
+            ? new ConvertTarget(Loc.Tr("Convert_TargetSameWorkspace", w.Name), w, true)
+            : new ConvertTarget(w.Name, w, false))];
+
+        ConvertDialogViewModel dialog = null;
+        DialogResult result = await _dialogService.ShowDialogAsync<ConvertDialogViewModel, DialogResult>(vm =>
+        {
+            dialog = vm;
+            vm.Configure(Loc.Tr("Convert_WorkspaceToFolderTitle"),
+                Loc.Tr("Convert_WorkspaceToFolderMessage", source.Name),
+                Loc.Tr("Convert_Convert"),
+                Loc.Tr("Convert_KeepWorkspace"),
+                Loc.Tr("Convert_DiscardWorkspace"),
+                targets,
+                Loc.Tr("Convert_TargetWorkspace"));
+        });
+
+        if (result?.IsConfirmed != true || dialog?.SelectedTarget?.Value is not Workspace target) return;
+
+        bool discard = !dialog.KeepSource && !ReferenceEquals(target, source) && _editing.CanRemoveWorkspace(profile, source);
+        if (discard)
+        {
+            IReadOnlyList<CompanionLossEntry> losses = CompanionImpact.ForWorkspace(_companions, _device.ScopeKey, source.Id);
+            if (losses.Count > 0 && !await Ask("Confirm_DeleteWorkspaceTitle",
+                    WithCompanionLosses(Loc.Tr("Confirm_DeleteWorkspaceMessage", source.Name), losses), "Confirm_Delete"))
+                return;
+        }
+
+        CustomFolder folder = WorkspaceFolderConverter.ToFolder(source, _folderNavigation.Grid,
+            _deviceService.TouchButtonCount, _config.Geometry, out int movedKeys);
+        if (folder == null) return;
+
+        if (!ReferenceEquals(_activation.ActiveWorkspace, target))
+            await _activation.ActivateWorkspace(target.Id);
+
+        _folders.AddTopLevel(folder);
+
+        if (discard)
+            await _editing.RemoveWorkspace(profile, source);
+
+        await _controller.PageManager.OpenFolder(folder.Id, FolderOpenMode.Tree);
+        _controller.SaveConfig();
+        Refresh();
+
+        Console.WriteLine($"Converted workspace '{source.Name}' to a folder of '{target.Name}'" +
+                          $" ({movedKeys} key(s) moved for navigation tiles, source {(discard ? "removed" : "kept")}).");
     }
 
     private async Task LinkApplication()

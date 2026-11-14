@@ -30,6 +30,12 @@ public interface ICustomFolderService
     /// <returns>The new folder, or null when nothing was pasted.</returns>
     CustomFolder Paste(CustomFolder parent, string folderJson, out IReadOnlyDictionary<Guid, Guid> map);
 
+    /// <summary>
+    /// Adds a folder built elsewhere, such as a converted workspace (issue #606), at the top level of
+    /// the active workspace. Links to folders this workspace does not have are removed.
+    /// </summary>
+    void AddTopLevel(CustomFolder folder);
+
     void Rename(CustomFolder folder, string name);
 
     FolderDeleteImpact GetDeleteImpact(CustomFolder folder);
@@ -101,6 +107,16 @@ public sealed class CustomFolderService(LoupedeckConfig config, IPageManager pag
 
         StructureChanged?.Invoke();
         return folder;
+    }
+
+    public void AddTopLevel(CustomFolder folder)
+    {
+        Workspace workspace = config.ActiveWorkspace;
+        if (workspace?.Folders == null || folder == null) return;
+
+        workspace.Folders.Add(folder);
+        FolderReferenceCleaner.CleanDangling(workspace, config.SimpleButtons);
+        StructureChanged?.Invoke();
     }
 
     public void Rename(CustomFolder folder, string name)
