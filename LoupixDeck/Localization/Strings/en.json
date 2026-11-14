@@ -928,6 +928,7 @@
   "Settings_ImportLoupedeck": "Import Loupedeck profile",
   "Settings_ImportLoupedeckHint": "Import a profile exported from the Loupedeck software (.lp5)",
   "Settings_ImportPackage": "Import Package…",
+  "Settings_ImportMenuButton": "Import",
   "Settings_InstallFromZip": "Install from Zip…",
   "Settings_Installed": "Installed",
   "Settings_InterceptionDriver": "Interception Driver",

@@ -535,16 +535,41 @@
                     <Border Classes="card" Margin="0,12,0,0" IsVisible="{Binding IsCompanion}">
                         <TextBlock Text="{Binding CompanionProfilesHint}" TextWrapping="Wrap" />
                     </Border>
-                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Left" Margin="0,12,0,0">
+                    <!-- One primary action; every other way to get a profile sits in the Import menu. -->
+                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" Margin="0,12,0,0">
                         <Button Content="{loc:Tr Settings_AddProfile}" Command="{Binding AddProfileCommand}" />
-                        <Button Content="{loc:Tr Settings_AddStarterProfile}" ToolTip.Tip="{loc:Tr Settings_AddStarterProfileHint}"
-                                Command="{Binding AddStarterProfileCommand}" />
-                        <Button Content="{loc:Tr Settings_ImportPackage}" ToolTip.Tip="{loc:Tr Settings_ImportALoupixprofilePackage}"
-                                Command="{Binding ImportPackageCommand}" />
-                        <Button Content="{loc:Tr Settings_ImportLoupedeck}" ToolTip.Tip="{loc:Tr Settings_ImportLoupedeckHint}"
-                                Command="{Binding ImportLoupedeckCommand}" />
-                        <Button Content="{loc:Tr Settings_BrowseCommunityProfiles}" ToolTip.Tip="{loc:Tr Settings_BrowseCommunityProfilesHint}"
-                                Command="{Binding BrowseCommunityProfilesCommand}" />
+                        <Button IsEnabled="{Binding CanEditProfiles}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="{loc:Tr Settings_ImportMenuButton}" VerticalAlignment="Center" />
+                                <!-- mdi-chevron-down -->
+                                <TextBlock Classes="menu-icon" Text="&#xF0140;" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <Button.Flyout>
+                                <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                    <MenuItem Header="{loc:Tr Settings_AddStarterProfile}" ToolTip.Tip="{loc:Tr Settings_AddStarterProfileHint}"
+                                              Command="{Binding AddStarterProfileCommand}">
+                                        <!-- mdi-star -->
+                                        <MenuItem.Icon><TextBlock Classes="menu-icon" Text="&#xF04CE;" /></MenuItem.Icon>
+                                    </MenuItem>
+                                    <MenuItem Header="{loc:Tr Settings_ImportPackage}" ToolTip.Tip="{loc:Tr Settings_ImportALoupixprofilePackage}"
+                                              Command="{Binding ImportPackageCommand}">
+                                        <!-- mdi-package-variant -->
+                                        <MenuItem.Icon><TextBlock Classes="menu-icon" Text="&#xF03D6;" /></MenuItem.Icon>
+                                    </MenuItem>
+                                    <MenuItem Header="{loc:Tr Settings_ImportLoupedeck}" ToolTip.Tip="{loc:Tr Settings_ImportLoupedeckHint}"
+                                              Command="{Binding ImportLoupedeckCommand}">
+                                        <!-- mdi-file-import -->
+                                        <MenuItem.Icon><TextBlock Classes="menu-icon" Text="&#xF0220;" /></MenuItem.Icon>
+                                    </MenuItem>
+                                    <Separator />
+                                    <MenuItem Header="{loc:Tr Settings_BrowseCommunityProfiles}" ToolTip.Tip="{loc:Tr Settings_BrowseCommunityProfilesHint}"
+                                              Command="{Binding BrowseCommunityProfilesCommand}">
+                                        <!-- mdi-account-group-outline -->
+                                        <MenuItem.Icon><TextBlock Classes="menu-icon" Text="&#xF0B58;" /></MenuItem.Icon>
+                                    </MenuItem>
+                                </MenuFlyout>
+                            </Button.Flyout>
+                        </Button>
                     </StackPanel>
 
                     <!-- Result of the last export/import, including any non-fatal notes. -->
@@ -552,76 +577,143 @@
                         <TextBlock Text="{Binding PackageStatusMessage}" TextWrapping="Wrap" />
                     </Border>
 
-                    <ItemsControl ItemsSource="{Binding ProfileRows}" Margin="0,12,0,0">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate DataType="vm:ProfileRow">
-                                <Border Classes="card" Margin="0,0,0,12">
-                                    <StackPanel>
-                                        <!-- Profile header: name + actions on one stable row -->
-                                        <Grid ColumnDefinitions="*,Auto">
-                                            <TextBox Grid.Column="0" Text="{Binding Name, Mode=TwoWay}" PlaceholderText="{loc:Tr Settings_ProfileName}" VerticalAlignment="Center"
-                                                     IsReadOnly="{Binding !Owner.CanEditProfiles}" />
-                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0" VerticalAlignment="Center">
-                                                <Button Content="{loc:Tr Settings_Activate}" ToolTip.Tip="{loc:Tr Settings_ActivateThisProfileOpensIts}"
-                                                        Command="{Binding $parent[Window].DataContext.ActivateProfileCommand}" CommandParameter="{Binding}" />
-                                                <Button Content="{loc:Tr Settings_SetDefault}" ToolTip.Tip="{loc:Tr Settings_OpenThisProfileAtLaunch}"
-                                                        Command="{Binding $parent[Window].DataContext.SetStartupProfileCommand}" CommandParameter="{Binding}" />
-                                                <Button Content="{loc:Tr Settings_Export}" ToolTip.Tip="{loc:Tr Settings_ExportThisProfileAsA}"
-                                                        Command="{Binding $parent[Window].DataContext.ExportProfileCommand}" CommandParameter="{Binding}" />
-                                                <Button Classes="row-action danger" Content="✕" ToolTip.Tip="{loc:Tr Settings_DeleteProfile}"
-                                                        Command="{Binding $parent[Window].DataContext.RemoveProfileCommand}" CommandParameter="{Binding}" />
-                                            </StackPanel>
-                                        </Grid>
-                                        <!-- Badges on their own line so they never resize the name field -->
-                                        <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
-                                            <Border Classes="pill ok" IsVisible="{Binding IsActiveProfile}"><TextBlock Text="{loc:Tr Settings_Active}" /></Border>
-                                            <Border Classes="pill neutral" IsVisible="{Binding IsStartupProfile}"><TextBlock Text="{loc:Tr Settings_Default}" /></Border>
-                                        </StackPanel>
+                    <!-- Profile cards and their workspace rows reorder by their drag handles, like the
+                         page rows; each list's overlay canvas draws its drop line. -->
+                    <Panel Margin="0,12,0,0">
+                        <ItemsControl ItemsSource="{Binding ProfileRows}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="vm:ProfileRow">
+                                    <Border Classes="card reorder-row" Margin="0,0,0,12">
+                                        <StackPanel>
+                                            <!-- Profile header: handle, name, badges, one "more" menu -->
+                                            <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                                                <Border Grid.Column="0" Classes="page-grip"
+                                                        IsVisible="{Binding Owner.CanEditProfiles}"
+                                                        ToolTip.Tip="{loc:Tr Settings_DragToReorder}"
+                                                        PointerPressed="OnPageGripPressed"
+                                                        PointerMoved="OnPageGripMoved"
+                                                        PointerReleased="OnPageGripReleased"
+                                                        PointerCaptureLost="OnPageGripCaptureLost">
+                                                    <!-- mdi-drag -->
+                                                    <TextBlock Text="&#xF01DD;" />
+                                                </Border>
+                                                <TextBox Grid.Column="1" Margin="6,0,0,0" Text="{Binding Name, Mode=TwoWay}" PlaceholderText="{loc:Tr Settings_ProfileName}" VerticalAlignment="Center"
+                                                         IsReadOnly="{Binding !Owner.CanEditProfiles}" />
+                                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" Margin="10,0,4,0" VerticalAlignment="Center">
+                                                    <Border Classes="pill ok" IsVisible="{Binding IsActiveProfile}"><TextBlock Text="{loc:Tr Settings_Active}" /></Border>
+                                                    <Border Classes="pill neutral" IsVisible="{Binding IsStartupProfile}"><TextBlock Text="{loc:Tr Settings_Default}" /></Border>
+                                                </StackPanel>
+                                                <Button Grid.Column="3" Classes="page-more" ToolTip.Tip="{loc:Tr Settings_MoreActions}">
+                                                    <!-- mdi-dots-horizontal -->
+                                                    <TextBlock Text="&#xF01D8;" />
+                                                    <Button.Flyout>
+                                                        <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                                            <MenuItem Header="{loc:Tr Settings_Activate}" ToolTip.Tip="{loc:Tr Settings_ActivateThisProfileOpensIts}"
+                                                                      Command="{Binding $parent[Window].DataContext.ActivateProfileCommand}" CommandParameter="{Binding}">
+                                                                <!-- mdi-play -->
+                                                                <MenuItem.Icon><TextBlock Classes="menu-icon" Text="&#xF040A;" /></MenuItem.Icon>
+                                                            </MenuItem>
+                                                            <MenuItem Header="{loc:Tr Settings_SetDefault}" ToolTip.Tip="{loc:Tr Settings_OpenThisProfileAtLaunch}"
+                                                                      Command="{Binding $parent[Window].DataContext.SetStartupProfileCommand}" CommandParameter="{Binding}">
+                                                                <!-- mdi-power -->
+                                                                <MenuItem.Icon><TextBlock Classes="menu-icon" Text="&#xF0425;" /></MenuItem.Icon>
+                                                            </MenuItem>
+                                                            <MenuItem Header="{loc:Tr Settings_ExportMenu}" ToolTip.Tip="{loc:Tr Settings_ExportThisProfileAsA}"
+                                                                      Command="{Binding $parent[Window].DataContext.ExportProfileCommand}" CommandParameter="{Binding}">
+                                                                <!-- mdi-export -->
+                                                                <MenuItem.Icon><TextBlock Classes="menu-icon" Text="&#xF0207;" /></MenuItem.Icon>
+                                                            </MenuItem>
+                                                            <Separator />
+                                                            <MenuItem Classes="danger" Header="{loc:Tr Settings_DeleteMenu}"
+                                                                      Command="{Binding $parent[Window].DataContext.RemoveProfileCommand}" CommandParameter="{Binding}">
+                                                                <!-- mdi-trash-can-outline -->
+                                                                <MenuItem.Icon><TextBlock Classes="menu-icon" Text="&#xF0A7A;" /></MenuItem.Icon>
+                                                            </MenuItem>
+                                                        </MenuFlyout>
+                                                    </Button.Flyout>
+                                                </Button>
+                                            </Grid>
 
-                                        <!-- Workspaces: indented and divided from the profile header -->
-                                        <Border Margin="4,12,0,0" Padding="16,4,0,0"
-                                                BorderBrush="{DynamicResource AppBorderSubtle}" BorderThickness="2,0,0,0">
-                                            <StackPanel>
-                                                <Grid ColumnDefinitions="*,Auto">
-                                                    <TextBlock Grid.Column="0" Classes="card-title" Text="{loc:Tr Settings_Workspaces}" VerticalAlignment="Center" />
-                                                    <Button Grid.Column="1" Content="{loc:Tr Settings_AddWorkspace}"
-                                                            Command="{Binding $parent[Window].DataContext.AddWorkspaceCommand}" CommandParameter="{Binding}" />
-                                                </Grid>
-                                                <ItemsControl ItemsSource="{Binding Workspaces}" Margin="0,8,0,0">
-                                                    <ItemsControl.ItemTemplate>
-                                                        <DataTemplate DataType="vm:WorkspaceRow">
-                                                            <Border Background="{DynamicResource AppSurfaceAlt}" CornerRadius="4" Padding="8" Margin="0,0,0,6">
-                                                                <StackPanel>
-                                                                    <Grid ColumnDefinitions="*,Auto">
-                                                                        <TextBox Grid.Column="0" Text="{Binding Name, Mode=TwoWay}" PlaceholderText="{loc:Tr Settings_WorkspaceName}" VerticalAlignment="Center"
-                                                                                 IsReadOnly="{Binding !Parent.Owner.CanEditProfiles}" />
-                                                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0" VerticalAlignment="Center">
-                                                                            <Button Content="{loc:Tr Settings_Open}" ToolTip.Tip="{loc:Tr Settings_ActivateThisWorkspaceAndEdit}"
-                                                                                    Command="{Binding $parent[Window].DataContext.ActivateWorkspaceCommand}" CommandParameter="{Binding}" />
-                                                                            <Button Content="{loc:Tr Settings_SetHome}" ToolTip.Tip="{loc:Tr Settings_MakeThisTheProfileS}"
-                                                                                    Command="{Binding $parent[Window].DataContext.SetHomeWorkspaceCommand}" CommandParameter="{Binding}" />
-                                                                            <Button Content="{loc:Tr Settings_Export}" ToolTip.Tip="{loc:Tr Settings_ExportThisWorkspaceAsA}"
-                                                                                    Command="{Binding $parent[Window].DataContext.ExportWorkspaceCommand}" CommandParameter="{Binding}" />
-                                                                            <Button Classes="row-action danger" Content="✕" ToolTip.Tip="{loc:Tr Settings_DeleteWorkspace}"
-                                                                                    Command="{Binding $parent[Window].DataContext.RemoveWorkspaceCommand}" CommandParameter="{Binding}" />
-                                                                        </StackPanel>
-                                                                    </Grid>
-                                                                    <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
-                                                                        <Border Classes="pill ok" IsVisible="{Binding IsActiveWorkspace}"><TextBlock Text="{loc:Tr Settings_Active}" /></Border>
-                                                                        <Border Classes="pill neutral" IsVisible="{Binding IsHome}"><TextBlock Text="{loc:Tr Settings_Home}" /></Border>
-                                                                    </StackPanel>
-                                                                </StackPanel>
-                                                            </Border>
-                                                        </DataTemplate>
-                                                    </ItemsControl.ItemTemplate>
-                                                </ItemsControl>
-                                            </StackPanel>
-                                        </Border>
-                                    </StackPanel>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                                            <!-- Workspaces: indented and divided from the profile header -->
+                                            <Border Margin="10,12,0,0" Padding="16,4,0,0"
+                                                    BorderBrush="{DynamicResource AppBorderSubtle}" BorderThickness="2,0,0,0">
+                                                <StackPanel>
+                                                    <Grid ColumnDefinitions="*,Auto">
+                                                        <TextBlock Grid.Column="0" Classes="card-title" Text="{loc:Tr Settings_Workspaces}" VerticalAlignment="Center" />
+                                                        <Button Grid.Column="1" Content="{loc:Tr Settings_AddWorkspace}"
+                                                                Command="{Binding $parent[Window].DataContext.AddWorkspaceCommand}" CommandParameter="{Binding}" />
+                                                    </Grid>
+                                                    <Panel Margin="0,8,0,0">
+                                                        <ItemsControl ItemsSource="{Binding Workspaces}">
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate DataType="vm:WorkspaceRow">
+                                                                    <Border Classes="workspace-row reorder-row">
+                                                                        <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                                                                            <Border Grid.Column="0" Classes="page-grip"
+                                                                                    IsVisible="{Binding Parent.Owner.CanEditProfiles}"
+                                                                                    ToolTip.Tip="{loc:Tr Settings_DragToReorder}"
+                                                                                    PointerPressed="OnPageGripPressed"
+                                                                                    PointerMoved="OnPageGripMoved"
+                                                                                    PointerReleased="OnPageGripReleased"
+                                                                                    PointerCaptureLost="OnPageGripCaptureLost">
+                                                                                <!-- mdi-drag -->
+                                                                                <TextBlock Text="&#xF01DD;" />
+                                                                            </Border>
+                                                                            <TextBox Grid.Column="1" Margin="6,0,0,0" Text="{Binding Name, Mode=TwoWay}" PlaceholderText="{loc:Tr Settings_WorkspaceName}" VerticalAlignment="Center"
+                                                                                     IsReadOnly="{Binding !Parent.Owner.CanEditProfiles}" />
+                                                                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" Margin="10,0,4,0" VerticalAlignment="Center">
+                                                                                <Border Classes="pill ok" IsVisible="{Binding IsActiveWorkspace}"><TextBlock Text="{loc:Tr Settings_Active}" /></Border>
+                                                                                <Border Classes="pill neutral" IsVisible="{Binding IsHome}"><TextBlock Text="{loc:Tr Settings_Home}" /></Border>
+                                                                            </StackPanel>
+                                                                            <Button Grid.Column="3" Classes="page-more" ToolTip.Tip="{loc:Tr Settings_MoreActions}">
+                                                                                <!-- mdi-dots-horizontal -->
+                                                                                <TextBlock Text="&#xF01D8;" />
+                                                                                <Button.Flyout>
+                                                                                    <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                                                                        <MenuItem Header="{loc:Tr Settings_Open}" ToolTip.Tip="{loc:Tr Settings_ActivateThisWorkspaceAndEdit}"
+                                                                                                  Command="{Binding $parent[Window].DataContext.ActivateWorkspaceCommand}" CommandParameter="{Binding}">
+                                                                                            <!-- mdi-play -->
+                                                                                            <MenuItem.Icon><TextBlock Classes="menu-icon" Text="&#xF040A;" /></MenuItem.Icon>
+                                                                                        </MenuItem>
+                                                                                        <MenuItem Header="{loc:Tr Settings_SetHome}" ToolTip.Tip="{loc:Tr Settings_MakeThisTheProfileS}"
+                                                                                                  Command="{Binding $parent[Window].DataContext.SetHomeWorkspaceCommand}" CommandParameter="{Binding}">
+                                                                                            <!-- mdi-home-outline -->
+                                                                                            <MenuItem.Icon><TextBlock Classes="menu-icon" Text="&#xF06A1;" /></MenuItem.Icon>
+                                                                                        </MenuItem>
+                                                                                        <MenuItem Header="{loc:Tr Settings_ExportMenu}" ToolTip.Tip="{loc:Tr Settings_ExportThisWorkspaceAsA}"
+                                                                                                  Command="{Binding $parent[Window].DataContext.ExportWorkspaceCommand}" CommandParameter="{Binding}">
+                                                                                            <!-- mdi-export -->
+                                                                                            <MenuItem.Icon><TextBlock Classes="menu-icon" Text="&#xF0207;" /></MenuItem.Icon>
+                                                                                        </MenuItem>
+                                                                                        <Separator />
+                                                                                        <MenuItem Classes="danger" Header="{loc:Tr Settings_DeleteMenu}"
+                                                                                                  Command="{Binding $parent[Window].DataContext.RemoveWorkspaceCommand}" CommandParameter="{Binding}">
+                                                                                            <!-- mdi-trash-can-outline -->
+                                                                                            <MenuItem.Icon><TextBlock Classes="menu-icon" Text="&#xF0A7A;" /></MenuItem.Icon>
+                                                                                        </MenuItem>
+                                                                                    </MenuFlyout>
+                                                                                </Button.Flyout>
+                                                                            </Button>
+                                                                        </Grid>
+                                                                    </Border>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                        <Canvas Classes="page-drop-overlay" IsHitTestVisible="False">
+                                                            <Border Classes="page-drop-line" IsVisible="False" />
+                                                        </Canvas>
+                                                    </Panel>
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <Canvas Classes="page-drop-overlay" IsHitTestVisible="False">
+                            <Border Classes="page-drop-line" IsVisible="False" />
+                        </Canvas>
+                    </Panel>
                 </StackPanel>
 
                 <!-- ====== Companions ====== -->
