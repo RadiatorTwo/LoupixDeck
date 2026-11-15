@@ -46,6 +46,26 @@ public static class ButtonSnapshot
         return jo.ToString(Formatting.None);
     }
 
+    /// <summary>
+    /// Like <see cref="Capture"/>, but also leaves out which state is active. The editors' undo
+    /// history (issue #622) compares these, so selecting another state to edit is not an edit, and
+    /// applying one keeps the state that is showing.
+    /// </summary>
+    public static string CaptureContent(LoupedeckButton source)
+    {
+        if (source == null) return null;
+
+        var jo = JObject.FromObject(source, Serializer);
+        jo.Remove("Index");
+        jo.Remove("Id");
+        jo.Remove("ActiveStateId");
+        // A stateful button's own command mirrors its active state's; applying the snapshot
+        // re-mirrors it from the state that stays active.
+        if (source is StatefulButton)
+            jo.Remove(nameof(LoupedeckButton.Command));
+        return jo.ToString(Formatting.None);
+    }
+
     /// <summary>Apply a snapshot onto <paramref name="target"/> in place (keeps the target
     /// instance, its Index/Id and its ItemChanged subscription), then re-wire and refresh it.</summary>
     public static void Apply(string json, LoupedeckButton target)

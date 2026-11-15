@@ -629,6 +629,18 @@
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4"
                                     VerticalAlignment="Center">
+                            <!-- Undo / redo of the edits made in this editor (issue #622). -->
+                            <Button Classes="toolbar"
+                                    FontFamily="{StaticResource MdiFont}"
+                                    Content="&#xF054C;" FontSize="16"
+                                    Command="{Binding History.UndoCommand, FallbackValue={x:Null}}"
+                                    ToolTip.Tip="{loc:Tr History_UndoTip}" />
+                            <Button Classes="toolbar"
+                                    FontFamily="{StaticResource MdiFont}"
+                                    Content="&#xF044E;" FontSize="16"
+                                    Command="{Binding History.RedoCommand, FallbackValue={x:Null}}"
+                                    ToolTip.Tip="{loc:Tr History_RedoTip}"
+                                    Margin="0,0,8,0" />
                             <Button Classes="toolbar" Content="&#x2212;"
                                     Command="{Binding ZoomOutCommand}"
                                     ToolTip.Tip="{loc:Tr TouchButton_ZoomOut}" />

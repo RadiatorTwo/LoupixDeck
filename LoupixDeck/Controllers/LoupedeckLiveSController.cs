@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.IO.Hashing;
 using System.Threading;
 using LoupixDeck.Localization;
@@ -44,7 +44,8 @@ public partial class LoupedeckLiveSController(
     DeviceRegistry.DeviceInfo deviceInfo,
     ResolvedDevice resolved,
     IServiceProvider serviceProvider,
-    IDeviceRouter router) : IDeviceController
+    IDeviceRouter router,
+    Services.History.IWorkspaceHistoryService history) : IDeviceController
 {
     private readonly string _configPath = deviceInfo != null
         ? FileDialogHelper.GetConfigPath(deviceInfo, resolved?.Serial)
@@ -3651,6 +3652,9 @@ public partial class LoupedeckLiveSController(
 
             if (!_isDeviceOff && !folderNav.IsActive && !exclusiveMode.Owns(ExclusiveControlScope.SideDisplays))
                 await RedrawSideStrips();
+
+            // Undo in the main window starts from what the workspace holds now (issue #622).
+            history.TakeBaseline();
         }
         finally
         {
@@ -4098,8 +4102,14 @@ public partial class LoupedeckLiveSController(
             // "Collection was modified". With the layer-based config we no
             // longer embed bitmaps, so the JSON write itself is cheap enough to
             // run on the UI thread without a perceptible hitch.
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(
-                () => configService.SaveConfig(config, _configPath));
+            // Every edit in the main window ends in a save, so this is where its undo step is
+            // recorded (issue #622).
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                try { history.Capture(); }
+                catch (Exception ex) { Console.WriteLine($"Recording the undo step failed: {ex.Message}"); }
+                configService.SaveConfig(config, _configPath);
+            });
 
             // Snapshot referenced asset paths on the UI thread, then perform
             // the actual filesystem cleanup off-thread.
@@ -4142,6 +4152,10 @@ public partial class LoupedeckLiveSController(
         // wallpapers/images that are still referenced by another device's config —
         // even though their AssetPath is intact on disk. Harvest those references too.
         foreach (var path in HarvestAssetPathsFromOtherConfigs())
+            yield return path;
+
+        // An undo step may bring back an image that is no longer in the config (issue #622).
+        foreach (var path in history.ReferencedAssetPaths())
             yield return path;
     }
 

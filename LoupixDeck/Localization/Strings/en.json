@@ -1562,5 +1562,7 @@
   "MainWindow_BrowseCommunityProfiles": "Community profiles…",
   "Settings_BrowseCommunityProfiles": "Community Profiles…",
   "Settings_BrowseCommunityProfilesHint": "Browse and import profiles, workspaces and pages shared by other users",
-  "StarterPicker_BrowseCommunity": "Community profiles…"
+  "StarterPicker_BrowseCommunity": "Community profiles…",
+  "History_UndoTip": "Undo (Ctrl+Z)",
+  "History_RedoTip": "Redo (Ctrl+Shift+Z)"
 }

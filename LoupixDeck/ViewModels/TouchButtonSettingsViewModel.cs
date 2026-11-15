@@ -67,6 +67,64 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         OnPropertyChanged(nameof(ResetOnRestart));
         OnPropertyChanged(nameof(ButtonNumber));
         OnPropertyChanged(nameof(ButtonLabel));
+
+        History?.Dispose();
+        History = ButtonData == null
+            ? null
+            : new ButtonEditHistory(() => ButtonSnapshot.CaptureContent(ButtonData), ApplyHistoryStep);
+        OnPropertyChanged(nameof(History));
+    }
+
+    /// <summary>Undo/redo of the edits made in this editor (issue #622).</summary>
+    public ButtonEditHistory History { get; private set; }
+
+    // True while a recorded step is put back, so the restored command is not reconciled as if the
+    // user had just assigned it.
+    private bool _applyingHistory;
+
+    /// <summary>
+    /// Puts recorded content back onto the button and refreshes the editor, staying on the state
+    /// and the layer that were selected when they still exist.
+    /// </summary>
+    private void ApplyHistoryStep(string content)
+    {
+        if (ButtonData == null) return;
+
+        Guid stateId = SelectedState?.Id ?? Guid.Empty;
+        Guid? layerId = SelectedLayer?.Id;
+
+        _applyingHistory = true;
+        try
+        {
+            ButtonSnapshot.Apply(content, ButtonData);
+        }
+        finally
+        {
+            _applyingHistory = false;
+        }
+
+        ButtonState state = ButtonData.States?.FirstOrDefault(s => s.Id == stateId) ?? ButtonData.ActiveState;
+        RefreshStateBadges();
+        // The states are new objects, so this always runs the full state refresh.
+        SelectedState = state;
+        RebuildLayerListItems();
+
+        OnPropertyChanged(nameof(States));
+        OnPropertyChanged(nameof(BackgroundEnabled));
+        OnPropertyChanged(nameof(AreStatesLocked));
+        OnPropertyChanged(nameof(CanEditStates));
+        OnPropertyChanged(nameof(CanDeleteState));
+        OnPropertyChanged(nameof(ResetOnPageChange));
+        OnPropertyChanged(nameof(ResetOnRestart));
+
+        if (layerId != null)
+            SelectedLayer = ButtonData.Layers?.FirstOrDefault(l => l.Id == layerId);
+
+        if (!IsStripCanvas && !IsWheelCanvas)
+        {
+            _dynamicTextManager.Rescan();
+            _buttonAnimationManager.Rescan();
+        }
     }
 
     private readonly ICommandBuilder _commandBuilder;
@@ -2195,6 +2253,8 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
     private void ButtonData_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
+        History?.NotifyChanged();
+
         // Switching the active state swaps the whole layer collection the button projects.
         if (e.PropertyName == nameof(TouchButton.Layers))
             RebuildLayerListItems();
@@ -2226,7 +2286,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// </summary>
     private void ReconcileCommandStates()
     {
-        if (ButtonData == null || IsStripCanvas || IsWheelCanvas || _switchingState) return;
+        if (ButtonData == null || IsStripCanvas || IsWheelCanvas || _switchingState || _applyingHistory) return;
 
         Services.Commands.StateSyncResult result = _stateMaterializer.Reconcile(ButtonData);
         switch (result)
@@ -2400,6 +2460,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     private void ButtonData_ItemChanged(object sender, EventArgs e)
     {
         HasEdits = true;
+        History?.NotifyChanged();
 
         if (Interlocked.Exchange(ref _itemChangedRefreshPending, 1) == 1) return;
 
@@ -2502,6 +2563,9 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     public void Cleanup()
     {
         EndTextTyping();
+
+        History?.Dispose();
+        History = null;
 
         if (ButtonData != null)
         {

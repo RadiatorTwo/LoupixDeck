@@ -1,4 +1,4 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -76,6 +76,9 @@ public partial class RotaryButtonSettings : Window
         // so it fires even when a child (button, chip grip) handles the press itself.
         AddHandler(PointerPressedEvent, OnAnyPointerPressed, RoutingStrategies.Tunnel);
 
+        // Undo / redo of the edits made in this editor (issue #622).
+        AddHandler(KeyDownEvent, OnHistoryKeyDown, RoutingStrategies.Bubble);
+
         Closing += (_, _) =>
         {
             if (DataContext is IDialogViewModel vm && !vm.DialogResult.Task.IsCompleted)
@@ -88,6 +91,30 @@ public partial class RotaryButtonSettings : Window
                 rbvm.Cleanup();
             }
         };
+    }
+
+    private static readonly KeyGesture UndoGesture = new(Key.Z, KeyModifiers.Control);
+    private static readonly KeyGesture RedoGesture = new(Key.Z, KeyModifiers.Control | KeyModifiers.Shift);
+    private static readonly KeyGesture RedoAltGesture = new(Key.Y, KeyModifiers.Control);
+
+    /// <summary>
+    /// Ctrl+Z undoes, Ctrl+Shift+Z / Ctrl+Y redo. Not while a text field has focus: its own text
+    /// undo wins.
+    /// </summary>
+    private void OnHistoryKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Handled || DataContext is not RotaryButtonSettingsViewModel { History: { } history }) return;
+        if (FocusManager?.GetFocusedElement() is Visual focused && focused.FindAncestorOfType<TextBox>(includeSelf: true) != null)
+            return;
+
+        System.Windows.Input.ICommand command =
+            UndoGesture.Matches(e) ? history.UndoCommand :
+            RedoGesture.Matches(e) || RedoAltGesture.Matches(e) ? history.RedoCommand :
+            null;
+        if (command == null) return;
+
+        command.Execute(null);
+        e.Handled = true;
     }
 
     // ───────── Active-slot selection ─────────

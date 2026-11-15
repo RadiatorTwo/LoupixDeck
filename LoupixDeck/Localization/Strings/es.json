@@ -1562,5 +1562,7 @@
   "MainWindow_BrowseCommunityProfiles": "Perfiles de la comunidad…",
   "Settings_BrowseCommunityProfiles": "Perfiles de la comunidad…",
   "Settings_BrowseCommunityProfilesHint": "Explorar e importar perfiles, espacios de trabajo y páginas compartidos por otros usuarios",
-  "StarterPicker_BrowseCommunity": "Perfiles de la comunidad…"
+  "StarterPicker_BrowseCommunity": "Perfiles de la comunidad…",
+  "History_UndoTip": "Deshacer (Ctrl+Z)",
+  "History_RedoTip": "Rehacer (Ctrl+Shift+Z)"
 }

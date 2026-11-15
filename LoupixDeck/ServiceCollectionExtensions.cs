@@ -1,4 +1,4 @@
-using LoupixDeck.Controllers;
+﻿using LoupixDeck.Controllers;
 using LoupixDeck.Models;
 using LoupixDeck.Registry;
 using LoupixDeck.Services;
@@ -439,6 +439,7 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<IDeviceService, LoupedeckDeviceService>();
         collection.AddSingleton<IPageManager, PageManager>();
         collection.AddSingleton<IWorkspaceActivationService, WorkspaceActivationService>();
+        collection.AddSingleton<Services.History.IWorkspaceHistoryService, Services.History.WorkspaceHistoryService>();
         collection.AddSingleton<IProfileEditingService, ProfileEditingService>();
         collection.AddSingleton<Services.Folders.ICustomFolderService, Services.Folders.CustomFolderService>();
         collection.AddSingleton<Services.Companion.ICommandLockService, Services.Companion.CommandLockService>();
