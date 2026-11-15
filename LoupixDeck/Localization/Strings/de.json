@@ -1029,6 +1029,7 @@
   "Settings_Source": "Quelle",
   "Settings_SpacingAcross": "Abstand waagerecht",
   "Settings_SpacingDown": "Abstand senkrecht",
+  "Settings_StartMaximized": "Maximiert starten, mit geöffneten Bereichen Apps und Befehle sowie Ordner",
   "Settings_StartMinimizedToTray": "Minimiert im Infobereich starten",
   "Settings_StartWithWindows": "Mit Windows starten",
   "Settings_Startup": "Start",

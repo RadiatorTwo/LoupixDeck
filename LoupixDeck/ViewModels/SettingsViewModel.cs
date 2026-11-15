@@ -155,6 +155,21 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     }
 
     /// <summary>
+    /// Start maximized with both side panels open. Global (WindowSettings); turning it on clears
+    /// <see cref="StartMinimizedToTray"/>, whose checkbox is disabled while it is on.
+    /// </summary>
+    public bool StartMaximized
+    {
+        get => WindowSettings.StartMaximized;
+        set
+        {
+            WindowSettings.StartMaximized = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(StartMinimizedToTray));
+        }
+    }
+
+    /// <summary>
     /// App-focus page switching is available on Windows and on Linux (X11/XWayland).
     /// Gates the "App Switching" settings page — wider than <see cref="IsWindows"/>,
     /// so the editor stays hidden only on macOS / unsupported platforms.
