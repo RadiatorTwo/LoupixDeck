@@ -439,7 +439,8 @@
                         <!-- Fills the remaining height but asks the scroll viewer only for its
                              minimum, so the list keeps its own scrolling. -->
                         <controls:FillRemainingDecorator Grid.Row="5" Name="LayerListHost" MinHeight="120">
-                            <ListBox IsEnabled="{Binding CanEditCanvas}"
+                            <ListBox Name="LayerList"
+                                     IsEnabled="{Binding CanEditCanvas}"
                                      ContextRequested="LayerList_ContextRequested"
                                      ItemsSource="{Binding LayerListItems}"
                                      SelectedItem="{Binding SelectedLayer, Mode=TwoWay}"
@@ -666,6 +667,7 @@
                                  keeps the children's local 600×600 coordinate space, so the
                                  pointer math in the code-behind needs no zoom adjustment. -->
                             <ScrollViewer Name="PreviewScroll"
+                                          Focusable="True"
                                           HorizontalScrollBarVisibility="Auto"
                                           VerticalScrollBarVisibility="Auto">
                                 <LayoutTransformControl HorizontalAlignment="Center"
