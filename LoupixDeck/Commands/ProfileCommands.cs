@@ -27,6 +27,28 @@ public class ActivateProfileCommand(IWorkspaceActivationService activation) : IE
     }
 }
 
+[Command("System.LastProfile", "Last Profile", "Profiles",
+        Description = "Switch to the last used profile and open its home workspace")]
+public class LastProfileCommand(IWorkspaceActivationService activation) : IExecutableCommand
+{
+    public async Task Execute(string[] parameters)
+    {
+        if (parameters.Length != 0)
+        {
+            Console.WriteLine("Invalid Parameter count");
+            return;
+        }
+
+        if (activation.LastProfileId == Guid.Empty)
+        {
+            Console.WriteLine("No previous profile to switch to");
+            return;
+        }
+
+        await activation.ActivateProfile(activation.LastProfileId, true);
+    }
+}
+
 [Command("System.GotoWorkspace", "Go to Workspace", "Profiles",
     parameterTemplate: "({Workspace})",
     parameterNames: ["Workspace"],

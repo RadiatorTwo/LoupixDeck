@@ -15,6 +15,9 @@ namespace LoupixDeck.Services;
 /// </summary>
 public interface IWorkspaceActivationService
 {
+    /// <summary>The previously active profile id (empty before the first switch).</summary>
+    Guid LastProfileId { get; set; }
+
     /// <summary>The currently active profile (null before the config is initialized).</summary>
     Profile ActiveProfile { get; }
 
@@ -63,6 +66,7 @@ public sealed class WorkspaceActivationService(
     ICompanionCoordinator companions,
     ResolvedDevice device) : IWorkspaceActivationService
 {
+    public Guid LastProfileId { get; set; } = Guid.Empty;
     public Profile ActiveProfile => config.ActiveProfile;
     public Workspace ActiveWorkspace => config.ActiveWorkspace;
 
@@ -80,6 +84,8 @@ public sealed class WorkspaceActivationService(
             Console.WriteLine($"ActivateProfile: profile {profileId} not found.");
             return;
         }
+
+        LastProfileId = config.ActiveProfileId;
 
         if (manual) ManualActivation?.Invoke();
 
