@@ -406,6 +406,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         _dialogService = dialogService;
         _clipboard = clipboard;
+        _clipboard.Changed += OnClipboardChanged;
 
         RotaryButtonCommand = new AsyncRelayCommand<RotaryButton>(RotaryButton_Click);
         SimpleButtonCommand = new AsyncRelayCommand<SimpleButton>(SimpleButton_Click);
@@ -490,6 +491,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _hostRegistry.HostRemoved -= OnHostsChanged;
         _config.PropertyChanged -= OnConfigFolderPropertyChanged;
         _folders.StructureChanged -= RefreshFolderBreadcrumbs;
+        _clipboard.Changed -= OnClipboardChanged;
         _powerService.Suspending -= OnSystemSuspending;
         _powerService.Resuming -= OnSystemResuming;
         _displayState.DisplaysOff -= OnDisplaysOff;
@@ -938,20 +940,22 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        _clipboard.Copy(button, kind.Value, button is TouchButton touch ? CaptureLinkedFolders(touch) : null);
+        _clipboard.Copy(button, kind.Value, button is TouchButton touch ? CaptureLinkedFolders(CommandsOf(touch)) : null);
     }
 
+    private static IEnumerable<string> CommandsOf(TouchButton button)
+        => (button?.States ?? []).Select(static s => s?.Command).Append(button?.Command);
+
     /// <summary>
-    /// Snapshots of the folders <paramref name="button"/> opens, so a paste on a workspace or device
-    /// without them can recreate them (issue #535). A folder below another linked one travels
+    /// Snapshots of the folders the <paramref name="commands"/> open, so a paste on a workspace or
+    /// device without them can recreate them (issue #535). A folder below another linked one travels
     /// inside that one's snapshot.
     /// </summary>
-    private List<string> CaptureLinkedFolders(TouchButton button)
+    private List<string> CaptureLinkedFolders(IEnumerable<string> commands)
     {
         Workspace workspace = _config.ActiveWorkspace;
-        List<Models.CustomFolder> linked = [.. (button.States ?? [])
-            .SelectMany(static s => Services.Folders.FolderCommand.ReferencedFolders(s?.Command))
-            .Concat(Services.Folders.FolderCommand.ReferencedFolders(button.Command))
+        List<Models.CustomFolder> linked = [.. commands
+            .SelectMany(Services.Folders.FolderCommand.ReferencedFolders)
             .Distinct()
             .Select(id => Services.Folders.FolderTree.Find(workspace, id))
             .Where(static f => f != null)];
@@ -999,6 +1003,68 @@ public partial class MainWindowViewModel : ViewModelBase
 
         return map;
     }
+
+    /// <summary>Puts the current page of <paramref name="slot"/> on the clipboard (issue #621).</summary>
+    [RelayCommand]
+    private void CopyPage(PageSlot slot)
+    {
+        IPageManager pages = LoupedeckController.PageManager;
+        switch (slot)
+        {
+            case PageSlot.Touch:
+                TouchButtonPage page = pages.CurrentTouchButtonPage;
+                if (page == null) return;
+                IEnumerable<string> commands = page.TouchButtons.SelectMany(CommandsOf)
+                    .Append(page.TouchButtonWrap?.PreCommands)
+                    .Append(page.TouchButtonWrap?.PostCommands);
+                _clipboard.CopyPage(page, ButtonKind.TouchPage, CaptureLinkedFolders(commands));
+                break;
+            case PageSlot.Rotary:
+                _clipboard.CopyPage(pages.GetCurrentRotaryPage(RotarySide.Both), ButtonKind.RotaryPage);
+                break;
+            case PageSlot.LeftRotary:
+            case PageSlot.RightRotary:
+                _clipboard.CopyPage(pages.GetCurrentRotaryPage(SideOf(slot)), ButtonKind.SideRotaryPage);
+                break;
+        }
+    }
+
+    private bool CanPastePage(PageSlot slot) => _clipboard.CanPasteInto(slot switch
+    {
+        PageSlot.Touch => ButtonKind.TouchPage,
+        PageSlot.Rotary => ButtonKind.RotaryPage,
+        _ => ButtonKind.SideRotaryPage
+    });
+
+    /// <summary>Inserts the copied page after the current page of <paramref name="slot"/> (issue #621).</summary>
+    [RelayCommand(CanExecute = nameof(CanPastePage))]
+    private async Task PastePage(PageSlot slot)
+    {
+        if (!CanPastePage(slot)) return;
+
+        // Before the paste, so the pasted commands and plugin layers resolve right away.
+        await _pastePlugins.EnableRequiredAsync(_clipboard.Snapshots);
+
+        IPageManager pages = LoupedeckController.PageManager;
+        if (slot == PageSlot.Touch)
+        {
+            EndExclusiveModeForPageChange();
+            await pages.PasteTouchButtonPage(_clipboard.PageJson(PasteLinkedFolders()));
+        }
+        else
+        {
+            pages.PasteRotaryButtonPage(slot == PageSlot.Rotary ? RotarySide.Both : SideOf(slot), _clipboard.PageJson());
+        }
+
+        // A page from another workspace can link folders this one does not have; those links
+        // would navigate nowhere.
+        Services.Folders.FolderReferenceCleaner.CleanDangling(_config.ActiveWorkspace);
+        LoupedeckController.SaveConfig();
+    }
+
+    private static RotarySide SideOf(PageSlot slot) => slot == PageSlot.RightRotary ? RotarySide.Right : RotarySide.Left;
+
+    private void OnClipboardChanged() => PastePageCommand.NotifyCanExecuteChanged();
 
     private void CutSelected()
     {

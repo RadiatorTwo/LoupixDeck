@@ -122,6 +122,34 @@
             <Setter Property="CornerRadius" Value="4" />
             <Setter Property="TextAlignment" Value="Center" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
+            <!-- The text edits name the page name so they read apart from the page copy and
+                 paste below them (issue #621). The page items show only on a pager field,
+                 whose Tag says which pager it is (a PageSlot). -->
+            <Setter Property="ContextFlyout">
+                <MenuFlyout x:DataType="vm:MainWindowViewModel">
+                    <MenuItem Header="{loc:Tr PageName_Cut}"
+                              Command="{Binding $parent[TextBox].Cut}"
+                              IsEnabled="{Binding $parent[TextBox].CanCut}"
+                              InputGesture="{x:Static TextBox.CutGesture}" />
+                    <MenuItem Header="{loc:Tr PageName_Copy}"
+                              Command="{Binding $parent[TextBox].Copy}"
+                              IsEnabled="{Binding $parent[TextBox].CanCopy}"
+                              InputGesture="{x:Static TextBox.CopyGesture}" />
+                    <MenuItem Header="{loc:Tr PageName_Paste}"
+                              Command="{Binding $parent[TextBox].Paste}"
+                              IsEnabled="{Binding $parent[TextBox].CanPaste}"
+                              InputGesture="{x:Static TextBox.PasteGesture}" />
+                    <Separator IsVisible="{Binding $parent[TextBox].Tag, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                    <MenuItem Header="{loc:Tr Page_CopyPage}"
+                              Command="{Binding CopyPageCommand}"
+                              CommandParameter="{Binding $parent[TextBox].Tag}"
+                              IsVisible="{Binding $parent[TextBox].Tag, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                    <MenuItem Header="{loc:Tr Page_PastePage}"
+                              Command="{Binding PastePageCommand}"
+                              CommandParameter="{Binding $parent[TextBox].Tag}"
+                              IsVisible="{Binding $parent[TextBox].Tag, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                </MenuFlyout>
+            </Setter>
         </Style>
         <!-- The placeholder (shown when no custom page name is set) defaults to a very
              faint Fluent colour that is hard to read. Avalonia 12 exposes it as

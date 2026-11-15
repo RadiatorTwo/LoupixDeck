@@ -19,7 +19,16 @@ public enum ButtonKind
     SideDisplay,
 
     /// <summary>A custom folder with its subtree, copied from the folder panel (issue #535).</summary>
-    Folder
+    Folder,
+
+    /// <summary>A whole touch page, copied from the page name's context menu (issue #621).</summary>
+    TouchPage,
+
+    /// <summary>A whole rotary page of a device that pages all its dials together (issue #621).</summary>
+    RotaryPage,
+
+    /// <summary>A whole rotary page of one dial column on a side-strip device (issue #621).</summary>
+    SideRotaryPage
 }
 
 /// <summary>
@@ -58,6 +67,19 @@ public interface IButtonClipboardService
 
     /// <summary>Take a deep snapshot of <paramref name="folder"/> and its sub-folders.</summary>
     void CopyFolder(CustomFolder folder);
+
+    /// <summary>
+    /// Take a deep snapshot of a whole <paramref name="page"/> as the given page kind, together with
+    /// the snapshots of the folders its keys open (issue #621).
+    /// </summary>
+    void CopyPage(ButtonPageBase page, ButtonKind kind, IReadOnlyList<string> linkedFolders = null);
+
+    /// <summary>
+    /// The page snapshot when <see cref="CurrentKind"/> is one of the page kinds, otherwise null.
+    /// <paramref name="idMap"/> rewrites ids in it, e.g. folder links that now point at freshly
+    /// pasted copies.
+    /// </summary>
+    string PageJson(IReadOnlyDictionary<Guid, Guid> idMap = null);
 
     /// <summary>
     /// Old → new ids of the <see cref="LinkedFolders"/> already pasted into the workspace, so
@@ -117,6 +139,22 @@ public sealed class ButtonClipboardService : IButtonClipboardService
         Changed?.Invoke();
     }
 
+    public void CopyPage(ButtonPageBase page, ButtonKind kind, IReadOnlyList<string> linkedFolders = null)
+    {
+        if (page == null || !IsPageKind(kind)) return;
+        _kind = kind;
+        _json = JObject.FromObject(page, ButtonSnapshot.Serializer).ToString(Formatting.None);
+        _linkedFolders = linkedFolders?.Where(static f => f != null).ToList() ?? [];
+        _pastedFolders.Clear();
+        Changed?.Invoke();
+    }
+
+    public string PageJson(IReadOnlyDictionary<Guid, Guid> idMap = null)
+        => _json != null && IsPageKind(_kind) ? WithIds(_json, idMap) : null;
+
+    private static bool IsPageKind(ButtonKind kind)
+        => kind is ButtonKind.TouchPage or ButtonKind.RotaryPage or ButtonKind.SideRotaryPage;
+
     public IReadOnlyDictionary<Guid, Guid> PastedFolders(Guid workspaceId)
         => _pastedFolders.TryGetValue(workspaceId, out IReadOnlyDictionary<Guid, Guid> map) ? map : new Dictionary<Guid, Guid>();
 
@@ -130,17 +168,18 @@ public sealed class ButtonClipboardService : IButtonClipboardService
 
     public void PasteInto(LoupedeckButton target, IReadOnlyDictionary<Guid, Guid> idMap = null)
     {
-        if (_json == null || _kind == ButtonKind.Folder) return;
+        if (_json == null || _kind == ButtonKind.Folder || IsPageKind(_kind)) return;
 
-        string json = _json;
-        if (idMap is { Count: > 0 })
-        {
-            JObject snapshot = JObject.Parse(json);
-            PortableIdRemapper.SubstituteGuids(snapshot, idMap);
-            json = snapshot.ToString(Formatting.None);
-        }
+        ButtonSnapshot.Apply(WithIds(_json, idMap), target);
+    }
 
-        ButtonSnapshot.Apply(json, target);
+    private static string WithIds(string json, IReadOnlyDictionary<Guid, Guid> idMap)
+    {
+        if (idMap is not { Count: > 0 }) return json;
+
+        JObject snapshot = JObject.Parse(json);
+        PortableIdRemapper.SubstituteGuids(snapshot, idMap);
+        return snapshot.ToString(Formatting.None);
     }
 
     public void Clear()
