@@ -533,7 +533,7 @@ public partial class App : Application
             // briefly flashes onscreen before it is hidden again. We also switch to
             // OnExplicitShutdown so the lifetime doesn't end with no visible window — the
             // tray icon is the only entry point and Environment.Exit(0) the only exit path.
-            if (WindowSettings.StartMinimizedToTray)
+            if (WindowSettings.StartMinimizedToTray && !WindowSettings.StartMaximized)
             {
                 desktop.ShutdownMode = Avalonia.Controls.ShutdownMode.OnExplicitShutdown;
                 mainWindow.MarkStartedMinimized();
@@ -552,6 +552,10 @@ public partial class App : Application
                 // activation sees a regular app with a Dock icon and menu bar. The start-minimized
                 // branch stays an accessory.
                 MacOsDock.Show();
+                // Before Show(), so the window opens maximized rather than resizing after it
+                // appears (issue #620). The side panels open with the first device's panels.
+                if (WindowSettings.StartMaximized)
+                    mainWindow.WindowState = Avalonia.Controls.WindowState.Maximized;
                 // Assigned before Show() so the lifetime's own Show finds a visible window
                 // and does nothing.
                 desktop.MainWindow = mainWindow;

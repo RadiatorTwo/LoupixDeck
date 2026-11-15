@@ -1029,6 +1029,7 @@
   "Settings_Source": "Fuente",
   "Settings_SpacingAcross": "Separación horizontal",
   "Settings_SpacingDown": "Separación vertical",
+  "Settings_StartMaximized": "Iniciar maximizado con los paneles Aplicaciones y comandos y Carpetas abiertos",
   "Settings_StartMinimizedToTray": "Iniciar minimizado en la bandeja",
   "Settings_StartWithWindows": "Iniciar con Windows",
   "Settings_Startup": "Inicio",

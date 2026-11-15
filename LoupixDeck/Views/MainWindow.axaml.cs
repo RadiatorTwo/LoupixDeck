@@ -228,6 +228,11 @@ public partial class MainWindow : Window
             // choice: carry it over so a device switch neither opens nor closes it.
             panel.IsOpen = _panel.IsOpen;
         }
+        else if (WindowSettings.StartMaximized)
+        {
+            // The first panel of the session: "Start maximized" opens it (issue #620).
+            panel.IsOpen = true;
+        }
 
         _panel = panel;
         _panel.PropertyChanged += OnActionPanelPropertyChanged;
@@ -262,6 +267,10 @@ public partial class MainWindow : Window
 
             // Whether the panel is showing is a window-level choice, carried across a device switch.
             panel.IsOpen = _folderPanel.IsOpen;
+        }
+        else if (WindowSettings.StartMaximized)
+        {
+            panel.IsOpen = true;
         }
 
         _folderPanel = panel;

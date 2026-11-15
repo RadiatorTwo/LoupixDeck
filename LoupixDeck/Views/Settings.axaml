@@ -385,7 +385,11 @@
                                        Text="{loc:Tr Settings_ChooseQuitOnDesktopsWithout}" />
                             <CheckBox Content="{loc:Tr Settings_StartMinimizedToTray}"
                                       HorizontalAlignment="Left" Margin="0,10,0,0"
+                                      IsEnabled="{Binding !StartMaximized}"
                                       IsChecked="{Binding StartMinimizedToTray, Mode=TwoWay}" />
+                            <CheckBox Content="{loc:Tr Settings_StartMaximized}"
+                                      HorizontalAlignment="Left" Margin="0,4,0,0"
+                                      IsChecked="{Binding StartMaximized, Mode=TwoWay}" />
                         </StackPanel>
                     </Border>
                 </StackPanel>
