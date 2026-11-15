@@ -349,6 +349,7 @@
                             ToolTip.Tip="{loc:Tr Device_PreviousTouchPage}"
                             Command="{Binding PreviousTouchPageCommand}" />
                     <TextBox Classes="PageName"
+                             Tag="{x:Static vm:PageSlot.Touch}"
                              Text="{Binding LoupedeckController.Config.CurrentTouchButtonPage.Name, Mode=TwoWay}"
                              PlaceholderText="{Binding LoupedeckController.Config.CurrentTouchButtonPage.PageName}"
                              KeyDown="OnPageNameKeyDown" LostFocus="OnPageNameCommit" />

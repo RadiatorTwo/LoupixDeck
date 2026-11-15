@@ -73,6 +73,14 @@ public interface IPageManager
     /// and makes the copy current.</summary>
     Task DuplicateTouchButtonPage(int pageIndex);
 
+    /// <summary>Inserts the touch page of a clipboard snapshot right after the current page and
+    /// shows it (issue #621).</summary>
+    Task PasteTouchButtonPage(string json);
+
+    /// <summary>Inserts the rotary page of a clipboard snapshot right after the side's current
+    /// page and makes it current (issue #621).</summary>
+    void PasteRotaryButtonPage(RotarySide side, string json);
+
     void RefreshTouchButtons();
     void RefreshSimpleButtons();
 
@@ -476,10 +484,25 @@ public class PageManager : IPageManager
             return;
 
         RotaryButtonPage copy = PageCloner.Clone(pages[pageIndex], _deviceService.RotaryButtonCount, SideRotaryButtonCount);
-        pages.Insert(pageIndex + 1, copy);
+        InsertRotaryPage(side, pageIndex + 1, copy);
+    }
+
+    public void PasteRotaryButtonPage(RotarySide side, string json)
+    {
+        if (string.IsNullOrEmpty(json)) return;
+
+        RotaryButtonPage page = PageCloner.FromSnapshot(json, side, _deviceService.RotaryButtonCount, SideRotaryButtonCount);
+        InsertRotaryPage(side, GetCurrentRotaryPageIndex(side) + 1, page);
+    }
+
+    private void InsertRotaryPage(RotarySide side, int insertAt, RotaryButtonPage page)
+    {
+        var pages = GetRotaryPages(side);
+        insertAt = Math.Clamp(insertAt, 0, pages.Count);
+        pages.Insert(insertAt, page);
         Renumber(pages);
 
-        ApplyRotaryPage(side, pageIndex + 1, init: true);
+        ApplyRotaryPage(side, insertAt, init: true);
     }
 
     public async Task AddTouchButtonPage(bool init = false)
@@ -533,8 +556,22 @@ public class PageManager : IPageManager
             return;
 
         TouchButtonPage copy = PageCloner.Clone(TouchButtonPages[pageIndex], _deviceService.TouchButtonCount);
-        int insertAt = pageIndex + 1;
-        TouchButtonPages.Insert(insertAt, copy);
+        await InsertTouchPage(pageIndex + 1, copy);
+    }
+
+    public async Task PasteTouchButtonPage(string json)
+    {
+        if (string.IsNullOrEmpty(json)) return;
+
+        TouchButtonPage page = PageCloner.FromSnapshot(json, _deviceService.TouchButtonCount);
+        page.Geometry = _config.Geometry;
+        await InsertTouchPage(CurrentTouchPageIndex + 1, page);
+    }
+
+    private async Task InsertTouchPage(int insertAt, TouchButtonPage page)
+    {
+        insertAt = Math.Clamp(insertAt, 0, TouchButtonPages.Count);
+        TouchButtonPages.Insert(insertAt, page);
         Renumber(TouchButtonPages);
 
         // The startup page is stored by index; keep it on the page it pointed at. Context rules
