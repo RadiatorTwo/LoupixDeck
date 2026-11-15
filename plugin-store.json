@@ -251,6 +251,37 @@
       }
     },
     {
+      "id": "gear",
+      "name": "Gear",
+      "description": "Detects Pulsar and Logitech gaming mice and shows battery, polling rate and DPI; switches polling rate and DPI.",
+      "author": "RadiatorTwo",
+      "repository": "RadiatorTwo/LoupixDeck.Plugin.Gear",
+      "icon": "https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck.Plugin.Gear/master/icon.png",
+      "platforms": [
+        "Windows",
+        "Linux"
+      ],
+      "minSdkVersion": "1.31.0",
+      "commandPrefixes": [
+        "Gear."
+      ],
+      "release": {
+        "version": "1.0.0",
+        "tag": "v1.0.0",
+        "publishedAt": "2026-11-15T18:14:51Z",
+        "sdkVersion": "1.31",
+        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Gear/releases/tag/v1.0.0",
+        "packages": [
+          {
+            "platform": "any",
+            "fileName": "gear-1.0.0-any.zip",
+            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Gear/releases/download/v1.0.0/gear-1.0.0-any.zip",
+            "sha256": "236a8995e0d2108530b8989599018e1148a5274260b5d88088029e3db7752b8a"
+          }
+        ]
+      }
+    },
+    {
       "id": "govee",
       "name": "Govee Lights",
       "description": "Control Govee lights from the deck: power, brightness, colour, white temperature, scenes and segments, with live state on the keys.",
