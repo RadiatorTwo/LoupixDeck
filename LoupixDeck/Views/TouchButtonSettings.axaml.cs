@@ -1,4 +1,4 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
 using Avalonia.Input;
@@ -713,10 +713,14 @@ public partial class TouchButtonSettings : Window
     private static readonly KeyGesture CutGesture = new(Key.X, KeyModifiers.Control);
     private static readonly KeyGesture PasteGesture = new(Key.V, KeyModifiers.Control);
     private static readonly KeyGesture DeleteGesture = new(Key.Delete);
+    private static readonly KeyGesture UndoGesture = new(Key.Z, KeyModifiers.Control);
+    private static readonly KeyGesture RedoGesture = new(Key.Z, KeyModifiers.Control | KeyModifiers.Shift);
+    private static readonly KeyGesture RedoAltGesture = new(Key.Y, KeyModifiers.Control);
 
     /// <summary>
     /// Ctrl+C / Ctrl+X / Ctrl+V / Delete act on the selected layer, the same gestures as for buttons
-    /// in the main window. Not while a text field has focus: its own text editing wins, also when it
+    /// in the main window; Ctrl+Z undoes and Ctrl+Shift+Z / Ctrl+Y redo (issue #622). Not while a
+    /// text field has focus: its own text editing wins, also when it
     /// leaves the key unhandled (Delete at the end of the text).
     /// </summary>
     private void OnLayerShortcutKeyDown(object sender, KeyEventArgs e)
@@ -730,6 +734,8 @@ public partial class TouchButtonSettings : Window
             CutGesture.Matches(e) ? vm.CutLayerCommand :
             PasteGesture.Matches(e) ? vm.PasteLayerCommand :
             DeleteGesture.Matches(e) ? vm.DeleteLayerKeyCommand :
+            UndoGesture.Matches(e) ? vm.History?.UndoCommand :
+            RedoGesture.Matches(e) || RedoAltGesture.Matches(e) ? vm.History?.RedoCommand :
             null;
         if (command == null) return;
 

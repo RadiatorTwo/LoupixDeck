@@ -16,8 +16,52 @@ public partial class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryB
 {
     public override void Initialize(RotaryButton parameter)
     {
-        ButtonData = parameter;
+        if (ButtonData != null)
+            ButtonData.PropertyChanged -= ButtonData_PropertyChanged;
 
+        ButtonData = parameter;
+        BuildSlots();
+
+        // The first slot is the default double-click target.
+        SetActiveSlot(RotaryLeftSlot);
+
+        if (ButtonData != null)
+            ButtonData.PropertyChanged += ButtonData_PropertyChanged;
+
+        History?.Dispose();
+        History = ButtonData == null
+            ? null
+            : new ButtonEditHistory(() => ButtonSnapshot.CaptureContent(ButtonData), ApplyHistoryStep);
+        OnPropertyChanged(nameof(History));
+    }
+
+    /// <summary>Undo/redo of the edits made in this editor (issue #622).</summary>
+    public ButtonEditHistory History { get; private set; }
+
+    // The command strips write straight into the button; every other edit raises PropertyChanged.
+    private void ButtonData_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        => History?.NotifyChanged();
+
+    /// <summary>
+    /// Puts recorded content back onto the button and rebuilds the command strips from it, keeping
+    /// the strip that was the double-click target.
+    /// </summary>
+    private void ApplyHistoryStep(string content)
+    {
+        int active = Slots.ToList().IndexOf(ActiveSlot);
+        foreach (var slot in Slots)
+            slot.Cleanup();
+
+        ButtonSnapshot.Apply(content, ButtonData);
+
+        ActiveSlot = null;
+        BuildSlots();
+        SetActiveSlot(active >= 0 && active < Slots.Count ? Slots[active] : RotaryLeftSlot);
+    }
+
+    /// <summary>Creates the command strips and the split picker from the button's current content.</summary>
+    private void BuildSlots()
+    {
         RotaryLeftSlot = new CommandSequenceSlot(Loc.Tr("Gesture_RotateLeft"), _commandBuilder, _commandRegistry, _commandLock, _dialogService,
             () => ButtonData.RotaryLeftCommand, v => ButtonData.RotaryLeftCommand = v);
         RotaryRightSlot = new CommandSequenceSlot(Loc.Tr("Gesture_RotateRight"), _commandBuilder, _commandRegistry, _commandLock, _dialogService,
@@ -31,9 +75,6 @@ public partial class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryB
         SplitOptions = IsWheel ? WheelSplitOption.All() : [];
         SelectedSplitOption = SplitOptions.FirstOrDefault(o => o.Mode == ButtonData.SplitMode) ?? SplitOptions.FirstOrDefault();
         RebuildSegmentEditors();
-
-        // The first slot is the default double-click target.
-        SetActiveSlot(RotaryLeftSlot);
 
         OnPropertyChanged(nameof(IsWheel));
         OnPropertyChanged(nameof(SplitOptions));
@@ -98,7 +139,11 @@ public partial class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryB
                 var slot = new CommandSequenceSlot(
                     Loc.Tr(WheelSplitGeometry.SegmentNameKey(ButtonData.SplitMode, i)),
                     _commandBuilder, _commandRegistry, _commandLock, _dialogService,
-                    () => segment.Command, v => segment.Command = v);
+                    () => segment.Command, v =>
+                    {
+                        segment.Command = v;
+                        History?.NotifyChanged();
+                    });
                 editors.Add(new WheelSegmentEditor(slot, ButtonData.SplitMode, i));
             }
         }
@@ -258,6 +303,11 @@ public partial class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryB
 
     public void Cleanup()
     {
+        History?.Dispose();
+        History = null;
+        if (ButtonData != null)
+            ButtonData.PropertyChanged -= ButtonData_PropertyChanged;
+
         foreach (var slot in Slots)
             slot.Cleanup();
 

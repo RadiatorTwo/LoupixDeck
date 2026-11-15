@@ -1562,5 +1562,7 @@
   "MainWindow_BrowseCommunityProfiles": "Community-Profile…",
   "Settings_BrowseCommunityProfiles": "Community-Profile…",
   "Settings_BrowseCommunityProfilesHint": "Von anderen Nutzern geteilte Profile, Arbeitsbereiche und Seiten durchsuchen und importieren",
-  "StarterPicker_BrowseCommunity": "Community-Profile…"
+  "StarterPicker_BrowseCommunity": "Community-Profile…",
+  "History_UndoTip": "Rückgängig (Ctrl+Z)",
+  "History_RedoTip": "Wiederholen (Ctrl+Shift+Z)"
 }

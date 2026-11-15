@@ -312,9 +312,12 @@ public partial class MainWindowViewModel : ViewModelBase
         ViewModels.FolderPanel.FolderPanelViewModel folderPanel,
         IDeviceService deviceService,
         IPastePluginActivation pastePlugins,
+        Services.History.IWorkspaceHistoryService history,
         IButtonStateService buttonStates = null)
     {
         FolderPanel = folderPanel;
+        _history = history;
+        _history.Changed += OnHistoryChanged;
         _pastePlugins = pastePlugins;
         _buttonStates = buttonStates;
         LoupedeckController = loupedeck;
@@ -492,6 +495,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _config.PropertyChanged -= OnConfigFolderPropertyChanged;
         _folders.StructureChanged -= RefreshFolderBreadcrumbs;
         _clipboard.Changed -= OnClipboardChanged;
+        _history.Changed -= OnHistoryChanged;
         _powerService.Suspending -= OnSystemSuspending;
         _powerService.Resuming -= OnSystemResuming;
         _displayState.DisplaysOff -= OnDisplaysOff;
@@ -1065,6 +1069,35 @@ public partial class MainWindowViewModel : ViewModelBase
     private static RotarySide SideOf(PageSlot slot) => slot == PageSlot.RightRotary ? RotarySide.Right : RotarySide.Left;
 
     private void OnClipboardChanged() => PastePageCommand.NotifyCanExecuteChanged();
+
+    private readonly Services.History.IWorkspaceHistoryService _history;
+
+    /// <summary>Undoes the last edit made in the main window (issue #622).</summary>
+    [RelayCommand(CanExecute = nameof(CanUndo))]
+    private async Task Undo()
+    {
+        EndExclusiveModeForPageChange();
+        await _history.Undo();
+    }
+
+    private bool CanUndo() => _history.CanUndo;
+
+    /// <summary>Redoes the last undone edit in the main window (issue #622).</summary>
+    [RelayCommand(CanExecute = nameof(CanRedo))]
+    private async Task Redo()
+    {
+        EndExclusiveModeForPageChange();
+        await _history.Redo();
+    }
+
+    private bool CanRedo() => _history.CanRedo;
+
+    // Raised from the save path, which runs on the UI thread.
+    private void OnHistoryChanged()
+    {
+        UndoCommand.NotifyCanExecuteChanged();
+        RedoCommand.NotifyCanExecuteChanged();
+    }
 
     private void CutSelected()
     {
