@@ -29,25 +29,45 @@ public static class BitmapHelper
     private const float PressedKeyScale = 0.85f;
 
     /// <summary>
-    /// A copy of <paramref name="source"/> with its content shrunk towards the centre on a
-    /// black key, the look of a physical button pushed down (issue #627). The caller owns
-    /// the result. Linear sampling keeps the per-press cost to one small draw.
+    /// Draws a key like <see cref="RenderTouchButtonContent"/>, but shrunk towards the centre on
+    /// black, the look of a physical button pushed down (issue #627). The content is drawn at
+    /// the smaller size rather than scaled down from the finished key, so text, symbols and
+    /// pictures stay sharp; the shrunk area sits on whole pixels so no edge is resampled.
+    /// Nothing is published to the button. The caller owns the result.
     /// </summary>
-    public static SKBitmap RenderPressedKey(SKBitmap source)
+    public static SKBitmap RenderPressedTouchButton(
+        TouchButton touchButton,
+        LoupedeckConfig config,
+        int width,
+        int height,
+        SKRectI? wallpaperSource)
     {
-        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(touchButton);
 
-        SKBitmap pressed = new(source.Info);
-        float width = source.Width * PressedKeyScale;
-        float height = source.Height * PressedKeyScale;
+        var (wallpaperToUse, opacityToUse) = ResolveWallpaper(config);
+
+        int innerWidth = (int)Math.Round(width * PressedKeyScale);
+        int innerHeight = (int)Math.Round(height * PressedKeyScale);
+        int left = (width - innerWidth) / 2;
+        int top = (height - innerHeight) / 2;
+
+        SKBitmap pressed = new(width, height);
 
         lock (SkiaRenderGate.Sync)
         {
             using SKCanvas canvas = new(pressed);
             canvas.Clear(SKColors.Black);
-            canvas.DrawBitmap(source,
-                SKRect.Create((source.Width - width) / 2f, (source.Height - height) / 2f, width, height),
-                new SKSamplingOptions(SKFilterMode.Linear), paint: null);
+
+            // The background is painted with Clear, which ignores the matrix but keeps to the
+            // clip, so the clip is what confines it to the shrunk area.
+            canvas.ClipRect(SKRect.Create(left, top, innerWidth, innerHeight));
+            canvas.Translate(left, top);
+            canvas.Scale((float)innerWidth / width, (float)innerHeight / height);
+
+            DrawTouchButtonContent(canvas, touchButton, wallpaperToUse, opacityToUse, wallpaperSource, width, height,
+                ShowsFolderBadges(config), touchButton.ValueContext);
+            DrawUnavailableOverlay(canvas, touchButton, width, height);
+            DrawRunningIndicator(canvas, touchButton, width, height);
         }
 
         return pressed;

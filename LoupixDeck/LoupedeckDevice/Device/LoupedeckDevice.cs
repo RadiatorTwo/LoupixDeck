@@ -49,6 +49,14 @@ public class LoupedeckDevice
     public TouchButton PressedButton { get; set; }
 
     /// <summary>
+    /// <paramref name="touchButton"/> drawn in its pressed look at this device's key size
+    /// (issue #627). The caller owns the result.
+    /// </summary>
+    public SKBitmap RenderPressedKey(TouchButton touchButton, LoupedeckConfig config) =>
+        BitmapHelper.RenderPressedTouchButton(touchButton, config, KeySize, KeySize,
+            GetWallpaperKeyRect(touchButton.Index));
+
+    /// <summary>
     /// Edge length of one centre-grid touch key in device pixels — the calibrated size, so
     /// every renderer that sizes a tile from it produces pixels the panel takes unscaled.
     /// </summary>
@@ -1812,7 +1820,7 @@ public class LoupedeckDevice
         // Only the held key pays for the shrink; every other draw passes its image as it is.
         SKBitmap image = touchButton.RenderedImage;
         SKBitmap pressed = ReferenceEquals(touchButton, PressedButton) && image != null
-            ? BitmapHelper.RenderPressedKey(image)
+            ? RenderPressedKey(touchButton, config)
             : null;
 
         try

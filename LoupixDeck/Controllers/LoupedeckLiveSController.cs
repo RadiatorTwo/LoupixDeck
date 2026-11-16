@@ -2701,7 +2701,7 @@ public partial class LoupedeckLiveSController(
 
             // A held key flashes in its shrunk look, so the flash does not undo the press (#627).
             using SkiaSharp.SKBitmap pressed = original != null && ReferenceEquals(device.PressedButton, button)
-                ? BitmapHelper.RenderPressedKey(original)
+                ? device.RenderPressedKey(button, config)
                 : null;
 
             using var flash = new SkiaSharp.SKBitmap(width, height);
