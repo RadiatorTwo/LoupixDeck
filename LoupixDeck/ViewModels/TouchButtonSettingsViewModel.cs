@@ -1952,12 +1952,25 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
                 IconColorAnalysis.GetContentAspectRatio(icon) ?? 1.0);
             layer.PositionY = (int)Math.Round(((segment + 0.5) * zoneHeight) - (DeviceHeight / 2.0));
         }
-        else if (!IsStripCanvas)
+
+        LayerBase selected = layer;
+        if (segment < 0 && !IsStripCanvas)
         {
             LayerDefaults.ApplyToNewIcon(layer, DeviceWidth, DeviceHeight);
+
+            // The preferred layout for apps from Settings may add the app's name as a caption.
+            TextLayer caption = Services.AppLauncher.AppAssignment.ApplyPreferredLayout(ButtonData, layer, app.Name,
+                DeviceWidth, DeviceHeight, GetUniqueLayerName);
+            if (caption != null)
+            {
+                caption.DeviceBaseWidth = DeviceWidth;
+                caption.DeviceBaseHeight = DeviceHeight;
+                if (!ButtonData.Layers.Contains(layer))
+                    selected = caption;
+            }
         }
 
-        SelectedLayer = layer;
+        SelectedLayer = selected;
         UpdateEditorPreview();
     }
 

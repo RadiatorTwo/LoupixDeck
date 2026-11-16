@@ -466,6 +466,25 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- Layout a key gets when an app is put on it (issue #624). -->
+                    <Border Classes="card">
+                        <StackPanel>
+                            <TextBlock Classes="card-title" Text="{loc:Tr Settings_AppLayers}" />
+                            <TextBlock Classes="label" Text="{loc:Tr Settings_AppLayout}" />
+                            <ComboBox Margin="0,4,0,0" MinWidth="240"
+                                      ItemsSource="{Binding AppLayoutChoices}"
+                                      SelectedItem="{Binding SelectedAppLayoutChoice, Mode=TwoWay}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:LayoutTemplateOption">
+                                        <TextBlock Text="{Binding Label}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <TextBlock Classes="hint" Margin="0,8,0,0" TextWrapping="Wrap"
+                                       Text="{loc:Tr Settings_AppLayoutHint}" />
+                        </StackPanel>
+                    </Border>
+
                     <!-- Size, position and style new symbol and image layers start with (issue #564). -->
                     <Border Classes="card">
                         <StackPanel>

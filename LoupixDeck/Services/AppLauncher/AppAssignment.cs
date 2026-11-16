@@ -1,5 +1,6 @@
 using LoupixDeck.Models;
 using LoupixDeck.Models.Layers;
+using LoupixDeck.Services.Actions;
 using LoupixDeck.Services.AppActivation;
 using LoupixDeck.Utils;
 using SkiaSharp;
@@ -80,7 +81,32 @@ public static class AppAssignment
         // A key's icon follows the defaults from Settings; a tap zone of a side strip, which calls
         // AddIconLayer directly, keeps its own size.
         LayerDefaults.ApplyToNewIcon(layer, keySizePx, keySizePx);
+        ApplyPreferredLayout(button, layer, app.Name, keySizePx, keySizePx);
         return layer;
+    }
+
+    /// <summary>
+    /// Lays the key out as the preferred layout template for apps from Settings (issue #624), with
+    /// <paramref name="text"/> as the caption. Icon only, the default, leaves the icon as it was
+    /// placed; the other layouts add the caption and arrange both like the button editor's layout
+    /// templates, and text only drops the icon. Nothing happens without an icon, so a key whose app
+    /// has none keeps its layers. Returns the caption, or null when none was added.
+    /// </summary>
+    /// <param name="uniqueName">Turns a base layer name into one no layer has yet; null keeps the text.</param>
+    public static TextLayer ApplyPreferredLayout(TouchButton button, SymbolLayer icon, string text,
+        int keyWidthPx, int keyHeightPx, Func<string, string> uniqueName = null)
+    {
+        ButtonTemplate template = LayerDefaults.AppLayout;
+        if (button == null || icon == null || template == ButtonTemplate.IconOnly || string.IsNullOrWhiteSpace(text))
+            return null;
+
+        TextLayer caption = ActionAssignment.CreateCaption(text, keyWidthPx, keyHeightPx);
+        caption.Name = uniqueName?.Invoke(text) ?? text;
+        button.Layers.Add(caption);
+
+        ButtonTemplatePlan plan = ActionAssignment.PlanTemplate(button, template, keyWidthPx, keyHeightPx);
+        ActionAssignment.ApplyTemplate(button, plan, uniqueName);
+        return caption;
     }
 
     /// <summary>

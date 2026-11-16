@@ -37,6 +37,7 @@ public static class LayerDefaults
                 if (_current == null)
                 {
                     _current = Load();
+                    _current.PropertyChanged += OnChanged;
                     _current.Text.PropertyChanged += OnChanged;
                     _current.Icon.PropertyChanged += OnChanged;
                 }
@@ -49,6 +50,9 @@ public static class LayerDefaults
     public static TextLayerDefaults Text => Current.Text;
 
     public static IconLayerDefaults Icon => Current.Icon;
+
+    /// <summary>The layout a key gets when an app is put on it.</summary>
+    public static Services.Actions.ButtonTemplate AppLayout => Current.AppLayout;
 
     private static LayerDefaultSettings Load()
     {

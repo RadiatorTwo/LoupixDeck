@@ -1377,6 +1377,21 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
 
     public IconLayerDefaults IconDefaults => LayerDefaults.Icon;
 
+    /// <summary>The layout templates a key can get when an app is put on it, labelled as the button editor labels them.</summary>
+    public IReadOnlyList<LayoutTemplateOption> AppLayoutChoices { get; } =
+        LayoutTemplateOption.CreateAll().Where(o => o.Template != null).ToList();
+
+    public LayoutTemplateOption SelectedAppLayoutChoice
+    {
+        get => AppLayoutChoices.FirstOrDefault(o => o.Template == LayerDefaults.AppLayout);
+        set
+        {
+            if (value?.Template is not { } template) return;
+            LayerDefaults.Current.AppLayout = template;
+            OnPropertyChanged();
+        }
+    }
+
     // ───────── About ─────────
 
     public string Version { get; }
