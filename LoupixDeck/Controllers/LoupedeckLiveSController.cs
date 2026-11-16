@@ -401,25 +401,27 @@ public partial class LoupedeckLiveSController(
             // and a panel left lit overnight would only suggest otherwise.
             var showActive = !_blankedForSuspend;
             var activeKeys = showActive ? ActiveWhenOffTouchButtons() : [];
+            var leftStrip = showActive ? RenderActiveWhenOffStrip(RotarySide.Left) : null;
+            var rightStrip = showActive ? RenderActiveWhenOffStrip(RotarySide.Right) : null;
 
             if (config.SimpleButtons != null)
             {
                 foreach (var btn in config.SimpleButtons)
                 {
                     if (btn == null) continue;
-                    await device.SetButtonColor(btn.Id, showActive && btn.EnableWhenOff
-                        ? DimColour(btn.ButtonColor)
-                        : Avalonia.Media.Colors.Black);
+                    await device.SetButtonColor(btn.Id, LedColourWhileOff(btn));
                 }
             }
 
-            if (activeKeys.Count > 0)
+            if (activeKeys.Count > 0 || leftStrip != null || rightStrip != null)
             {
                 // Drawn while the brightness is still at 0, so the page that was showing never
                 // flashes up before the screen is cleared.
                 await device.ClearDisplays();
                 foreach (var key in activeKeys)
                     await device.DrawTouchButton(key, config, refresh: false);
+                await PushOffStateStrip(device, RotarySide.Left, leftStrip);
+                await PushOffStateStrip(device, RotarySide.Right, rightStrip);
                 await device.SetBrightness(Math.Min(OffStateBrightness, config.Brightness / 100.0));
             }
             // Firmware-side native haptic (0x2e) is no longer used — haptic runs through
@@ -437,9 +439,69 @@ public partial class LoupedeckLiveSController(
         }
     }
 
-    /// <summary>Display brightness, and LED level, for the controls still shown while the device
-    /// is off (#522).</summary>
-    private const double OffStateBrightness = 0.2;
+    /// <summary>Display brightness for the controls still shown while the device is off (#522).</summary>
+    private const double OffStateBrightness = 0.1;
+
+    /// <summary>LED level for the buttons still lit while the device is off (#522). Lower than the
+    /// display's, because an LED driven at a tenth of its output still looks far brighter than
+    /// a tenth.</summary>
+    private const double OffStateLedLevel = 0.05;
+
+    /// <summary>What an LED button shows while the device is off: its colour, dimmed, when it
+    /// still runs and the host is not asleep; dark otherwise (#522).</summary>
+    private Avalonia.Media.Color LedColourWhileOff(SimpleButton button) =>
+        !_blankedForSuspend && button.EnableWhenOff
+            ? DimColour(button.ButtonColor)
+            : Avalonia.Media.Colors.Black;
+
+    /// <summary>
+    /// The side's strip as it would show, with only the labels of the dials that still run while
+    /// the device is off left in; null when there are none, or something other than the page owns
+    /// the strips (#522). A strip is drawn in one band per dial, top to bottom, in every strip
+    /// mode, so the bands are cut out by position.
+    /// </summary>
+    private SkiaSharp.SKBitmap RenderActiveWhenOffStrip(RotarySide side)
+    {
+        if (deviceService.Device is not { HasSideStrips: true }) return null;
+        if (folderNav.IsActive || exclusiveMode.Owns(ExclusiveControlScope.SideDisplays)) return null;
+
+        var page = pageManager.GetCurrentRotaryPage(side);
+        var dials = page?.RotaryButtons;
+        if (dials == null || dials.Count == 0 || !dials.Any(d => d is { EnableWhenOff: true })) return null;
+
+        // No live plugin sessions: they are detached while the device is off.
+        using var strip = RenderStripFor(page, side, useSessions: false);
+        if (strip == null) return null;
+
+        var masked = new SkiaSharp.SKBitmap(strip.Info);
+        lock (Utils.SkiaRenderGate.Sync)
+        {
+            using var canvas = new SkiaSharp.SKCanvas(masked);
+            canvas.Clear(SkiaSharp.SKColors.Black);
+            var band = (float)strip.Height / dials.Count;
+            for (var i = 0; i < dials.Count; i++)
+            {
+                if (dials[i] is not { EnableWhenOff: true }) continue;
+                var rect = new SkiaSharp.SKRect(0, i * band, strip.Width, (i + 1) * band);
+                canvas.DrawBitmap(strip, rect, rect);
+            }
+        }
+
+        return masked;
+    }
+
+    /// <summary>Sends a strip from <see cref="RenderActiveWhenOffStrip"/> and frees it.</summary>
+    private static async Task PushOffStateStrip(LoupedeckDevice.Device.LoupedeckDevice device, RotarySide side,
+        SkiaSharp.SKBitmap strip)
+    {
+        if (strip == null) return;
+        using (strip)
+        {
+            await device.DrawTouchSlot(side == RotarySide.Left
+                ? LoupedeckDevice.Device.RazerStreamControllerDevice.LeftSideIndex
+                : LoupedeckDevice.Device.RazerStreamControllerDevice.RightSideIndex, strip);
+        }
+    }
 
     /// <summary>The current page's touch keys that still run while the device is off. Empty
     /// while something other than the page owns the grid.</summary>
@@ -454,12 +516,14 @@ public partial class LoupedeckLiveSController(
             .ToList() ?? [];
     }
 
-    /// <summary>An LED colour at <see cref="OffStateBrightness"/>.</summary>
-    private static Avalonia.Media.Color DimColour(Avalonia.Media.Color colour) =>
-        Avalonia.Media.Color.FromRgb(
-            (byte)(colour.R * OffStateBrightness),
-            (byte)(colour.G * OffStateBrightness),
-            (byte)(colour.B * OffStateBrightness));
+    /// <summary>An LED colour at <see cref="OffStateLedLevel"/>. A channel that is lit stays at
+    /// least 1, so a dim colour does not go out altogether.</summary>
+    private static Avalonia.Media.Color DimColour(Avalonia.Media.Color colour)
+    {
+        static byte Dim(byte channel) =>
+            channel == 0 ? (byte)0 : (byte)Math.Max(1, Math.Round(channel * OffStateLedLevel));
+        return Avalonia.Media.Color.FromRgb(Dim(colour.R), Dim(colour.G), Dim(colour.B));
+    }
 
     /// <summary>
     /// Switches the device back on: brightness, LED colours, the current touch page and the
@@ -4127,8 +4191,10 @@ public partial class LoupedeckLiveSController(
             button.RenderedImage = RenderSimpleButton(button);
         });
         // async void: an unhandled transport failure here would tear the process down.
+        // While the device is off the LED keeps its off-state look, dimmed or dark (#522).
         await TryDeviceIo($"setting the colour of button {button.Id}",
-            () => deviceService.Device.SetButtonColor(button.Id, button.ButtonColor));
+            () => deviceService.Device.SetButtonColor(button.Id,
+                _isDeviceOff ? LedColourWhileOff(button) : button.ButtonColor));
     }
 
     /// <summary>
