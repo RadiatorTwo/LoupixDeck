@@ -188,6 +188,12 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     /// </summary>
     public bool IsDesktopScreenSaverSupported { get; }
 
+    /// <summary>
+    /// Whether this platform reports the session lock state, which "Turn off while the computer
+    /// is locked" depends on (issue #522). macOS only.
+    /// </summary>
+    public bool IsSessionLockSupported { get; }
+
     public SettingsViewModel(LoupedeckConfig config,
         IDeviceService deviceService,
         IPageManager pageManager,
@@ -206,9 +212,11 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         IDeviceController controller,
         ResolvedDevice device,
         LinuxDiagnosticsViewModel diagnostics,
-        IDisplayStateService displayState)
+        IDisplayStateService displayState,
+        ISessionLockService sessionLock)
     {
         IsDisplayStateSupported = displayState.IsSupported;
+        IsSessionLockSupported = sessionLock.IsSupported;
         IsDesktopScreenSaverSupported = displayState.IsScreenSaverSupported;
         _companions = companions;
         Diagnostics = diagnostics;

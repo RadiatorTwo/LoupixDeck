@@ -1491,6 +1491,8 @@
   "Settings_TurnOffWithDisplays": "Den Monitoren folgen",
   "Settings_TurnOffWithDisplaysHint": "Schaltet der Computer die Monitore ab, wird das Gerät ausgeschaltet oder gedimmt und kommt zurück, sobald sie aufwachen. Unter Windows zählt auch der Bildschirmschoner. Ein Gerät, das du selbst ausgeschaltet hast, bleibt aus.",
   "Settings_TurnOffWithDisplaysUnsupported": "Dieser Desktop meldet nicht, wann sich die Monitore abschalten, daher kann das Gerät ihnen nicht folgen.",
+  "Settings_TurnOffWhenLocked": "Ausschalten, solange der Computer gesperrt ist",
+  "Settings_TurnOffWhenLockedHint": "Solange der Sperrbildschirm angezeigt wird, nach dem Aufwachen oder einer manuellen Sperre, oder solange ein anderer Benutzer angemeldet ist, bleibt das Gerät aus. Nur Tasten und Regler mit „Auch ausführen, wenn das Gerät AUS ist“ funktionieren weiter. Nach dem Entsperren kommt es zurück.",
   "Settings_ScreensaverWithDesktop": "Mit dem Desktop-Bildschirmschoner starten",
   "Settings_ScreensaverWithDesktopHint": "Spielt den Bildschirmschoner auf dem Gerät ab, solange der Windows-Bildschirmschoner läuft, auch wenn der animierte Bildschirmschoner oben aus ist. Währenddessen bleibt das Gerät an, statt den Monitoren zu folgen.",
   "Settings_DisplaysOffTurnOff": "Ausschalten",

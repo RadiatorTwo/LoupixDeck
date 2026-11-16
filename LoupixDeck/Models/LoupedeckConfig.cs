@@ -174,6 +174,12 @@ public partial class LoupedeckConfig : ObservableObject
     [ObservableProperty]
     public partial bool TurnOffWithDisplays { get; set; }
 
+    // Turn the device off while the host's session is locked, so only controls set to run while
+    // the device is off can be used from the lock screen (issue #522). On by default, also for
+    // older configs that do not have it.
+    [ObservableProperty]
+    public partial bool TurnOffWhenLocked { get; set; } = true;
+
     // Whether following the monitors turns the device off or only dims it, and how far
     // (percent of full brightness). Absent in older configs, which keeps turning it off.
     [ObservableProperty]

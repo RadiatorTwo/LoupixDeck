@@ -112,10 +112,14 @@ public partial class LoupedeckLiveSController(
     private volatile bool _blankedForSuspend;
 
     /// <summary>
-    /// True while the off state was entered because the host's monitors went dark (#382). Only
-    /// this off state is undone when they wake; a device the user turned off stays off.
+    /// True while the off state was entered because the host's monitors went dark (#382) or its
+    /// session was locked (#522). Only this off state is undone when the host is back; a device
+    /// the user turned off stays off.
     /// </summary>
     private volatile bool _blankedForDisplays;
+
+    /// <summary>The session lock state last reported through <see cref="HandleSessionLock"/>.</summary>
+    private volatile bool _sessionLocked;
 
     /// <summary>The monitor state last reported through <see cref="HandleDisplaysOff"/> and
     /// <see cref="HandleDisplaysOn"/>.</summary>
@@ -265,6 +269,17 @@ public partial class LoupedeckLiveSController(
         return ApplyHostIdleState();
     }
 
+    /// <summary>
+    /// The host's session was locked or unlocked (#522). Locked, the device goes dark like it
+    /// does for the monitors, and a wake onto the lock screen keeps it dark; unlocked, it comes
+    /// back unless the monitors still want it off. A device the user turned off stays off.
+    /// </summary>
+    public Task HandleSessionLock(bool locked)
+    {
+        _sessionLocked = locked;
+        return ApplyHostIdleState();
+    }
+
     /// <summary>The host's desktop screen saver started or ended (#382).</summary>
     public Task HandleDesktopScreenSaver(bool running)
     {
@@ -280,8 +295,17 @@ public partial class LoupedeckLiveSController(
     private bool HostIsIdle() => config.TurnOffWithDisplays &&
                                  (!_displaysOn || (_desktopScreenSaver && !config.ScreensaverWithDesktop));
 
-    /// <summary>Whether the host's idle state asks for a dark device (#382).</summary>
-    private bool HostWantsOff() => HostIsIdle() && config.DisplaysOffAction == DisplaysOffAction.TurnOff;
+    /// <summary>
+    /// Whether the host asks for a dark device: its idle state does (#382), or its session is
+    /// locked (#522). A locked session always turns the device off, never only dims it, so that
+    /// nothing but the controls set to run while the device is off can be used from the lock
+    /// screen.
+    /// </summary>
+    private bool HostWantsOff() =>
+        (HostIsIdle() && config.DisplaysOffAction == DisplaysOffAction.TurnOff) || HostIsLocked();
+
+    /// <summary>Whether the session is locked and the device is set to turn off with it (#522).</summary>
+    private bool HostIsLocked() => _sessionLocked && config.TurnOffWhenLocked;
 
     /// <summary>Whether the host's idle state asks for a dimmed device (#382).</summary>
     private bool HostWantsDim() => HostIsIdle() && config.DisplaysOffAction == DisplaysOffAction.Dim;
