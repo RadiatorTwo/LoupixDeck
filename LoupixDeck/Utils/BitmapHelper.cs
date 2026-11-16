@@ -25,6 +25,54 @@ public static class BitmapHelper
     /// </summary>
     public static Func<string, SKSizeI?> AssetSizeResolver { get; set; }
 
+    /// <summary>Share of the key edge a pressed key's content keeps (issue #627).</summary>
+    private const float PressedKeyScale = 0.85f;
+
+    /// <summary>
+    /// Draws a key like <see cref="RenderTouchButtonContent"/>, but shrunk towards the centre on
+    /// black, the look of a physical button pushed down (issue #627). The content is drawn at
+    /// the smaller size rather than scaled down from the finished key, so text, symbols and
+    /// pictures stay sharp; the shrunk area sits on whole pixels so no edge is resampled.
+    /// Nothing is published to the button. The caller owns the result.
+    /// </summary>
+    public static SKBitmap RenderPressedTouchButton(
+        TouchButton touchButton,
+        LoupedeckConfig config,
+        int width,
+        int height,
+        SKRectI? wallpaperSource)
+    {
+        ArgumentNullException.ThrowIfNull(touchButton);
+
+        var (wallpaperToUse, opacityToUse) = ResolveWallpaper(config);
+
+        int innerWidth = (int)Math.Round(width * PressedKeyScale);
+        int innerHeight = (int)Math.Round(height * PressedKeyScale);
+        int left = (width - innerWidth) / 2;
+        int top = (height - innerHeight) / 2;
+
+        SKBitmap pressed = new(width, height);
+
+        lock (SkiaRenderGate.Sync)
+        {
+            using SKCanvas canvas = new(pressed);
+            canvas.Clear(SKColors.Black);
+
+            // The background is painted with Clear, which ignores the matrix but keeps to the
+            // clip, so the clip is what confines it to the shrunk area.
+            canvas.ClipRect(SKRect.Create(left, top, innerWidth, innerHeight));
+            canvas.Translate(left, top);
+            canvas.Scale((float)innerWidth / width, (float)innerHeight / height);
+
+            DrawTouchButtonContent(canvas, touchButton, wallpaperToUse, opacityToUse, wallpaperSource, width, height,
+                ShowsFolderBadges(config), touchButton.ValueContext);
+            DrawUnavailableOverlay(canvas, touchButton, width, height);
+            DrawRunningIndicator(canvas, touchButton, width, height);
+        }
+
+        return pressed;
+    }
+
     /// <summary>Family a text layer renders in when it names none.</summary>
     private const string DefaultTextFontFamily = "Liberation Sans";
 

@@ -1277,6 +1277,16 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- Press shrink: the held key's content shrinks like a pushed button (#627) -->
+                    <Border Classes="card">
+                        <StackPanel>
+                            <TextBlock Classes="card-title" Text="{loc:Tr Settings_TouchPress}" />
+                            <CheckBox Content="{loc:Tr Settings_ShrinkTouchButtonsWhilePressed}"
+                                      IsChecked="{Binding Config.TouchPressShrinkEnabled, Mode=TwoWay}"
+                                      ToolTip.Tip="{loc:Tr Settings_ShrinkTouchButtonsWhilePressedTip}" />
+                        </StackPanel>
+                    </Border>
+
                     <!-- Touch sliding prevention + diagnostic logging -->
                     <Border Classes="card">
                         <StackPanel>

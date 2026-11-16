@@ -212,6 +212,10 @@ public partial class LoupedeckLiveSController(
     // first TOUCH_START of a finger-down sequence, cleared on TOUCH_END.
     private int? _activeTouchSlot;
 
+    // Touch id of the finger holding the shrunk key (issue #627); the key itself is the
+    // device's PressedButton. Null while no key is held down with press feedback on.
+    private byte? _pressedTouchId;
+
     // ───────── Plugin-override side strips (Razer) ─────────
     // Live session driving each side strip ([0]=Left, [1]=Right), or null. Created
     // when the side's current page is a PluginOverride page with a resolvable provider,
@@ -2511,7 +2515,13 @@ public partial class LoupedeckLiveSController(
         // waiting for the touch to end. The device removes the id from its touch set before
         // raising this, so ChangedTouch is the contact that was lifted.
         if (e.EventType == Constants.TouchEventType.TOUCH_END && e.ChangedTouch != null)
+        {
             CompleteTouchPress(e.ChangedTouch.Id);
+
+            // The pressed key springs back for the same reason: nothing below may leave it shrunk.
+            if (_pressedTouchId == e.ChangedTouch.Id)
+                ReleasePressedKey();
+        }
 
         using var _routerScope = router.Enter(serviceProvider);
 
@@ -2642,8 +2652,19 @@ public partial class LoupedeckLiveSController(
             if (vibrationPattern.HasValue)
                 deviceService.Device.Vibrate(vibrationPattern.Value);
 
+            // A key still shrunk from a touch whose release was lost springs back first.
+            ReleasePressedKey();
+            if (config.TouchPressShrinkEnabled)
+            {
+                _pressedTouchId = touch.Id;
+                deviceService.Device.PressedButton = button;
+            }
+
+            // The flash draws the shrunk key itself; without it the shrunk key is drawn here.
             if (config.TouchFeedbackEnabled)
                 _ = ShowTouchFeedback(button);
+            else if (config.TouchPressShrinkEnabled)
+                _ = deviceService.Device.DrawTouchButton(button, config, false);
 
             // The automatic navigation tiles of a custom folder (issues #249, #603) have no command of their own.
             if (button.IsFolderNavTile)
@@ -2678,11 +2699,16 @@ public partial class LoupedeckLiveSController(
             var width = original?.Width ?? KeySize;
             var height = original?.Height ?? KeySize;
 
+            // A held key flashes in its shrunk look, so the flash does not undo the press (#627).
+            using SkiaSharp.SKBitmap pressed = original != null && ReferenceEquals(device.PressedButton, button)
+                ? device.RenderPressedKey(button, config)
+                : null;
+
             using var flash = new SkiaSharp.SKBitmap(width, height);
             using (var canvas = new SkiaSharp.SKCanvas(flash))
             {
                 if (original != null)
-                    canvas.DrawBitmap(original, 0, 0, SkiaSharp.SKSamplingOptions.Default, paint: null);
+                    canvas.DrawBitmap(pressed ?? original, 0, 0, SkiaSharp.SKSamplingOptions.Default, paint: null);
                 var c = config.TouchFeedbackColor;
                 var alpha = (byte)Math.Clamp(255 * config.TouchFeedbackOpacity, 0, 255);
                 using var paint = new SkiaSharp.SKPaint
@@ -2709,18 +2735,37 @@ public partial class LoupedeckLiveSController(
                 || _screensaverActive || _fullDisplayActive)
                 return;
 
-            // Restore — if the key has a rendered image, draw it directly; otherwise
-            // re-render the button through its normal path.
-            var current = button.RenderedImage;
-            if (current != null)
-                await device.DrawTouchSlot(button.Index, current);
-            else
-                await device.DrawTouchButton(button, config, true);
+            // Restore through the button's own path: it draws the current rendered image (or
+            // renders one when there is none) and keeps the key shrunk while it is still held.
+            await device.DrawTouchButton(button, config, button.RenderedImage == null);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Touch feedback failed: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Ends the press look of the held key (issue #627) and redraws it at full size. A key that
+    /// left the slot while held, or one an overlay now covers, is not drawn: the new content is
+    /// on the device already, and it was never shrunk because only the held button is.
+    /// </summary>
+    private void ReleasePressedKey()
+    {
+        _pressedTouchId = null;
+
+        LoupedeckDevice.Device.LoupedeckDevice device = deviceService.Device;
+        if (device?.PressedButton is not { } button) return;
+        device.PressedButton = null;
+
+        if (!ReferenceEquals(config.CurrentTouchButtonPage?.TouchButtons.FindByIndex(button.Index), button))
+            return;
+
+        if (folderNav.IsActive || exclusiveMode.Owns(ExclusiveControlScope.TouchButtons)
+            || _screensaverActive || _fullDisplayActive)
+            return;
+
+        _ = device.DrawTouchButton(button, config, false);
     }
 
     private void HandleFolderTouch(int slotIndex)
