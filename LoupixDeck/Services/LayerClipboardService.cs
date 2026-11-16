@@ -59,6 +59,9 @@ public sealed class LayerClipboardService : ILayerClipboardService
         layer.CommandName = null;
         layer.OwnerCreated = false;
         layer.BehindSegments = false;
+        // A pasted copy is the user's own layer, not one the zone-divider option removes again.
+        if (layer is SymbolLayer symbol)
+            symbol.IsZoneDivider = false;
         return layer;
     }
 }

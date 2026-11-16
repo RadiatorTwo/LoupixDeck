@@ -270,6 +270,13 @@
                                 <TextBlock Classes="hint" Margin="0,8,0,0" TextWrapping="Wrap"
                                            IsVisible="{Binding IsSegmentCommandMode}"
                                            Text="{loc:Tr TouchButton_ThisStripHasThreeTap}" />
+                                <!-- One set of divider bars at most, so an option instead of an
+                                     add button (#630). The bars are ordinary layers afterwards. -->
+                                <CheckBox Margin="0,8,0,0"
+                                          IsVisible="{Binding IsSegmentCommandMode}"
+                                          IsChecked="{Binding ShowZoneDividers, Mode=TwoWay}"
+                                          Content="{loc:Tr TouchButton_ZoneDividers}"
+                                          ToolTip.Tip="{loc:Tr TouchButton_ZoneDividersHint}" />
 
                                 <Separator Margin="0,12,0,0" />
                             </StackPanel>
