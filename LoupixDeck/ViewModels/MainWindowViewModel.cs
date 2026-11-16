@@ -158,6 +158,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IExclusiveModeService _exclusiveMode;
     private readonly ISystemPowerService _powerService;
     private readonly IDisplayStateService _displayState;
+    private readonly ISessionLockService _sessionLock;
 
     private bool _isExclusiveModeActive;
 
@@ -293,6 +294,7 @@ public partial class MainWindowViewModel : ViewModelBase
         Services.Animation.IWheelAnimationManager wheelAnimationManager,
         ISystemPowerService powerService,
         IDisplayStateService displayState,
+        ISessionLockService sessionLock,
         IExclusiveModeService exclusiveMode,
         IAppSwitchingService appSwitching,
         IWorkspaceActivationService workspaceActivation,
@@ -403,6 +405,16 @@ public partial class MainWindowViewModel : ViewModelBase
         displayState.ScreenSaverStopped += OnDesktopScreenSaverStopped;
         displayState.StartMonitoring();
 
+        // Keep the device off while the session is locked (issue #522). Like the monitors, the
+        // controller checks the setting itself.
+        _sessionLock = sessionLock;
+        sessionLock.Locked += OnSessionLocked;
+        sessionLock.Unlocked += OnSessionUnlocked;
+        sessionLock.StartMonitoring();
+        // A device that connects while the session is already locked starts out locked as well.
+        if (sessionLock.IsLocked)
+            OnSessionLocked(sessionLock, EventArgs.Empty);
+
         // Foreground-window → page switching. Started on the UI thread because the
         // Windows WinEvent hook requires the message pump of the thread that sets it.
         appSwitching.Start();
@@ -502,6 +514,8 @@ public partial class MainWindowViewModel : ViewModelBase
         _displayState.DisplaysOn -= OnDisplaysOn;
         _displayState.ScreenSaverStarted -= OnDesktopScreenSaverStarted;
         _displayState.ScreenSaverStopped -= OnDesktopScreenSaverStopped;
+        _sessionLock.Locked -= OnSessionLocked;
+        _sessionLock.Unlocked -= OnSessionUnlocked;
     }
 
     // The power and display handlers hop to the UI thread because they touch
@@ -524,6 +538,12 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void OnDisplaysOn(object sender, EventArgs e) =>
         Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = LoupedeckController.HandleDisplaysOn());
+
+    private void OnSessionLocked(object sender, EventArgs e) =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = LoupedeckController.HandleSessionLock(true));
+
+    private void OnSessionUnlocked(object sender, EventArgs e) =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = LoupedeckController.HandleSessionLock(false));
 
     private void OnDesktopScreenSaverStarted(object sender, EventArgs e) =>
         Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = LoupedeckController.HandleDesktopScreenSaver(true));

@@ -113,6 +113,13 @@ public interface IDeviceController
     Task HandleDisplaysOn();
 
     /// <summary>
+    /// The host's session was locked or unlocked. Locked, the device is blanked when
+    /// <see cref="Models.LoupedeckConfig.TurnOffWhenLocked"/> is set, so only controls set to run
+    /// while it is off still work; unlocked, it is switched back on (issue #522).
+    /// </summary>
+    Task HandleSessionLock(bool locked);
+
+    /// <summary>
     /// The host's desktop screen saver started or ended. Treated like the monitors going dark
     /// and waking (issue #382).
     /// </summary>

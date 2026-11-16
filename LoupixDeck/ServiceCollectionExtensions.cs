@@ -196,6 +196,9 @@ public static class ServiceCollectionExtensions
         // Monitor power state, for turning the device off with the displays (issue #382).
         collection.AddSingleton(CreatePlatformDisplayStateService());
 
+        // Session lock state, for keeping the device off until the user unlocks (issue #522).
+        collection.AddSingleton(CreatePlatformSessionLockService());
+
         // Foreground-window monitor. The Linux monitors need no #if guard (they only use
         // Process + /proc); only the Windows type lives behind #if WINDOWS.
         // On Linux the session type sets the baseline: X11 sessions keep the xprop spy.
@@ -329,6 +332,7 @@ public static class ServiceCollectionExtensions
         collection.Forward<ICommandRunner>(root);
         collection.Forward<ISystemPowerService>(root);
         collection.Forward<IDisplayStateService>(root);
+        collection.Forward<ISessionLockService>(root);
         collection.Forward<IActiveWindowMonitor>(root);
         collection.Forward<IActiveWindowState>(root);
         collection.Forward<IAppWindowActivator>(root);
@@ -571,7 +575,17 @@ public static class ServiceCollectionExtensions
         if (OperatingSystem.IsWindows())
             return new WindowsSystemPowerService();
 #endif
+        if (OperatingSystem.IsMacOS())
+            return new MacSystemPowerService();
         return new NoOpSystemPowerService();
+    }
+
+    /// <summary>The OS-level session lock source, or a no-op on platforms without one (issue #522).</summary>
+    private static ISessionLockService CreatePlatformSessionLockService()
+    {
+        if (OperatingSystem.IsMacOS())
+            return new MacSessionLockService();
+        return new NoOpSessionLockService();
     }
 
     /// <summary>The OS-level monitor power source, or a no-op on platforms without one.</summary>

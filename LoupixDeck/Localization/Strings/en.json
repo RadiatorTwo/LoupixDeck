@@ -1491,6 +1491,8 @@
   "Settings_TurnOffWithDisplays": "Follow the monitors",
   "Settings_TurnOffWithDisplaysHint": "When the computer turns its monitors off, the device turns off or dims, and comes back when they wake. On Windows the screen saver counts as well. A device you turned off yourself stays off.",
   "Settings_TurnOffWithDisplaysUnsupported": "This desktop does not report when the monitors turn off, so the device cannot follow them.",
+  "Settings_TurnOffWhenLocked": "Turn off while the computer is locked",
+  "Settings_TurnOffWhenLockedHint": "While the lock screen is showing, after a wake or a manual lock, or while another user is logged in, the device stays off. Only buttons and controls set to \"Run also when device is OFF\" still work. It comes back once you unlock.",
   "Settings_ScreensaverWithDesktop": "Start with the desktop screen saver",
   "Settings_ScreensaverWithDesktopHint": "Plays the screensaver while the Windows screen saver runs, even when the idle screensaver is off. While it plays, the device stays on instead of following the monitors.",
   "Settings_DisplaysOffTurnOff": "Turn off",

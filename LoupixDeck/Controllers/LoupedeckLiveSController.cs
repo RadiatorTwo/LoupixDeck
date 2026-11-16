@@ -112,10 +112,14 @@ public partial class LoupedeckLiveSController(
     private volatile bool _blankedForSuspend;
 
     /// <summary>
-    /// True while the off state was entered because the host's monitors went dark (#382). Only
-    /// this off state is undone when they wake; a device the user turned off stays off.
+    /// True while the off state was entered because the host's monitors went dark (#382) or its
+    /// session was locked (#522). Only this off state is undone when the host is back; a device
+    /// the user turned off stays off.
     /// </summary>
     private volatile bool _blankedForDisplays;
+
+    /// <summary>The session lock state last reported through <see cref="HandleSessionLock"/>.</summary>
+    private volatile bool _sessionLocked;
 
     /// <summary>The monitor state last reported through <see cref="HandleDisplaysOff"/> and
     /// <see cref="HandleDisplaysOn"/>.</summary>
@@ -265,6 +269,17 @@ public partial class LoupedeckLiveSController(
         return ApplyHostIdleState();
     }
 
+    /// <summary>
+    /// The host's session was locked or unlocked (#522). Locked, the device goes dark like it
+    /// does for the monitors, and a wake onto the lock screen keeps it dark; unlocked, it comes
+    /// back unless the monitors still want it off. A device the user turned off stays off.
+    /// </summary>
+    public Task HandleSessionLock(bool locked)
+    {
+        _sessionLocked = locked;
+        return ApplyHostIdleState();
+    }
+
     /// <summary>The host's desktop screen saver started or ended (#382).</summary>
     public Task HandleDesktopScreenSaver(bool running)
     {
@@ -280,8 +295,17 @@ public partial class LoupedeckLiveSController(
     private bool HostIsIdle() => config.TurnOffWithDisplays &&
                                  (!_displaysOn || (_desktopScreenSaver && !config.ScreensaverWithDesktop));
 
-    /// <summary>Whether the host's idle state asks for a dark device (#382).</summary>
-    private bool HostWantsOff() => HostIsIdle() && config.DisplaysOffAction == DisplaysOffAction.TurnOff;
+    /// <summary>
+    /// Whether the host asks for a dark device: its idle state does (#382), or its session is
+    /// locked (#522). A locked session always turns the device off, never only dims it, so that
+    /// nothing but the controls set to run while the device is off can be used from the lock
+    /// screen.
+    /// </summary>
+    private bool HostWantsOff() =>
+        (HostIsIdle() && config.DisplaysOffAction == DisplaysOffAction.TurnOff) || HostIsLocked();
+
+    /// <summary>Whether the session is locked and the device is set to turn off with it (#522).</summary>
+    private bool HostIsLocked() => _sessionLocked && config.TurnOffWhenLocked;
 
     /// <summary>Whether the host's idle state asks for a dimmed device (#382).</summary>
     private bool HostWantsDim() => HostIsIdle() && config.DisplaysOffAction == DisplaysOffAction.Dim;
@@ -371,13 +395,34 @@ public partial class LoupedeckLiveSController(
             // without this the method would report a blanked device having sent nothing.
             if (device is not { IsConnected: true }) return false;
             await device.SetBrightness(0);
+
+            // The controls that still work while the device is off stay visible, dimmed, so it
+            // is clear which ones they are (#522). Not during a system sleep: nothing runs then,
+            // and a panel left lit overnight would only suggest otherwise.
+            var showActive = !_blankedForSuspend;
+            var activeKeys = showActive ? ActiveWhenOffTouchButtons() : [];
+            var leftStrip = showActive ? RenderActiveWhenOffStrip(RotarySide.Left) : null;
+            var rightStrip = showActive ? RenderActiveWhenOffStrip(RotarySide.Right) : null;
+
             if (config.SimpleButtons != null)
             {
                 foreach (var btn in config.SimpleButtons)
                 {
                     if (btn == null) continue;
-                    await device.SetButtonColor(btn.Id, Avalonia.Media.Colors.Black);
+                    await device.SetButtonColor(btn.Id, LedColourWhileOff(btn));
                 }
+            }
+
+            if (activeKeys.Count > 0 || leftStrip != null || rightStrip != null)
+            {
+                // Drawn while the brightness is still at 0, so the page that was showing never
+                // flashes up before the screen is cleared.
+                await device.ClearDisplays();
+                foreach (var key in activeKeys)
+                    await device.DrawTouchButton(key, config, refresh: false);
+                await PushOffStateStrip(device, RotarySide.Left, leftStrip);
+                await PushOffStateStrip(device, RotarySide.Right, rightStrip);
+                await device.SetBrightness(Math.Min(OffStateBrightness, config.Brightness / 100.0));
             }
             // Firmware-side native haptic (0x2e) is no longer used — haptic runs through
             // the software Vibrate() pulse, which only fires on an actual touch, so a dark
@@ -392,6 +437,92 @@ public partial class LoupedeckLiveSController(
             Console.WriteLine($"Blanking the device failed: {ex.Message}");
             return false;
         }
+    }
+
+    /// <summary>Display brightness for the controls still shown while the device is off (#522).</summary>
+    private const double OffStateBrightness = 0.1;
+
+    /// <summary>LED level for the buttons still lit while the device is off (#522). Lower than the
+    /// display's, because an LED driven at a tenth of its output still looks far brighter than
+    /// a tenth.</summary>
+    private const double OffStateLedLevel = 0.05;
+
+    /// <summary>What an LED button shows while the device is off: its colour, dimmed, when it
+    /// still runs and the host is not asleep; dark otherwise (#522).</summary>
+    private Avalonia.Media.Color LedColourWhileOff(SimpleButton button) =>
+        !_blankedForSuspend && button.EnableWhenOff
+            ? DimColour(button.ButtonColor)
+            : Avalonia.Media.Colors.Black;
+
+    /// <summary>
+    /// The side's strip as it would show, with only the labels of the dials that still run while
+    /// the device is off left in; null when there are none, or something other than the page owns
+    /// the strips (#522). A strip is drawn in one band per dial, top to bottom, in every strip
+    /// mode, so the bands are cut out by position.
+    /// </summary>
+    private SkiaSharp.SKBitmap RenderActiveWhenOffStrip(RotarySide side)
+    {
+        if (deviceService.Device is not { HasSideStrips: true }) return null;
+        if (folderNav.IsActive || exclusiveMode.Owns(ExclusiveControlScope.SideDisplays)) return null;
+
+        var page = pageManager.GetCurrentRotaryPage(side);
+        var dials = page?.RotaryButtons;
+        if (dials == null || dials.Count == 0 || !dials.Any(d => d is { EnableWhenOff: true })) return null;
+
+        // No live plugin sessions: they are detached while the device is off.
+        using var strip = RenderStripFor(page, side, useSessions: false);
+        if (strip == null) return null;
+
+        var masked = new SkiaSharp.SKBitmap(strip.Info);
+        lock (Utils.SkiaRenderGate.Sync)
+        {
+            using var canvas = new SkiaSharp.SKCanvas(masked);
+            canvas.Clear(SkiaSharp.SKColors.Black);
+            var band = (float)strip.Height / dials.Count;
+            for (var i = 0; i < dials.Count; i++)
+            {
+                if (dials[i] is not { EnableWhenOff: true }) continue;
+                var rect = new SkiaSharp.SKRect(0, i * band, strip.Width, (i + 1) * band);
+                canvas.DrawBitmap(strip, rect, rect);
+            }
+        }
+
+        return masked;
+    }
+
+    /// <summary>Sends a strip from <see cref="RenderActiveWhenOffStrip"/> and frees it.</summary>
+    private static async Task PushOffStateStrip(LoupedeckDevice.Device.LoupedeckDevice device, RotarySide side,
+        SkiaSharp.SKBitmap strip)
+    {
+        if (strip == null) return;
+        using (strip)
+        {
+            await device.DrawTouchSlot(side == RotarySide.Left
+                ? LoupedeckDevice.Device.RazerStreamControllerDevice.LeftSideIndex
+                : LoupedeckDevice.Device.RazerStreamControllerDevice.RightSideIndex, strip);
+        }
+    }
+
+    /// <summary>The current page's touch keys that still run while the device is off. Empty
+    /// while something other than the page owns the grid.</summary>
+    private List<TouchButton> ActiveWhenOffTouchButtons()
+    {
+        if (folderNav.IsActive || _fullDisplayActive || exclusiveMode.Owns(ExclusiveControlScope.TouchButtons))
+            return [];
+
+        var slots = deviceService.Device is { } device ? device.Columns * device.Rows : 0;
+        return config.CurrentTouchButtonPage?.TouchButtons?
+            .Where(b => b != null && b.EnableWhenOff && b.Index >= 0 && b.Index < slots)
+            .ToList() ?? [];
+    }
+
+    /// <summary>An LED colour at <see cref="OffStateLedLevel"/>. A channel that is lit stays at
+    /// least 1, so a dim colour does not go out altogether.</summary>
+    private static Avalonia.Media.Color DimColour(Avalonia.Media.Color colour)
+    {
+        static byte Dim(byte channel) =>
+            channel == 0 ? (byte)0 : (byte)Math.Max(1, Math.Round(channel * OffStateLedLevel));
+        return Avalonia.Media.Color.FromRgb(Dim(colour.R), Dim(colour.G), Dim(colour.B));
     }
 
     /// <summary>
@@ -4060,8 +4191,10 @@ public partial class LoupedeckLiveSController(
             button.RenderedImage = RenderSimpleButton(button);
         });
         // async void: an unhandled transport failure here would tear the process down.
+        // While the device is off the LED keeps its off-state look, dimmed or dark (#522).
         await TryDeviceIo($"setting the colour of button {button.Id}",
-            () => deviceService.Device.SetButtonColor(button.Id, button.ButtonColor));
+            () => deviceService.Device.SetButtonColor(button.Id,
+                _isDeviceOff ? LedColourWhileOff(button) : button.ButtonColor));
     }
 
     /// <summary>
