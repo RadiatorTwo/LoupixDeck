@@ -395,13 +395,32 @@ public partial class LoupedeckLiveSController(
             // without this the method would report a blanked device having sent nothing.
             if (device is not { IsConnected: true }) return false;
             await device.SetBrightness(0);
+
+            // The controls that still work while the device is off stay visible, dimmed, so it
+            // is clear which ones they are (#522). Not during a system sleep: nothing runs then,
+            // and a panel left lit overnight would only suggest otherwise.
+            var showActive = !_blankedForSuspend;
+            var activeKeys = showActive ? ActiveWhenOffTouchButtons() : [];
+
             if (config.SimpleButtons != null)
             {
                 foreach (var btn in config.SimpleButtons)
                 {
                     if (btn == null) continue;
-                    await device.SetButtonColor(btn.Id, Avalonia.Media.Colors.Black);
+                    await device.SetButtonColor(btn.Id, showActive && btn.EnableWhenOff
+                        ? DimColour(btn.ButtonColor)
+                        : Avalonia.Media.Colors.Black);
                 }
+            }
+
+            if (activeKeys.Count > 0)
+            {
+                // Drawn while the brightness is still at 0, so the page that was showing never
+                // flashes up before the screen is cleared.
+                await device.ClearDisplays();
+                foreach (var key in activeKeys)
+                    await device.DrawTouchButton(key, config, refresh: false);
+                await device.SetBrightness(Math.Min(OffStateBrightness, config.Brightness / 100.0));
             }
             // Firmware-side native haptic (0x2e) is no longer used — haptic runs through
             // the software Vibrate() pulse, which only fires on an actual touch, so a dark
@@ -417,6 +436,30 @@ public partial class LoupedeckLiveSController(
             return false;
         }
     }
+
+    /// <summary>Display brightness, and LED level, for the controls still shown while the device
+    /// is off (#522).</summary>
+    private const double OffStateBrightness = 0.2;
+
+    /// <summary>The current page's touch keys that still run while the device is off. Empty
+    /// while something other than the page owns the grid.</summary>
+    private List<TouchButton> ActiveWhenOffTouchButtons()
+    {
+        if (folderNav.IsActive || _fullDisplayActive || exclusiveMode.Owns(ExclusiveControlScope.TouchButtons))
+            return [];
+
+        var slots = deviceService.Device is { } device ? device.Columns * device.Rows : 0;
+        return config.CurrentTouchButtonPage?.TouchButtons?
+            .Where(b => b != null && b.EnableWhenOff && b.Index >= 0 && b.Index < slots)
+            .ToList() ?? [];
+    }
+
+    /// <summary>An LED colour at <see cref="OffStateBrightness"/>.</summary>
+    private static Avalonia.Media.Color DimColour(Avalonia.Media.Color colour) =>
+        Avalonia.Media.Color.FromRgb(
+            (byte)(colour.R * OffStateBrightness),
+            (byte)(colour.G * OffStateBrightness),
+            (byte)(colour.B * OffStateBrightness));
 
     /// <summary>
     /// Switches the device back on: brightness, LED colours, the current touch page and the
