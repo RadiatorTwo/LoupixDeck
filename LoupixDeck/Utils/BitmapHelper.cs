@@ -25,6 +25,34 @@ public static class BitmapHelper
     /// </summary>
     public static Func<string, SKSizeI?> AssetSizeResolver { get; set; }
 
+    /// <summary>Share of the key edge a pressed key's content keeps (issue #627).</summary>
+    private const float PressedKeyScale = 0.85f;
+
+    /// <summary>
+    /// A copy of <paramref name="source"/> with its content shrunk towards the centre on a
+    /// black key, the look of a physical button pushed down (issue #627). The caller owns
+    /// the result. Linear sampling keeps the per-press cost to one small draw.
+    /// </summary>
+    public static SKBitmap RenderPressedKey(SKBitmap source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+
+        SKBitmap pressed = new(source.Info);
+        float width = source.Width * PressedKeyScale;
+        float height = source.Height * PressedKeyScale;
+
+        lock (SkiaRenderGate.Sync)
+        {
+            using SKCanvas canvas = new(pressed);
+            canvas.Clear(SKColors.Black);
+            canvas.DrawBitmap(source,
+                SKRect.Create((source.Width - width) / 2f, (source.Height - height) / 2f, width, height),
+                new SKSamplingOptions(SKFilterMode.Linear), paint: null);
+        }
+
+        return pressed;
+    }
+
     /// <summary>Family a text layer renders in when it names none.</summary>
     private const string DefaultTextFontFamily = "Liberation Sans";
 

@@ -41,6 +41,14 @@ public class LoupedeckDevice
     }
 
     /// <summary>
+    /// The touch button a finger is holding down while press feedback is on (issue #627), or
+    /// null. <see cref="DrawTouchButton"/> draws that button shrunk, so a re-render during the
+    /// hold (a toggle changing state) keeps the pressed look. Bitmaps drawn through
+    /// <see cref="DrawTouchSlot"/> (folder overlays, plugins) are never shrunk.
+    /// </summary>
+    public TouchButton PressedButton { get; set; }
+
+    /// <summary>
     /// Edge length of one centre-grid touch key in device pixels — the calibrated size, so
     /// every renderer that sizes a tile from it produces pixels the panel takes unscaled.
     /// </summary>
@@ -1801,9 +1809,15 @@ public class LoupedeckDevice
             if (renderedBitmap == null) return;
         }
 
+        // Only the held key pays for the shrink; every other draw passes its image as it is.
+        SKBitmap image = touchButton.RenderedImage;
+        SKBitmap pressed = ReferenceEquals(touchButton, PressedButton) && image != null
+            ? BitmapHelper.RenderPressedKey(image)
+            : null;
+
         try
         {
-            await DrawKey(touchButton.Index, touchButton.RenderedImage, show);
+            await DrawKey(touchButton.Index, pressed ?? image, show);
         }
         catch (TimeoutException ex)
         {
@@ -1814,6 +1828,10 @@ public class LoupedeckDevice
         {
             // Other unexpected errors
             Console.WriteLine($"Unexpected error: {ex.Message}");
+        }
+        finally
+        {
+            pressed?.Dispose();
         }
     }
 

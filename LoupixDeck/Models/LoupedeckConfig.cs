@@ -163,6 +163,11 @@ public partial class LoupedeckConfig : ObservableObject
         get; set => SetProperty(ref field, value, EpsilonComparer.Default);
     } = 0.5;
 
+    // Shrink the pressed touch key's content while the finger stays on it, like a physical
+    // button going down (issue #627). Absent in older configs, which keeps keys unchanged.
+    [ObservableProperty]
+    public partial bool TouchPressShrinkEnabled { get; set; }
+
     // While a finger is down, ignore further TOUCH_START events until TOUCH_END.
     // Defends against the device emitting duplicate TOUCH_START at button
     // boundaries or when the finger slides across slots.
