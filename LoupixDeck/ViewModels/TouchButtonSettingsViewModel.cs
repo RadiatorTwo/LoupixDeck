@@ -47,6 +47,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             RefreshStateBadges();
             SelectedState = ButtonData.ActiveState;
             RebuildLayerListItems();
+            OnPropertyChanged(nameof(ShowZoneDividers));
 
             SeedAnimatedLayerPreviews();
             UpdateEditorPreview();
@@ -109,6 +110,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         SelectedState = state;
         RebuildLayerListItems();
 
+        OnPropertyChanged(nameof(ShowZoneDividers));
         OnPropertyChanged(nameof(States));
         OnPropertyChanged(nameof(BackgroundEnabled));
         OnPropertyChanged(nameof(AreStatesLocked));
@@ -448,6 +450,61 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// <summary>True when the surface has a value an indicator layer can draw: the wheel, a touch
     /// key, or a tap-zone strip (the dial beside each zone). A strip in the other modes draws no canvas.</summary>
     public bool CanAddIndicator => !IsStripCanvas || IsSegmentCommandMode;
+
+    /// <summary>Height of a zone divider bar as a <see cref="LayerBase.ScaleY"/> multiplier.</summary>
+    private const double ZoneDividerThickness = 0.17;
+
+    /// <summary>
+    /// Whether the tap-zone strip shows a bar between its zones (issue #630). Ticking adds one
+    /// symbol layer per boundary, which the user may then restyle like any other layer; unticking
+    /// removes them. There is only ever one set, so this is an option and not an add button.
+    /// </summary>
+    public bool ShowZoneDividers
+    {
+        get => ButtonData?.Layers?.Any(l => l is SymbolLayer { IsZoneDivider: true }) == true;
+        set
+        {
+            if (ButtonData?.Layers == null || !IsSegmentCommandMode || value == ShowZoneDividers) return;
+
+            if (value)
+                AddZoneDividers();
+            else
+                RemoveZoneDividers();
+
+            OnPropertyChanged();
+        }
+    }
+
+    private void AddZoneDividers()
+    {
+        string[] names = ["TouchButton_ZoneDividerTop", "TouchButton_ZoneDividerBottom"];
+        int segmentHeight = DeviceHeight / RotaryButtonPage.StripSegmentCount;
+        for (var boundary = 1; boundary < RotaryButtonPage.StripSegmentCount; boundary++)
+        {
+            SymbolLayer divider = new()
+            {
+                Name = GetUniqueLayerName(Loc.Tr(names[Math.Min(boundary - 1, names.Length - 1)])),
+                SymbolId = "minus",
+                Tint = Colors.Black,
+                IsZoneDivider = true,
+                Scale = 1.0,
+                ScaleY = ZoneDividerThickness,
+                // Positions are offsets from the strip's centre.
+                PositionY = (boundary * segmentHeight) - (DeviceHeight / 2)
+            };
+            AddLayer(divider);
+        }
+    }
+
+    private void RemoveZoneDividers()
+    {
+        List<LayerBase> dividers = ButtonData.Layers.Where(l => l is SymbolLayer { IsZoneDivider: true }).ToList();
+        foreach (LayerBase divider in dividers)
+            ButtonData.Layers.Remove(divider);
+
+        if (_selectedLayer != null && dividers.Contains(_selectedLayer))
+            SelectedLayer = null;
+    }
 
     private static readonly string[] SegmentTitleKeys = ["Slot_TopSegment", "Slot_MiddleSegment", "Slot_BottomSegment"];
 
@@ -2270,7 +2327,10 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
         // Switching the active state swaps the whole layer collection the button projects.
         if (e.PropertyName == nameof(TouchButton.Layers))
+        {
             RebuildLayerListItems();
+            OnPropertyChanged(nameof(ShowZoneDividers));
+        }
 
         if (e.PropertyName == nameof(TouchButton.Command))
         {
@@ -2491,6 +2551,8 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             OnPropertyChanged(nameof(SelectedFontChoice));
             // Moving a layer into another tap zone changes the dial it follows.
             OnPropertyChanged(nameof(SelectedLayerDialHint));
+            // A divider deleted from the list, or brought back by undo, flips the option.
+            OnPropertyChanged(nameof(ShowZoneDividers));
         });
     }
 
