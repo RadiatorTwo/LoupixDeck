@@ -28,6 +28,17 @@ public static class UiSettingsStore
         return Read(key) is JsonValue value && value.TryGetValue(out bool flag) ? flag : defaultValue;
     }
 
+    /// <summary>A string array value; empty when the key is missing or holds something else.</summary>
+    public static IReadOnlyList<string> GetStringList(string key)
+    {
+        if (Read(key) is not JsonArray array)
+            return [];
+
+        return [.. array.OfType<JsonValue>()
+            .Select(static v => v.TryGetValue(out string text) ? text : null)
+            .Where(static t => !string.IsNullOrEmpty(t))];
+    }
+
     /// <summary>True when the file holds <paramref name="key"/>, whatever its value.</summary>
     public static bool Contains(string key)
     {
@@ -37,6 +48,11 @@ public static class UiSettingsStore
     public static void Set(string key, string value)
     {
         Write(key, value is null ? null : JsonValue.Create(value));
+    }
+
+    public static void SetStringList(string key, IEnumerable<string> values)
+    {
+        Write(key, values is null ? null : new JsonArray([.. values.Select(static v => (JsonNode)JsonValue.Create(v))]));
     }
 
     public static void Set(string key, bool value)

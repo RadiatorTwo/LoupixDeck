@@ -1115,6 +1115,8 @@
   "SymbolPicker_OK": "OK",
   "SymbolPicker_OtherCategory": "Sonstige",
   "SymbolPicker_SearchSymbols": "Symbole suchen…",
+  "SymbolPicker_SourceRecent": "Zuletzt verwendet",
+  "SymbolPicker_RecentEmpty": "Noch keine Symbole verwendet. Gewählte Symbole erscheinen hier.",
   "SymbolPicker_SourceCurated": "Kuratiert",
   "SymbolPicker_SourceMdiAll": "Material Design Icons (alle)",
   "SymbolPicker_SourceMdiLight": "Material Design Light",

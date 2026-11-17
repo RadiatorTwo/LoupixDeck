@@ -106,6 +106,40 @@ public static class IconPackScanner
             skippedFonts, truncated);
     }
 
+    /// <summary>
+    /// Builds the entry of a single icon of <paramref name="pack"/> without scanning the folder, for
+    /// icons remembered by their key. Returns null when the file is gone or no longer a usable icon.
+    /// </summary>
+    public static IconPackEntry TryCreateEntry(IconPack pack, string relativePath)
+    {
+        if (pack == null || string.IsNullOrEmpty(relativePath) || IsIgnored(relativePath))
+            return null;
+
+        try
+        {
+            string root = Path.GetFullPath(pack.Path);
+            string file = Path.GetFullPath(Path.Combine(root, relativePath));
+
+            // A key must never point outside its pack.
+            if (!file.StartsWith(Path.TrimEndingDirectorySeparator(root) + Path.DirectorySeparatorChar, StringComparison.Ordinal) ||
+                !Extensions.TryGetValue(Path.GetExtension(file), out IconEntryKind kind))
+                return null;
+
+            FileInfo info = new(file);
+            if (!info.Exists || info.Length == 0 || (kind == IconEntryKind.RasterFile && info.Length > MaxRasterBytes))
+                return null;
+
+            if (kind == IconEntryKind.SvgFile && IsSvgFont(file))
+                return null;
+
+            return CreateEntry(pack, file, relativePath, kind);
+        }
+        catch (Exception ex) when (ex is IOException or ArgumentException or NotSupportedException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
     private static bool IsIgnored(string relativePath)
     {
         string[] segments = relativePath.Split('/');
