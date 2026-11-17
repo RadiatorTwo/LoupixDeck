@@ -214,7 +214,7 @@ public static class ActionAssignment
             Name = text,
             Text = text
         };
-        PlaceCaption(caption, LabelOffsetYPx, keyWidthPx, keyHeightPx);
+        PlaceCaption(caption, LabelOffsetYPx, keyWidthPx, keyHeightPx, applyColors: true);
         return caption;
     }
 
@@ -225,7 +225,7 @@ public static class ActionAssignment
             Name = name,
             SymbolId = symbolId
         };
-        PlaceSymbol(symbol, positionY, scale);
+        PlaceSymbol(symbol, positionY, scale, applyColors: true);
         return symbol;
     }
 
@@ -237,13 +237,14 @@ public static class ActionAssignment
             Name = text,
             Text = text
         };
-        PlaceTextOnly(layer, scaleX, scaleY);
+        PlaceTextOnly(layer, scaleX, scaleY, applyColors: true);
         return layer;
     }
 
     /// <summary>Lays <paramref name="caption"/> out as the line of text next to an icon; the offset
-    /// is the reference-key distance from the key centre, below (positive) or above (negative).</summary>
-    private static void PlaceCaption(TextLayer caption, int offsetYPx, int keyWidthPx, int keyHeightPx)
+    /// is the reference-key distance from the key centre, below (positive) or above (negative).
+    /// <paramref name="applyColors"/> is false for a layer that already existed, which keeps its colour.</summary>
+    private static void PlaceCaption(TextLayer caption, int offsetYPx, int keyWidthPx, int keyHeightPx, bool applyColors)
     {
         double scaleX = ScaleFactor(keyWidthPx);
         double scaleY = ScaleFactor(keyHeightPx);
@@ -255,11 +256,12 @@ public static class ActionAssignment
         caption.BoxHeight = Scaled(LabelBoxHeightPx, scaleY);
         caption.Scale = 1.0;
         caption.ScaleY = 0;
-        LayerDefaults.ApplyTextStyle(caption);
+        LayerDefaults.ApplyTextStyle(caption, applyColors);
     }
 
-    /// <summary>Lays <paramref name="layer"/> out as the only content of the key.</summary>
-    private static void PlaceTextOnly(TextLayer layer, double scaleX, double scaleY)
+    /// <summary>Lays <paramref name="layer"/> out as the only content of the key; see <see cref="PlaceCaption"/>
+    /// for <paramref name="applyColors"/>.</summary>
+    private static void PlaceTextOnly(TextLayer layer, double scaleX, double scaleY, bool applyColors)
     {
         layer.Centered = true;
         layer.TextSize = Scaled(LayerDefaults.TextSizeOr(TextOnlySizePx), scaleY);
@@ -269,12 +271,13 @@ public static class ActionAssignment
         layer.BoxHeight = Scaled(TextOnlyBoxPx, scaleY);
         layer.Scale = 1.0;
         layer.ScaleY = 0;
-        LayerDefaults.ApplyTextStyle(layer);
+        LayerDefaults.ApplyTextStyle(layer, applyColors);
     }
 
     /// <summary>Centres <paramref name="symbol"/> horizontally at <paramref name="positionY"/> and
-    /// fits it into a square of <paramref name="scale"/> of the key, keeping its own aspect ratio.</summary>
-    private static void PlaceSymbol(SymbolLayer symbol, int positionY, double scale)
+    /// fits it into a square of <paramref name="scale"/> of the key, keeping its own aspect ratio; see
+    /// <see cref="PlaceCaption"/> for <paramref name="applyColors"/>.</summary>
+    private static void PlaceSymbol(SymbolLayer symbol, int positionY, double scale, bool applyColors)
     {
         symbol.PositionX = 0;
         symbol.PositionY = positionY;
@@ -287,7 +290,7 @@ public static class ActionAssignment
         else
             symbol.FitScaleToGlyph(scale);
 
-        LayerDefaults.ApplyIconStyle(symbol);
+        LayerDefaults.ApplyIconStyle(symbol, applyColors);
     }
 
     /// <summary>
@@ -308,13 +311,16 @@ public static class ActionAssignment
             image.Scale = size * size * Math.Min(keyWidthPx, keyHeightPx) / Math.Max(drawn.Width, drawn.Height);
     }
 
-    /// <summary>Puts the icon layer at <paramref name="positionY"/> at <paramref name="size"/> of the key.</summary>
+    /// <summary>
+    /// Puts an icon layer a template lays out at <paramref name="positionY"/> at <paramref name="size"/>
+    /// of the key. The icon already exists, so it keeps its colours (issue #625).
+    /// </summary>
     private static void PlaceIcon(LayerBase icon, int positionY, double size, int keyWidthPx, int keyHeightPx)
     {
         switch (icon)
         {
             case SymbolLayer symbol:
-                PlaceSymbol(symbol, positionY, size);
+                PlaceSymbol(symbol, positionY, size, applyColors: false);
                 break;
             case ImageLayer image:
                 PlaceImage(image, positionY, size, keyWidthPx, keyHeightPx);
@@ -528,8 +534,13 @@ public static class ActionAssignment
 
         LayerBase icon = plan.Icon;
         TextLayer caption = plan.Caption;
+
+        // A template lays layers out and does not recolour them: only a caption it adds itself starts
+        // with the default colour, the user's own layers keep theirs (issue #625).
+        bool newCaption = false;
         if (plan.Layout != ButtonTemplate.IconOnly && caption == null)
         {
+            newCaption = true;
             string text = Localization.Loc.Tr(DefaultCaptionKey);
             caption = new TextLayer
             {
@@ -544,12 +555,12 @@ public static class ActionAssignment
         {
             case ButtonTemplate.IconCaptionBottom:
                 PlaceIcon(icon, Scaled(SymbolOffsetYPx, scaleY), LayerDefaults.IconSizeOr(SymbolScale), keyWidthPx, keyHeightPx);
-                PlaceCaption(caption, LabelOffsetYPx, keyWidthPx, keyHeightPx);
+                PlaceCaption(caption, LabelOffsetYPx, keyWidthPx, keyHeightPx, newCaption);
                 break;
 
             case ButtonTemplate.IconCaptionTop:
                 PlaceIcon(icon, Scaled(SymbolOffsetYTopPx, scaleY), LayerDefaults.IconSizeOr(SymbolScale), keyWidthPx, keyHeightPx);
-                PlaceCaption(caption, LabelOffsetYTopPx, keyWidthPx, keyHeightPx);
+                PlaceCaption(caption, LabelOffsetYTopPx, keyWidthPx, keyHeightPx, newCaption);
                 break;
 
             case ButtonTemplate.IconOnly:
@@ -557,7 +568,7 @@ public static class ActionAssignment
                 break;
 
             case ButtonTemplate.TextOnly:
-                PlaceTextOnly(caption, scaleX, scaleY);
+                PlaceTextOnly(caption, scaleX, scaleY, newCaption);
                 break;
         }
 
