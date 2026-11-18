@@ -22,18 +22,12 @@ public sealed class SetLedButtonStateCommand(IDeviceController controller) : IEx
     {
         if (parameters is not { Length: 2 } || !ButtonStateTargets.TryParseLed(parameters[0], out LedButton led))
         {
-            Console.WriteLine("Usage: System.SetLedButtonState(Button1|...|Button8,stateName)");
+            Console.WriteLine("Usage: System.SetLedButtonState(Button0|...|Button7|All,stateName)");
             return Task.CompletedTask;
         }
 
-        SimpleButton button = controller.Config.SimpleButtons?.FindById((Constants.ButtonType)led);
-        if (button == null)
-        {
-            Console.WriteLine($"[SetLedButtonState] this device has no {led}");
-            return Task.CompletedTask;
-        }
-
-        ButtonStateTargets.SetState(button, parameters[1], $"[SetLedButtonState] {led}");
+        foreach (SimpleButton button in ButtonStateTargets.LedButtons(controller, led, "[SetLedButtonState]"))
+            ButtonStateTargets.SetState(button, parameters[1], $"[SetLedButtonState] {button.Id}");
         return Task.CompletedTask;
     }
 }
@@ -71,43 +65,25 @@ public sealed class SetTouchButtonStateCommand(IDeviceController controller) : I
 }
 
 [Command("System.ResetLedButtonStates", "Reset LED Button States", "Button States",
-    parameterTemplate: "({Buttons})",
-    parameterNames: ["Buttons"],
-    parameterTypes: [typeof(string)],
-    Description = "Put LED buttons back to their default state. Buttons: e.g. 1-8 or 1 3 5; empty means all")]
+    parameterTemplate: "({Button})",
+    parameterNames: ["Button"],
+    parameterTypes: [typeof(LedButton)],
+    Description = "Put an LED button, or all of them, back to its default state")]
 public sealed class ResetLedButtonStatesCommand(IDeviceController controller) : IExecutableCommand
 {
     public Task Execute(string[] parameters)
     {
-        SimpleButton[] buttons = controller.Config.SimpleButtons ?? [];
-        string list = parameters is { Length: > 0 } ? parameters[0] : null;
-
-        if (string.IsNullOrWhiteSpace(list))
+        // No choice made reads as All, the only sensible default for a reset.
+        string choice = parameters is { Length: > 0 } ? parameters[0] : null;
+        LedButton led = LedButton.All;
+        if (!string.IsNullOrWhiteSpace(choice) && !ButtonStateTargets.TryParseLed(choice, out led))
         {
-            foreach (SimpleButton button in buttons)
-                ButtonStateTargets.Reset(button);
+            Console.WriteLine("Usage: System.ResetLedButtonStates(Button0|...|Button7|All)");
             return Task.CompletedTask;
         }
 
-        foreach (string token in ButtonStateTargets.Tokens(list))
-        {
-            // A number or range of numbers, or a name such as Button3.
-            if (!ButtonStateTargets.TryParseRange(token, out int from, out int to))
-            {
-                if (ButtonStateTargets.TryParseLed(token, out LedButton named))
-                    ButtonStateTargets.Reset(buttons.FindById((Constants.ButtonType)named));
-                else
-                    Console.WriteLine($"[ResetLedButtonStates] unknown button '{token}'");
-                continue;
-            }
-
-            for (int number = from; number <= to; number++)
-            {
-                if (number is < 1 or > 8) continue;
-                ButtonStateTargets.Reset(buttons.FindById(Constants.ButtonType.BUTTON0 + (number - 1)));
-            }
-        }
-
+        foreach (SimpleButton button in ButtonStateTargets.LedButtons(controller, led, "[ResetLedButtonStates]"))
+            ButtonStateTargets.Reset(button);
         return Task.CompletedTask;
     }
 }
@@ -205,6 +181,19 @@ internal static class ButtonStateTargets
     {
         if (button == null || button.HasCommandOwnedStates) return;
         Dispatcher.UIThread.Post(button.ResetToDefaultState);
+    }
+
+    /// <summary>The active profile's LED buttons <paramref name="led"/> stands for; logs a missing one.</summary>
+    public static IEnumerable<SimpleButton> LedButtons(IDeviceController controller, LedButton led, string logPrefix)
+    {
+        SimpleButton[] buttons = controller.Config.SimpleButtons ?? [];
+        if (led == LedButton.All)
+            return buttons;
+
+        SimpleButton button = buttons.FindById((Constants.ButtonType)led);
+        if (button == null)
+            Console.WriteLine($"{logPrefix} this device has no {led}");
+        return button == null ? [] : [button];
     }
 
     /// <summary>

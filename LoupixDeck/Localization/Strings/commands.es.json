@@ -90,7 +90,7 @@
   "Previous Touch Page": "Página táctil anterior",
   "Previous Workspace": "Espacio de trabajo anterior",
   "Profiles": "Perfiles",
-  "Put LED buttons back to their default state. Buttons: e.g. 1-8 or 1 3 5; empty means all": "Devolver los botones LED a su estado predeterminado. Botones: p. ej. 1-8 o 1 3 5; vacío significa todos",
+  "Put an LED button, or all of them, back to its default state": "Devolver un botón LED, o todos, a su estado predeterminado",
   "Put touch buttons of a page back to their default state. Buttons: e.g. 1-4 or 1 3 5; empty means all": "Devolver los botones táctiles de una página a su estado predeterminado. Botones: p. ej. 1-4 o 1 3 5; vacío significa todos",
   "Rebuild the companions' profiles and workspaces from the master and let them follow it again": "Reconstruir los perfiles y espacios de trabajo de los acompañantes desde el maestro y hacer que vuelvan a seguirlo",
   "Remove a Layer from a Touch Button": "Quitar una capa de un botón táctil",
