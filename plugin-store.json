@@ -783,20 +783,20 @@
       "repository": "vividflash/LoupixDeck.Plugin.Twitch",
       "icon": "https://raw.githubusercontent.com/vividflash/LoupixDeck.Plugin.Twitch/main/icon.png",
       "platforms": [ "Windows" ],
-      "minSdkVersion": "1.28.0",
+      "minSdkVersion": "1.30.0",
       "commandPrefixes": [ "Twitch." ],
       "release": {
-        "version": "1.5.0",
-        "tag": "v1.5.0",
-        "publishedAt": "2026-10-09T11:31:50Z",
-        "sdkVersion": "1.28.0",
-        "releaseNotesUrl": "https://github.com/vividflash/LoupixDeck.Plugin.Twitch/releases/tag/v1.5.0",
+        "version": "1.6.0",
+        "tag": "v1.6.0",
+        "publishedAt": "2026-11-18T22:30:46Z",
+        "sdkVersion": "1.30.0",
+        "releaseNotesUrl": "https://github.com/vividflash/LoupixDeck.Plugin.Twitch/releases/tag/v1.6.0",
         "packages": [
           {
             "platform": "windows",
-            "fileName": "twitch-1.5.0-windows.zip",
-            "downloadUrl": "https://github.com/vividflash/LoupixDeck.Plugin.Twitch/releases/download/v1.5.0/twitch-1.5.0-windows.zip",
-            "sha256": "02d580f25b7c1a87e28a55f4d6069e05b8ce443282b84ee257aea58a285d1e4b"
+            "fileName": "twitch-1.6.0-windows.zip",
+            "downloadUrl": "https://github.com/vividflash/LoupixDeck.Plugin.Twitch/releases/download/v1.6.0/twitch-1.6.0-windows.zip",
+            "sha256": "86899e0b89130a1c48fdeb0624d96f0032969dd03134ad488faab81440e350a9"
           }
         ]
       }
