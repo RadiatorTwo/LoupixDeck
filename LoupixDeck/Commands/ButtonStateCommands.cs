@@ -15,7 +15,7 @@ namespace LoupixDeck.Commands;
     parameterTemplate: "({Button},{State})",
     parameterNames: ["Button", "State"],
     parameterTypes: [typeof(LedButton), typeof(string)],
-    Description = "Switch an LED button to one of its states, by state name")]
+    Description = "Switch an LED button to one of its states, by state name or number")]
 public sealed class SetLedButtonStateCommand(IDeviceController controller) : IExecutableCommand
 {
     public Task Execute(string[] parameters)
@@ -42,7 +42,7 @@ public sealed class SetLedButtonStateCommand(IDeviceController controller) : IEx
     parameterTemplate: "({Page},{Button},{State})",
     parameterNames: ["Page", "Button", "State"],
     parameterTypes: [typeof(int), typeof(int), typeof(string)],
-    Description = "Switch a touch button to one of its states, by page number, button number and state name")]
+    Description = "Switch a touch button to one of its states, by page number, button number and state name or number")]
 public sealed class SetTouchButtonStateCommand(IDeviceController controller) : IExecutableCommand
 {
     public Task Execute(string[] parameters)
@@ -169,7 +169,10 @@ internal static class ButtonStateTargets
         return pages[page - 1];
     }
 
-    /// <summary>Switches <paramref name="button"/> to the state named <paramref name="stateName"/>.</summary>
+    /// <summary>
+    /// Switches <paramref name="button"/> to the state given by <paramref name="stateName"/>: a
+    /// state name, or else its 1-based position in the editor's States list.
+    /// </summary>
     public static void SetState(StatefulButton button, string stateName, string logContext)
     {
         if (button.HasCommandOwnedStates)
@@ -179,8 +182,12 @@ internal static class ButtonStateTargets
         }
 
         string name = stateName?.Trim();
+        // A name wins, so a state the user named "2" is still found by its name.
         ButtonState target = button.States?.FirstOrDefault(s =>
             string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase));
+        if (target == null && int.TryParse(name, out int position) &&
+            button.States != null && position >= 1 && position <= button.States.Count)
+            target = button.States[position - 1];
         if (target == null)
         {
             Console.WriteLine($"{logContext} has no state named '{name}'");
