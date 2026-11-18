@@ -23,6 +23,7 @@ public class CommandSequenceSlot : ViewModelBase
     private readonly ICommandRegistry _commandRegistry;
     private readonly Services.Companion.ICommandLockService _commandLock;
     private readonly IDialogService _dialogService;
+    private readonly Services.Commands.ICommandParameterOptions _parameterOptions;
     private readonly Func<string> _read;
     private readonly Action<string> _write;
 
@@ -41,13 +42,15 @@ public class CommandSequenceSlot : ViewModelBase
         Services.Companion.ICommandLockService commandLock,
         IDialogService dialogService,
         Func<string> read,
-        Action<string> write)
+        Action<string> write,
+        Services.Commands.ICommandParameterOptions parameterOptions = null)
     {
         Title = title;
         _commandBuilder = commandBuilder;
         _commandRegistry = commandRegistry;
         _commandLock = commandLock;
         _dialogService = dialogService;
+        _parameterOptions = parameterOptions;
         _read = read;
         _write = write;
 
@@ -91,7 +94,7 @@ public class CommandSequenceSlot : ViewModelBase
         var info = _commandRegistry.Get(name)?.Info;
         var owner = info == null ? _commandRegistry.GetMissingPluginOwner(name) : null;
         var segment = CommandSegment.Create(_commandBuilder, _dialogService, info, raw, owner,
-            info != null ? _commandLock.GetLockHint(raw) : null);
+            info != null ? _commandLock.GetLockHint(raw) : null, _parameterOptions);
         segment.Changed += OnSegmentChanged;
         return segment;
     }

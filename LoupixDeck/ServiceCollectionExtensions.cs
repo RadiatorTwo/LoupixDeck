@@ -453,6 +453,7 @@ public static class ServiceCollectionExtensions
         // resolves the device-bound services commands inject.
         collection.AddSingleton<ICommandService, CommandService>();
         collection.AddSingleton<ICommandBuilder, CommandBuilder>();
+        collection.AddSingleton<Services.Commands.ICommandParameterOptions, Services.Commands.CommandParameterOptions>();
         collection.AddSingleton<ISysCommandService, SysCommandService>();
         collection.AddSingleton<ICommandProvider, CoreCommandProvider>();
         collection.AddSingleton<ICommandProvider, PluginCommandProvider>();

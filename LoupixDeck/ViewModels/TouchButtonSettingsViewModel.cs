@@ -136,6 +136,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     private readonly Services.Commands.ICommandStateMaterializer _stateMaterializer;
     private readonly IAssetService _assetService;
     private readonly IDialogService _dialogService;
+    private readonly Services.Commands.ICommandParameterOptions _parameterOptions;
     private readonly IButtonTemplateService _buttonTemplates;
     private readonly ILayerClipboardService _layerClipboard;
     private readonly ISideStripProviderRegistry _sideStripRegistry;
@@ -589,7 +590,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
                 CommandSlots.Add(new CommandSequenceSlot(
                     Loc.Tr(SegmentTitleKeys[index]), _commandBuilder, _commandRegistry, _commandLock, _dialogService,
                     () => _stripPage.GetStripSegmentCommand(index),
-                    v => _stripPage.SetStripSegmentCommand(index, string.IsNullOrWhiteSpace(v) ? null : v)));
+                    v => _stripPage.SetStripSegmentCommand(index, string.IsNullOrWhiteSpace(v) ? null : v), _parameterOptions));
                 CommandSlots[^1].Commands.CollectionChanged += (_, _) => RefreshParameterSegments();
             }
         }
@@ -598,7 +599,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             var slot = new CommandSequenceSlot(
                 Loc.Tr("Slot_CommandSequence"), _commandBuilder, _commandRegistry, _commandLock, _dialogService,
                 () => ButtonData.Command,
-                v => ButtonData.Command = string.IsNullOrWhiteSpace(v) ? null : v);
+                v => ButtonData.Command = string.IsNullOrWhiteSpace(v) ? null : v, _parameterOptions);
             slot.CommandInserted += OnMainCommandInserted;
             slot.Commands.CollectionChanged += (_, _) => RefreshParameterSegments();
             CommandSlots.Add(slot);
@@ -1666,9 +1667,11 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         IButtonTemplateService buttonTemplates,
         AppPickerViewModel appList,
         ILayerClipboardService layerClipboard,
-        IButtonStateService buttonStates = null)
+        IButtonStateService buttonStates = null,
+        Services.Commands.ICommandParameterOptions parameterOptions = null)
     {
         AppList = appList;
+        _parameterOptions = parameterOptions;
         _layerClipboard = layerClipboard;
         _buttonStates = buttonStates;
         _commandLock = commandLock;
