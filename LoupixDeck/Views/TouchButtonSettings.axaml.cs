@@ -143,6 +143,11 @@ public partial class TouchButtonSettings : Window
         // preview scroller don't consume the keys for selection or scrolling first.
         AddHandler(KeyDownEvent, OnLayerNudgeKeyDown, RoutingStrategies.Tunnel);
 
+        // Ctrl +/- and Ctrl 0 zoom the preview, Ctrl + mouse wheel anywhere in the window too, as in
+        // the main window (issue #645). Tunnel, so the wheel is ours before a scroller pans with it.
+        AddHandler(KeyDownEvent, OnZoomKeyDown, RoutingStrategies.Tunnel);
+        AddHandler(PointerWheelChangedEvent, OnZoomWheel, RoutingStrategies.Tunnel);
+
         // Card-based command picker → sequence-strip assignment (issue #171).
         PickerControl.CommandActivated += Picker_CommandActivated;
         PickerControl.CommandDragStarted += Picker_CommandDragStarted;
@@ -706,6 +711,34 @@ public partial class TouchButtonSettings : Window
     {
         if (DataContext is TouchButtonSettingsViewModel vm)
             vm.ClearWheelHover();
+    }
+
+    private void OnZoomKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Handled || e.KeyModifiers != KeyModifiers.Control || DataContext is not TouchButtonSettingsViewModel vm)
+            return;
+
+        System.Windows.Input.ICommand command = e.Key switch
+        {
+            Key.OemPlus or Key.Add => vm.ZoomInCommand,
+            Key.OemMinus or Key.Subtract => vm.ZoomOutCommand,
+            Key.D0 or Key.NumPad0 => vm.ResetZoomCommand,
+            _ => null
+        };
+        if (command == null) return;
+
+        command.Execute(null);
+        e.Handled = true;
+    }
+
+    private void OnZoomWheel(object sender, PointerWheelEventArgs e)
+    {
+        if ((e.KeyModifiers & KeyModifiers.Control) == 0 || e.Delta.Y == 0 ||
+            DataContext is not TouchButtonSettingsViewModel vm)
+            return;
+
+        vm.ZoomByWheel(e.Delta.Y);
+        e.Handled = true;
     }
 
     /// <summary>Right-click on a row of the layer list: selects that layer and opens its menu.</summary>
