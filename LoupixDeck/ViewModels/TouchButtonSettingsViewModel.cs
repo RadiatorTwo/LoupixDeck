@@ -363,6 +363,12 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     private void ResetZoom() => ZoomFactor = 1.0;
     private void Fit() => FitToViewport();
 
+    // Zoom factor per wheel notch, as in the main window. Touchpads report fractions of a notch.
+    private const double WheelZoomFactor = 1.1;
+
+    /// <summary>Zooms by a Ctrl + mouse wheel turn of <paramref name="notches"/> (issue #645).</summary>
+    public void ZoomByWheel(double notches) => ZoomFactor *= Math.Pow(WheelZoomFactor, notches);
+
     // ───────── Side-strip (Razer) mode ─────────
 
     private RotaryButtonPage _stripPage;
