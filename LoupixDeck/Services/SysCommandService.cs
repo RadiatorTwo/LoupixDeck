@@ -48,6 +48,10 @@ public class SysCommandService : ISysCommandService
     private FrozenDictionary<string, (Type CommandType, CommandAttribute Attribute)> _commands =
         FrozenDictionary<string, (Type CommandType, CommandAttribute Attribute)>.Empty;
 
+    // The command names in declaration order. The map's own order is a hash order, which
+    // scatters a group's commands across the picker; this lists them as they are written.
+    private IReadOnlyList<string> _order = [];
+
     private readonly IServiceProvider _serviceProvider;
     private readonly IUInputKeyboard _uInputKeyboard;
 
@@ -68,6 +72,7 @@ public class SysCommandService : ISysCommandService
                         && !t.IsAbstract);
 
         var next = new Dictionary<string, (Type CommandType, CommandAttribute Attribute)>();
+        List<string> order = [];
 
         foreach (var type in commandTypes)
         {
@@ -80,10 +85,13 @@ public class SysCommandService : ISysCommandService
             if (attribute.Platform == CommandPlatform.Linux && !OperatingSystem.IsLinux())
                 continue;
 
+            if (!next.ContainsKey(attribute.CommandName))
+                order.Add(attribute.CommandName);
             next[attribute.CommandName] = (type, attribute);
         }
 
         _commands = next.ToFrozenDictionary();
+        _order = order;
     }
 
     public async Task ExecuteCommand(string commandName, string[] parameters)
@@ -140,7 +148,11 @@ public class SysCommandService : ISysCommandService
 
     public IEnumerable<CommandInfo> GetCommandInfos()
     {
-        return _commands.Select(kvp => new CommandInfo
+        FrozenDictionary<string, (Type CommandType, CommandAttribute Attribute)> commands = _commands;
+        return _order
+            .Where(commands.ContainsKey)
+            .Select(name => KeyValuePair.Create(name, commands[name]))
+            .Select(kvp => new CommandInfo
         {
             CommandName = kvp.Key,
             DisplayName = kvp.Value.Attribute.DisplayName,
