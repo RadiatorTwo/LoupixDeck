@@ -10,6 +10,7 @@ namespace LoupixDeck.Commands;
 // Commands that switch the state of another button (#651), e.g. to light the LED of the page
 // that is shown. They act on the active profile's LED buttons and the active workspace's touch
 // pages. Buttons whose states a command owns are skipped: their plugin drives them.
+// The picker lists them in the order they are declared here.
 
 [Command("System.SetLedButtonState", "Set LED Button State", "Button States",
     parameterTemplate: "({Button},{State})",
@@ -20,7 +21,7 @@ public sealed class SetLedButtonStateCommand(IDeviceController controller) : IEx
 {
     public Task Execute(string[] parameters)
     {
-        if (parameters is not { Length: 2 } || !ButtonStateTargets.TryParseLed(parameters[0], out LedButton led))
+        if (parameters is not { Length: 2 } || !ButtonStateTargets.TryParseName(parameters[0], out LedButton led))
         {
             Console.WriteLine("Usage: System.SetLedButtonState(Button0|...|Button7|All,stateName)");
             return Task.CompletedTask;
@@ -28,38 +29,6 @@ public sealed class SetLedButtonStateCommand(IDeviceController controller) : IEx
 
         foreach (SimpleButton button in ButtonStateTargets.LedButtons(controller, led, "[SetLedButtonState]"))
             ButtonStateTargets.SetState(button, parameters[1], $"[SetLedButtonState] {button.Id}");
-        return Task.CompletedTask;
-    }
-}
-
-[Command("System.SetTouchButtonState", "Set Touch Button State", "Button States",
-    parameterTemplate: "({Page},{Button},{State})",
-    parameterNames: ["Page", "Button", "State"],
-    parameterTypes: [typeof(int), typeof(int), typeof(string)],
-    Description = "Switch a touch button to one of its states, by page number, button number and state name or number")]
-public sealed class SetTouchButtonStateCommand(IDeviceController controller) : IExecutableCommand
-{
-    public Task Execute(string[] parameters)
-    {
-        if (parameters is not { Length: 3 } ||
-            !int.TryParse(parameters[0], out int page) ||
-            !int.TryParse(parameters[1], out int number))
-        {
-            Console.WriteLine("Usage: System.SetTouchButtonState(pageNumber,buttonNumber,stateName) — both 1-based");
-            return Task.CompletedTask;
-        }
-
-        TouchButtonPage touchPage = ButtonStateTargets.TouchPage(controller, page, "[SetTouchButtonState]");
-        if (touchPage == null) return Task.CompletedTask;
-
-        TouchButton button = touchPage.TouchButtons?.FindByIndex(number - 1);
-        if (button == null)
-        {
-            Console.WriteLine($"[SetTouchButtonState] page {page} has no button {number}");
-            return Task.CompletedTask;
-        }
-
-        ButtonStateTargets.SetState(button, parameters[2], $"[SetTouchButtonState] page {page}, button {number}");
         return Task.CompletedTask;
     }
 }
@@ -76,7 +45,7 @@ public sealed class ResetLedButtonStatesCommand(IDeviceController controller) : 
         // No choice made reads as All, the only sensible default for a reset.
         string choice = parameters is { Length: > 0 } ? parameters[0] : null;
         LedButton led = LedButton.All;
-        if (!string.IsNullOrWhiteSpace(choice) && !ButtonStateTargets.TryParseLed(choice, out led))
+        if (!string.IsNullOrWhiteSpace(choice) && !ButtonStateTargets.TryParseName(choice, out led))
         {
             Console.WriteLine("Usage: System.ResetLedButtonStates(Button0|...|Button7|All)");
             return Task.CompletedTask;
@@ -88,44 +57,56 @@ public sealed class ResetLedButtonStatesCommand(IDeviceController controller) : 
     }
 }
 
+[Command("System.SetTouchButtonState", "Set Touch Button State", "Button States",
+    parameterTemplate: "({Page},{Button},{State})",
+    parameterNames: ["Page", "Button", "State"],
+    parameterTypes: [typeof(int), typeof(TouchButtonNumber), typeof(string)],
+    Description = "Switch a touch button to one of its states, by page number, button number and state name or number")]
+public sealed class SetTouchButtonStateCommand(IDeviceController controller) : IExecutableCommand
+{
+    public Task Execute(string[] parameters)
+    {
+        if (parameters is not { Length: 3 } ||
+            !int.TryParse(parameters[0], out int page) ||
+            !ButtonStateTargets.TryParseName(parameters[1], out TouchButtonNumber number))
+        {
+            Console.WriteLine("Usage: System.SetTouchButtonState(pageNumber,Button1|...|Button15|All,stateName)");
+            return Task.CompletedTask;
+        }
+
+        foreach (TouchButton button in ButtonStateTargets.TouchButtons(controller, page, number, "[SetTouchButtonState]"))
+            ButtonStateTargets.SetState(button, parameters[2],
+                $"[SetTouchButtonState] page {page}, button {button.Index + 1}");
+        return Task.CompletedTask;
+    }
+}
+
 [Command("System.ResetTouchButtonStates", "Reset Touch Button States", "Button States",
-    parameterTemplate: "({Page},{Buttons})",
-    parameterNames: ["Page", "Buttons"],
-    parameterTypes: [typeof(int), typeof(string)],
-    Description = "Put touch buttons of a page back to their default state. Buttons: e.g. 1-4 or 1 3 5; empty means all")]
+    parameterTemplate: "({Page},{Button})",
+    parameterNames: ["Page", "Button"],
+    parameterTypes: [typeof(int), typeof(TouchButtonNumber)],
+    Description = "Put a touch button of a page, or all of them, back to its default state")]
 public sealed class ResetTouchButtonStatesCommand(IDeviceController controller) : IExecutableCommand
 {
     public Task Execute(string[] parameters)
     {
         if (parameters is not { Length: > 0 } || !int.TryParse(parameters[0], out int page))
         {
-            Console.WriteLine("Usage: System.ResetTouchButtonStates(pageNumber,[buttons]) — e.g. (2,1-4)");
+            Console.WriteLine("Usage: System.ResetTouchButtonStates(pageNumber,Button1|...|Button15|All)");
             return Task.CompletedTask;
         }
 
-        TouchButtonPage touchPage = ButtonStateTargets.TouchPage(controller, page, "[ResetTouchButtonStates]");
-        if (touchPage?.TouchButtons == null) return Task.CompletedTask;
-
-        string list = parameters.Length > 1 ? parameters[1] : null;
-        if (string.IsNullOrWhiteSpace(list))
+        // No choice made reads as All, as for the LED reset.
+        string choice = parameters.Length > 1 ? parameters[1] : null;
+        TouchButtonNumber number = TouchButtonNumber.All;
+        if (!string.IsNullOrWhiteSpace(choice) && !ButtonStateTargets.TryParseName(choice, out number))
         {
-            foreach (TouchButton button in touchPage.TouchButtons)
-                ButtonStateTargets.Reset(button);
+            Console.WriteLine("Usage: System.ResetTouchButtonStates(pageNumber,Button1|...|Button15|All)");
             return Task.CompletedTask;
         }
 
-        foreach (string token in ButtonStateTargets.Tokens(list))
-        {
-            if (!ButtonStateTargets.TryParseRange(token, out int from, out int to))
-            {
-                Console.WriteLine($"[ResetTouchButtonStates] unknown button '{token}'");
-                continue;
-            }
-
-            for (int number = from; number <= to; number++)
-                ButtonStateTargets.Reset(touchPage.TouchButtons.FindByIndex(number - 1));
-        }
-
+        foreach (TouchButton button in ButtonStateTargets.TouchButtons(controller, page, number, "[ResetTouchButtonStates]"))
+            ButtonStateTargets.Reset(button);
         return Task.CompletedTask;
     }
 }
@@ -133,16 +114,43 @@ public sealed class ResetTouchButtonStatesCommand(IDeviceController controller) 
 /// <summary>Shared lookup and state switching for the button state commands.</summary>
 internal static class ButtonStateTargets
 {
-    /// <summary>The touch page with the 1-based <paramref name="page"/> number, or null (logged).</summary>
-    public static TouchButtonPage TouchPage(IDeviceController controller, int page, string logPrefix)
+    /// <summary>The active profile's LED buttons <paramref name="led"/> stands for; logs a missing one.</summary>
+    public static IEnumerable<SimpleButton> LedButtons(IDeviceController controller, LedButton led, string logPrefix)
+    {
+        SimpleButton[] buttons = controller.Config.SimpleButtons ?? [];
+        if (led == LedButton.All)
+            return buttons;
+
+        SimpleButton button = buttons.FindById((Constants.ButtonType)led);
+        if (button == null)
+            Console.WriteLine($"{logPrefix} this device has no {led}");
+        return button == null ? [] : [button];
+    }
+
+    /// <summary>
+    /// The touch buttons <paramref name="number"/> stands for on the 1-based <paramref name="page"/>
+    /// of the active workspace; logs a missing page or button.
+    /// </summary>
+    public static IEnumerable<TouchButton> TouchButtons(IDeviceController controller, int page,
+        TouchButtonNumber number, string logPrefix)
     {
         System.Collections.ObjectModel.ObservableCollection<TouchButtonPage> pages = controller.Config.TouchButtonPages;
         if (pages == null || page < 1 || page > pages.Count)
         {
             Console.WriteLine($"{logPrefix} touch page {page} out of range (1-{pages?.Count ?? 0})");
-            return null;
+            return [];
         }
-        return pages[page - 1];
+
+        System.Collections.ObjectModel.ObservableCollection<TouchButton> buttons = pages[page - 1].TouchButtons;
+        if (buttons == null)
+            return [];
+        if (number == TouchButtonNumber.All)
+            return buttons;
+
+        TouchButton button = buttons.FindByIndex((int)number - 1);
+        if (button == null)
+            Console.WriteLine($"{logPrefix} page {page} has no {number}");
+        return button == null ? [] : [button];
     }
 
     /// <summary>
@@ -183,54 +191,15 @@ internal static class ButtonStateTargets
         Dispatcher.UIThread.Post(button.ResetToDefaultState);
     }
 
-    /// <summary>The active profile's LED buttons <paramref name="led"/> stands for; logs a missing one.</summary>
-    public static IEnumerable<SimpleButton> LedButtons(IDeviceController controller, LedButton led, string logPrefix)
-    {
-        SimpleButton[] buttons = controller.Config.SimpleButtons ?? [];
-        if (led == LedButton.All)
-            return buttons;
-
-        SimpleButton button = buttons.FindById((Constants.ButtonType)led);
-        if (button == null)
-            Console.WriteLine($"{logPrefix} this device has no {led}");
-        return button == null ? [] : [button];
-    }
-
     /// <summary>
-    /// Parses an LED button by name only. <see cref="Enum.TryParse{TEnum}(string, bool, out TEnum)"/>
-    /// would also take a number and read it as the raw button code.
+    /// Parses an enum value by name only. <see cref="Enum.TryParse{TEnum}(string, bool, out TEnum)"/>
+    /// would also take a number and read it as the raw value.
     /// </summary>
-    public static bool TryParseLed(string text, out LedButton led)
+    public static bool TryParseName<TEnum>(string text, out TEnum value) where TEnum : struct, Enum
     {
-        string name = Enum.GetNames<LedButton>().FirstOrDefault(n =>
+        string name = Enum.GetNames<TEnum>().FirstOrDefault(n =>
             string.Equals(n, text?.Trim(), StringComparison.OrdinalIgnoreCase));
-        led = name == null ? default : Enum.Parse<LedButton>(name);
+        value = name == null ? default : Enum.Parse<TEnum>(name);
         return name != null;
-    }
-
-    /// <summary>
-    /// Splits a button list. Commas separate command parameters, so the list uses spaces or
-    /// semicolons instead.
-    /// </summary>
-    public static string[] Tokens(string list)
-        => list.Split([' ', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-    /// <summary>Parses "3" or "1-8" into an inclusive range.</summary>
-    public static bool TryParseRange(string token, out int from, out int to)
-    {
-        string[] bounds = token.Split('-', 2, StringSplitOptions.TrimEntries);
-        if (int.TryParse(bounds[0], out from))
-        {
-            if (bounds.Length == 1)
-            {
-                to = from;
-                return true;
-            }
-            if (int.TryParse(bounds[1], out to) && to >= from)
-                return true;
-        }
-
-        from = to = 0;
-        return false;
     }
 }
