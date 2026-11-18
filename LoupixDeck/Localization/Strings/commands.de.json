@@ -91,7 +91,7 @@
   "Previous Touch Page": "Vorherige Touch-Seite",
   "Previous Workspace": "Vorheriger Arbeitsbereich",
   "Profiles": "Profile",
-  "Put LED buttons back to their default state. Buttons: e.g. 1-8 or 1 3 Home; empty means all": "LED-Tasten auf ihren Standardzustand zurücksetzen. Tasten: z. B. 1-8 oder 1 3 Home; leer bedeutet alle",
+  "Put LED buttons back to their default state. Buttons: e.g. 1-8 or 1 3 5; empty means all": "LED-Tasten auf ihren Standardzustand zurücksetzen. Tasten: z. B. 1-8 oder 1 3 5; leer bedeutet alle",
   "Put touch buttons of a page back to their default state. Buttons: e.g. 1-4 or 1 3 5; empty means all": "Touch-Tasten einer Seite auf ihren Standardzustand zurücksetzen. Tasten: z. B. 1-4 oder 1 3 5; leer bedeutet alle",
   "Rebuild the companions' profiles and workspaces from the master and let them follow it again": "Profile und Arbeitsbereiche der Companions aus dem Master neu aufbauen und sie ihm wieder folgen lassen",
   "Remove a Layer from a Touch Button": "Eine Ebene von einer Touch-Taste entfernen",

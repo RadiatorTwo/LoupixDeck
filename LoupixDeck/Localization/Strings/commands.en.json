@@ -91,7 +91,7 @@
   "Previous Touch Page": "Previous Touch Page",
   "Previous Workspace": "Previous Workspace",
   "Profiles": "Profiles",
-  "Put LED buttons back to their default state. Buttons: e.g. 1-8 or 1 3 Home; empty means all": "Put LED buttons back to their default state. Buttons: e.g. 1-8 or 1 3 Home; empty means all",
+  "Put LED buttons back to their default state. Buttons: e.g. 1-8 or 1 3 5; empty means all": "Put LED buttons back to their default state. Buttons: e.g. 1-8 or 1 3 5; empty means all",
   "Put touch buttons of a page back to their default state. Buttons: e.g. 1-4 or 1 3 5; empty means all": "Put touch buttons of a page back to their default state. Buttons: e.g. 1-4 or 1 3 5; empty means all",
   "Rebuild the companions' profiles and workspaces from the master and let them follow it again": "Rebuild the companions' profiles and workspaces from the master and let them follow it again",
   "Remove a Layer from a Touch Button": "Remove a Layer from a Touch Button",

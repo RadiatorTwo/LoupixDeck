@@ -22,7 +22,7 @@ public sealed class SetLedButtonStateCommand(IDeviceController controller) : IEx
     {
         if (parameters is not { Length: 2 } || !ButtonStateTargets.TryParseLed(parameters[0], out LedButton led))
         {
-            Console.WriteLine("Usage: System.SetLedButtonState(Button1|...|Button8|Home|...,stateName)");
+            Console.WriteLine("Usage: System.SetLedButtonState(Button1|...|Button8,stateName)");
             return Task.CompletedTask;
         }
 
@@ -74,7 +74,7 @@ public sealed class SetTouchButtonStateCommand(IDeviceController controller) : I
     parameterTemplate: "({Buttons})",
     parameterNames: ["Buttons"],
     parameterTypes: [typeof(string)],
-    Description = "Put LED buttons back to their default state. Buttons: e.g. 1-8 or 1 3 Home; empty means all")]
+    Description = "Put LED buttons back to their default state. Buttons: e.g. 1-8 or 1 3 5; empty means all")]
 public sealed class ResetLedButtonStatesCommand(IDeviceController controller) : IExecutableCommand
 {
     public Task Execute(string[] parameters)
@@ -91,7 +91,7 @@ public sealed class ResetLedButtonStatesCommand(IDeviceController controller) : 
 
         foreach (string token in ButtonStateTargets.Tokens(list))
         {
-            // A number is a round button; anything else is a name such as Home or Button3.
+            // A number or range of numbers, or a name such as Button3.
             if (!ButtonStateTargets.TryParseRange(token, out int from, out int to))
             {
                 if (ButtonStateTargets.TryParseLed(token, out LedButton named))
