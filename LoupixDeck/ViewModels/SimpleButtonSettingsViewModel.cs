@@ -41,6 +41,7 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
     private readonly ICommandRegistry _commandRegistry;
     private readonly Services.Companion.ICommandLockService _commandLock;
     private readonly IDialogService _dialogService;
+    private readonly Services.Commands.ICommandParameterOptions _parameterOptions;
     private readonly Services.Commands.ICommandStateMaterializer _stateMaterializer;
 
     public SimpleButton ButtonData { get; set; }
@@ -279,9 +280,11 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
         IDialogService dialogService,
         Services.Companion.ICommandLockService commandLock,
         AppPickerViewModel appList,
-        IButtonStateService buttonStates = null)
+        IButtonStateService buttonStates = null,
+        Services.Commands.ICommandParameterOptions parameterOptions = null)
     {
         AppList = appList;
+        _parameterOptions = parameterOptions;
         _buttonStates = buttonStates;
         _commandBuilder = commandBuilder;
         _menuTreeBuilder = menuTreeBuilder;
@@ -326,7 +329,7 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
         var info = _commandRegistry.Get(name)?.Info;
         var owner = info == null ? _commandRegistry.GetMissingPluginOwner(name) : null;
         var segment = CommandSegment.Create(_commandBuilder, _dialogService, info, raw, owner,
-            info != null ? _commandLock.GetLockHint(raw) : null);
+            info != null ? _commandLock.GetLockHint(raw) : null, _parameterOptions);
         segment.Changed += OnSegmentChanged;
         return segment;
     }

@@ -63,11 +63,11 @@ public partial class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryB
     private void BuildSlots()
     {
         RotaryLeftSlot = new CommandSequenceSlot(Loc.Tr("Gesture_RotateLeft"), _commandBuilder, _commandRegistry, _commandLock, _dialogService,
-            () => ButtonData.RotaryLeftCommand, v => ButtonData.RotaryLeftCommand = v);
+            () => ButtonData.RotaryLeftCommand, v => ButtonData.RotaryLeftCommand = v, _parameterOptions);
         RotaryRightSlot = new CommandSequenceSlot(Loc.Tr("Gesture_RotateRight"), _commandBuilder, _commandRegistry, _commandLock, _dialogService,
-            () => ButtonData.RotaryRightCommand, v => ButtonData.RotaryRightCommand = v);
+            () => ButtonData.RotaryRightCommand, v => ButtonData.RotaryRightCommand = v, _parameterOptions);
         ButtonPressSlot = new CommandSequenceSlot(Loc.Tr("Slot_ButtonPress"), _commandBuilder, _commandRegistry, _commandLock, _dialogService,
-            () => ButtonData.Command, v => ButtonData.Command = v);
+            () => ButtonData.Command, v => ButtonData.Command = v, _parameterOptions);
 
         Slots = [RotaryLeftSlot, RotaryRightSlot, ButtonPressSlot];
 
@@ -143,7 +143,7 @@ public partial class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryB
                     {
                         segment.Command = v;
                         History?.NotifyChanged();
-                    });
+                    }, _parameterOptions);
                 editors.Add(new WheelSegmentEditor(slot, ButtonData.SplitMode, i));
             }
         }
@@ -168,6 +168,7 @@ public partial class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryB
     private readonly ICommandRegistry _commandRegistry;
     private readonly Services.Companion.ICommandLockService _commandLock;
     private readonly IDialogService _dialogService;
+    private readonly Services.Commands.ICommandParameterOptions _parameterOptions;
 
     public RotaryButton ButtonData { get; set; }
 
@@ -195,7 +196,8 @@ public partial class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryB
         ICommandRegistry commandRegistry,
         IDialogService dialogService,
         Services.Companion.ICommandLockService commandLock,
-        AppPickerViewModel appList)
+        AppPickerViewModel appList,
+        Services.Commands.ICommandParameterOptions parameterOptions = null)
     {
         AppList = appList;
         _commandBuilder = commandBuilder;
@@ -203,6 +205,7 @@ public partial class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryB
         _commandRegistry = commandRegistry;
         _commandLock = commandLock;
         _dialogService = dialogService;
+        _parameterOptions = parameterOptions;
 
         SystemCommandMenus = new ObservableCollection<MenuEntry>();
         CommandPicker = new CommandPickerViewModel(SystemCommandMenus);

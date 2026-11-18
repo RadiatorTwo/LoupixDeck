@@ -61,7 +61,7 @@
                 <ComboBox Grid.Column="1"
                           HorizontalAlignment="Stretch"
                           ItemsSource="{Binding Options}"
-                          SelectedItem="{Binding Value, Mode=TwoWay}"
+                          SelectedItem="{Binding SelectedOption, Mode=TwoWay}"
                           IsVisible="{Binding IsEnum}" />
                 <CheckBox Grid.Column="1"
                           IsChecked="{Binding BoolValue, Mode=TwoWay}"

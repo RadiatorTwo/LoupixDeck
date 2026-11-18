@@ -33,8 +33,21 @@ public partial class CommandParameter
     public bool IsEnum { get; }
     public bool IsText => !IsBool && !IsEnum;
 
-    /// <summary>Enum value names for the combo box; null for non-enum parameters.</summary>
-    public IReadOnlyList<string> Options { get; }
+    /// <summary>The combo box choices; null for non-enum parameters.</summary>
+    public IReadOnlyList<Services.Commands.ParameterOption> Options { get; }
+
+    /// <summary>Two-way bridge for the enum combo box — maps the chosen option onto <see cref="Value"/>.</summary>
+    public Services.Commands.ParameterOption SelectedOption
+    {
+        get => Options?.FirstOrDefault(o => string.Equals(o.Value, _value, StringComparison.OrdinalIgnoreCase));
+        set
+        {
+            // The combo box echoes its selection back when it loads; a value that only differs
+            // in case is left as stored, so opening the editor does not rewrite the command.
+            if (value != null && !string.Equals(value.Value, _value, StringComparison.OrdinalIgnoreCase))
+                Value = value.Value;
+        }
+    }
 
     private readonly IDialogService _dialogService;
     private readonly string _picker;
@@ -51,8 +64,10 @@ public partial class CommandParameter
     /// <summary>Opens the parameter's picker dialog and stores what it returns.</summary>
     public ICommand PickCommand => field ??= new AsyncRelayCommand(PickValueAsync);
 
+    /// <param name="options">The enum choices this device offers; null offers every enum name.</param>
     public CommandParameter(string name, Type parameterType, string value,
-        string picker = null, IDialogService dialogService = null, string ownerPluginId = null)
+        string picker = null, IDialogService dialogService = null, string ownerPluginId = null,
+        IReadOnlyList<Services.Commands.ParameterOption> options = null)
     {
         Name = name;
         // Only plugin parameters are looked up; core parameter names were never translated.
@@ -60,9 +75,17 @@ public partial class CommandParameter
         ParameterType = parameterType ?? typeof(string);
         IsBool = ParameterType == typeof(bool);
         IsEnum = ParameterType.IsEnum;
-        if (IsEnum)
-            Options = Enum.GetNames(ParameterType);
         _value = value ?? string.Empty;
+        if (IsEnum)
+        {
+            List<Services.Commands.ParameterOption> choices = options?.ToList()
+                ?? Enum.GetNames(ParameterType).Select(n => new Services.Commands.ParameterOption(n, n)).ToList();
+            // A stored value this device does not offer (a command copied from another model)
+            // stays visible and selected rather than showing an empty box.
+            if (_value.Length > 0 && !choices.Any(o => string.Equals(o.Value, _value, StringComparison.OrdinalIgnoreCase)))
+                choices.Add(new Services.Commands.ParameterOption(_value, _value));
+            Options = choices;
+        }
 
         _dialogService = dialogService;
         _picker = picker;
@@ -108,6 +131,7 @@ public partial class CommandParameter
             OnPropertyChanged();
             OnPropertyChanged(nameof(DisplayValue));
             OnPropertyChanged(nameof(BoolValue));
+            OnPropertyChanged(nameof(SelectedOption));
         }
     }
 
@@ -198,7 +222,7 @@ public partial class CommandSegment
     /// companion). The segment stays fully editable but says so.</param>
     public static CommandSegment Create(ICommandBuilder commandBuilder, IDialogService dialogService,
         CommandInfo info, string raw, Services.PluginStore.PluginCommandOwner missingOwner = null,
-        string lockHint = null)
+        string lockHint = null, Services.Commands.ICommandParameterOptions parameterOptions = null)
     {
         raw = (raw ?? string.Empty).Trim();
         var name = CommandStringParser.GetName(raw);
@@ -239,7 +263,8 @@ public partial class CommandSegment
             var descriptor = info.Parameters[i];
             var value = i < values.Length ? values[i] : string.Empty;
             var parameter = new CommandParameter(descriptor.Name, descriptor.ParameterType, value,
-                descriptor.Picker, dialogService, info.OwnerPluginId);
+                descriptor.Picker, dialogService, info.OwnerPluginId,
+                descriptor.ParameterType is { IsEnum: true } ? parameterOptions?.For(descriptor.ParameterType) : null);
             parameter.PropertyChanged += segment.OnParameterChanged;
             segment.Parameters.Add(parameter);
         }
