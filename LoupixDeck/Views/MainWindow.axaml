@@ -151,6 +151,10 @@
                               Command="{Binding PastePageCommand}"
                               CommandParameter="{Binding $parent[TextBox].Tag}"
                               IsVisible="{Binding $parent[TextBox].Tag, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                    <MenuItem Header="{loc:Tr Page_PastePageAsNew}"
+                              Command="{Binding PastePageAsNewCommand}"
+                              CommandParameter="{Binding $parent[TextBox].Tag}"
+                              IsVisible="{Binding $parent[TextBox].Tag, Converter={x:Static ObjectConverters.IsNotNull}}" />
                 </MenuFlyout>
             </Setter>
         </Style>

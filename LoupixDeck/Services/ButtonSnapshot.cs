@@ -151,4 +151,31 @@ public static class ButtonSnapshot
                 return button == null;
         }
     }
+
+    /// <summary>True when a touch page holds no user configuration, so a page paste can replace
+    /// it without asking (issue #644).</summary>
+    public static bool IsEmpty(TouchButtonPage page)
+        => page == null
+           || (page.TouchButtons.All(IsEmpty)
+               && !page.HasAnyWallpaper
+               && IsEmpty(page.TouchButtonWrap)
+               && page.WheelModes.Count <= 1
+               && page.WheelModes.All(IsEmpty));
+
+    /// <summary>True when a rotary page holds no user configuration, so a page paste can replace
+    /// it without asking (issue #644).</summary>
+    public static bool IsEmpty(RotaryButtonPage page)
+        => page == null
+           || (page.RotaryButtons.All(IsEmpty)
+               && page.StripMode == StripMode.Segmented
+               && (page.StripCanvas == null || IsEmpty(page.StripCanvas))
+               && (page.StripSegmentCommands ?? []).All(string.IsNullOrEmpty)
+               && IsEmpty(page.SimpleButtonWrap)
+               && IsEmpty(page.KnobLeftWrap)
+               && IsEmpty(page.KnobRightWrap)
+               && IsEmpty(page.KnobPressWrap));
+
+    private static bool IsEmpty(CommandWrap wrap)
+        => wrap == null
+           || (string.IsNullOrWhiteSpace(wrap.PreCommands) && string.IsNullOrWhiteSpace(wrap.PostCommands));
 }
