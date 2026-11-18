@@ -1060,12 +1060,33 @@ public partial class MainWindowViewModel : ViewModelBase
         _ => ButtonKind.SideRotaryPage
     });
 
-    /// <summary>Inserts the copied page after the current page of <paramref name="slot"/> (issue #621).</summary>
+    /// <summary>
+    /// Overwrites the current page of <paramref name="slot"/> with the copied page, asking first
+    /// when that page is not empty, like a paste onto a button (issue #644).
+    /// </summary>
     [RelayCommand(CanExecute = nameof(CanPastePage))]
     private async Task PastePage(PageSlot slot)
     {
         if (!CanPastePage(slot)) return;
 
+        IPageManager pages = LoupedeckController.PageManager;
+        bool empty = slot == PageSlot.Touch
+            ? ButtonSnapshot.IsEmpty(pages.CurrentTouchButtonPage)
+            : ButtonSnapshot.IsEmpty(pages.GetCurrentRotaryPage(RotarySideOf(slot)));
+        if (!empty && !await ConfirmOverwritePage()) return;
+
+        await PastePage(slot, replace: true);
+
+        // The selected button belonged to the page that was just replaced.
+        SelectButton(null);
+    }
+
+    /// <summary>Inserts the copied page after the current page of <paramref name="slot"/> (issue #621).</summary>
+    [RelayCommand(CanExecute = nameof(CanPastePage))]
+    private Task PastePageAsNew(PageSlot slot) => CanPastePage(slot) ? PastePage(slot, replace: false) : Task.CompletedTask;
+
+    private async Task PastePage(PageSlot slot, bool replace)
+    {
         // Before the paste, so the pasted commands and plugin layers resolve right away.
         await _pastePlugins.EnableRequiredAsync(_clipboard.Snapshots);
 
@@ -1073,11 +1094,19 @@ public partial class MainWindowViewModel : ViewModelBase
         if (slot == PageSlot.Touch)
         {
             EndExclusiveModeForPageChange();
-            await pages.PasteTouchButtonPage(_clipboard.PageJson(PasteLinkedFolders()));
+            string json = _clipboard.PageJson(PasteLinkedFolders());
+            if (replace)
+                await pages.ReplaceTouchButtonPage(json);
+            else
+                await pages.PasteTouchButtonPage(json);
+        }
+        else if (replace)
+        {
+            pages.ReplaceRotaryButtonPage(RotarySideOf(slot), _clipboard.PageJson());
         }
         else
         {
-            pages.PasteRotaryButtonPage(slot == PageSlot.Rotary ? RotarySide.Both : SideOf(slot), _clipboard.PageJson());
+            pages.PasteRotaryButtonPage(RotarySideOf(slot), _clipboard.PageJson());
         }
 
         // A page from another workspace can link folders this one does not have; those links
@@ -1086,9 +1115,26 @@ public partial class MainWindowViewModel : ViewModelBase
         LoupedeckController.SaveConfig();
     }
 
+    private static RotarySide RotarySideOf(PageSlot slot) => slot == PageSlot.Rotary ? RotarySide.Both : SideOf(slot);
+
+    private async Task<bool> ConfirmOverwritePage()
+    {
+        DialogResult result = await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
+            vm.Configure(
+                Loc.Tr("Confirm_OverwritePageMessage"),
+                title: Loc.Tr("Confirm_OverwriteButtonTitle"),
+                confirmText: Loc.Tr("Confirm_Overwrite"),
+                cancelText: Loc.Tr("Confirm_Cancel")));
+        return result.IsConfirmed;
+    }
+
     private static RotarySide SideOf(PageSlot slot) => slot == PageSlot.RightRotary ? RotarySide.Right : RotarySide.Left;
 
-    private void OnClipboardChanged() => PastePageCommand.NotifyCanExecuteChanged();
+    private void OnClipboardChanged()
+    {
+        PastePageCommand.NotifyCanExecuteChanged();
+        PastePageAsNewCommand.NotifyCanExecuteChanged();
+    }
 
     private readonly Services.History.IWorkspaceHistoryService _history;
 
