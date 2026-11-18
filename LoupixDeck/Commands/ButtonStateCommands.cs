@@ -11,7 +11,7 @@ namespace LoupixDeck.Commands;
 // that is shown. They act on the active profile's LED buttons and the active workspace's touch
 // pages. Buttons whose states a command owns are skipped: their plugin drives them.
 
-[Command("System.SetLedButtonState", "Set LED Button State", "Button Control",
+[Command("System.SetLedButtonState", "Set LED Button State", "Button States",
     parameterTemplate: "({Button},{State})",
     parameterNames: ["Button", "State"],
     parameterTypes: [typeof(LedButton), typeof(string)],
@@ -38,7 +38,7 @@ public sealed class SetLedButtonStateCommand(IDeviceController controller) : IEx
     }
 }
 
-[Command("System.SetTouchButtonState", "Set Touch Button State", "Button Control",
+[Command("System.SetTouchButtonState", "Set Touch Button State", "Button States",
     parameterTemplate: "({Page},{Button},{State})",
     parameterNames: ["Page", "Button", "State"],
     parameterTypes: [typeof(int), typeof(int), typeof(string)],
@@ -70,7 +70,7 @@ public sealed class SetTouchButtonStateCommand(IDeviceController controller) : I
     }
 }
 
-[Command("System.ResetLedButtonStates", "Reset LED Button States", "Button Control",
+[Command("System.ResetLedButtonStates", "Reset LED Button States", "Button States",
     parameterTemplate: "({Buttons})",
     parameterNames: ["Buttons"],
     parameterTypes: [typeof(string)],
@@ -112,7 +112,7 @@ public sealed class ResetLedButtonStatesCommand(IDeviceController controller) : 
     }
 }
 
-[Command("System.ResetTouchButtonStates", "Reset Touch Button States", "Button Control",
+[Command("System.ResetTouchButtonStates", "Reset Touch Button States", "Button States",
     parameterTemplate: "({Page},{Buttons})",
     parameterNames: ["Page", "Buttons"],
     parameterTypes: [typeof(int), typeof(string)],
