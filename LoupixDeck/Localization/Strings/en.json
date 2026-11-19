@@ -531,6 +531,7 @@
   "KeyCapture_Save": "Save",
   "KeyCapture_UndoLast": "Undo Last",
   "KeyReference_Close": "Close",
+  "KeyReference_PrimaryModifierHint": "CtrlOrCmd presses Ctrl on Windows and Linux and Command (⌘) on macOS, so a shortcut such as CtrlOrCmd+C works on every platform without a separate profile.",
   "KeyReference_UsableKeyNames": "Usable key names",
   "LoupedeckImport_CannotRead": "This file cannot be imported: {0}",
   "LoupedeckImport_Done": "Imported profile '{0}' ({1} of {2} actions).",

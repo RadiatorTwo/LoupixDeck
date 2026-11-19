@@ -531,6 +531,7 @@
   "KeyCapture_Save": "Guardar",
   "KeyCapture_UndoLast": "Deshacer la última",
   "KeyReference_Close": "Cerrar",
+  "KeyReference_PrimaryModifierHint": "CtrlOrCmd pulsa Ctrl en Windows y Linux y Command (⌘) en macOS, así un atajo como CtrlOrCmd+C funciona en todas las plataformas sin un perfil aparte.",
   "KeyReference_UsableKeyNames": "Nombres de tecla utilizables",
   "LoupedeckImport_CannotRead": "Este archivo no se puede importar: {0}",
   "LoupedeckImport_Done": "Perfil '{0}' importado ({1} de {2} acciones).",

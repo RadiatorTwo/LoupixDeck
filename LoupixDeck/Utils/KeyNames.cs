@@ -462,6 +462,20 @@ public static class KeyNames
     private static readonly FrozenDictionary<string, (int scanCode, bool e0)>.AlternateLookup<ReadOnlySpan<char>> InterceptionBySpan =
         Interception.GetAlternateLookup<ReadOnlySpan<char>>();
 
+    /// <summary>
+    /// The platform-neutral primary modifier as written in a combination ("CtrlOrCmd+W"):
+    /// Ctrl on Windows and Linux, Command (⌘) on macOS.
+    /// </summary>
+    public const string PrimaryModifier = "CtrlOrCmd";
+
+    private const string PrimaryModifierKey = "ctrlorcmd";
+
+    // Alternative spellings of the primary modifier (Electron's and Loupedeck's names).
+    private static readonly string[] PrimaryModifierAliasSpellings = ["cmdorctrl", "controlorcommand"];
+
+    // Must be declared before Aliases: static fields initialize in textual order.
+    private static readonly string PrimaryModifierTarget = OperatingSystem.IsMacOS() ? "win" : "ctrl";
+
     // Aliases -> canonical name.
     private static readonly FrozenDictionary<string, string> Aliases =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -576,6 +590,12 @@ public static class KeyNames
         ["scroll"] = "scrolllock",
         ["rollen"] = "scrolllock",
         ["break"] = "pause",
+
+        // Platform-neutral primary modifier (#648): Ctrl on Windows and Linux, Command on a
+        // Mac (sent there as Win). Resolved at send time, so one profile works everywhere.
+        [PrimaryModifierKey] = PrimaryModifierTarget,
+        ["cmdorctrl"] = PrimaryModifierTarget,
+        ["controlorcommand"] = PrimaryModifierTarget,
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     private static readonly FrozenDictionary<string, string>.AlternateLookup<ReadOnlySpan<char>> AliasesBySpan =
@@ -751,6 +771,11 @@ public static class KeyNames
             if (string.IsNullOrWhiteSpace(pair.Key))
                 continue;
 
+            // The primary-modifier spellings get their own catalog entry instead of being
+            // listed as plain Ctrl (or, on a Mac, Win) aliases.
+            if (IsPrimaryModifierSpelling(pair.Key))
+                continue;
+
             if (!map.TryGetValue(pair.Value, out var list))
             {
                 list = [];
@@ -770,7 +795,11 @@ public static class KeyNames
     // the rules in Classify fall into KeyNameCategory.Other, so a table entry added later
     // still shows up in the reference instead of disappearing from it.
     private static readonly HashSet<string> ModifierNames = new(StringComparer.OrdinalIgnoreCase)
-        { "ctrl", "rctrl", "shift", "rshift", "alt", "altgr", "win", "menu" };
+        { "ctrl", "rctrl", "shift", "rshift", "alt", "altgr", "win", "menu", PrimaryModifierKey };
+
+    private static bool IsPrimaryModifierSpelling(string name) =>
+        name.Equals(PrimaryModifierKey, StringComparison.OrdinalIgnoreCase) ||
+        PrimaryModifierAliasSpellings.Contains(name, StringComparer.OrdinalIgnoreCase);
 
     private static readonly HashSet<string> ControlNames = new(StringComparer.OrdinalIgnoreCase)
         { "space", "enter", "tab", "esc", "backspace", "capslock" };
@@ -850,13 +879,19 @@ public static class KeyNames
             names = new HashSet<string>(Linux.Keys, StringComparer.OrdinalIgnoreCase);
         }
 
+        // The platform-neutral primary modifier resolves through the alias table, so it is not
+        // in any platform table; it is listed under its own name with its alternative spellings.
+        names.Add(PrimaryModifier);
+
         return names
             .Select(name => new KeyNameInfo(
                 name,
                 Classify(name),
-                AliasesByName.Value.TryGetValue(name, out var aliases)
-                    ? aliases
-                    : []))
+                IsPrimaryModifierSpelling(name)
+                    ? PrimaryModifierAliasSpellings
+                    : AliasesByName.Value.TryGetValue(name, out var aliases)
+                        ? aliases
+                        : []))
             .OrderBy(entry => entry.Category)
             .ThenBy(entry => SortKey(entry.Name).Prefix, StringComparer.OrdinalIgnoreCase)
             .ThenBy(entry => SortKey(entry.Name).Number)
