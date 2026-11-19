@@ -531,6 +531,7 @@
   "KeyCapture_Save": "Speichern",
   "KeyCapture_UndoLast": "Letzte rückgängig",
   "KeyReference_Close": "Schließen",
+  "KeyReference_PrimaryModifierHint": "CtrlOrCmd drückt unter Windows und Linux Strg und unter macOS Command (⌘). So funktioniert ein Kürzel wie CtrlOrCmd+C auf jeder Plattform ohne eigenes Profil.",
   "KeyReference_UsableKeyNames": "Verwendbare Tastennamen",
   "LoupedeckImport_CannotRead": "Diese Datei kann nicht importiert werden: {0}",
   "LoupedeckImport_Done": "Profil '{0}' importiert ({1} von {2} Aktionen).",

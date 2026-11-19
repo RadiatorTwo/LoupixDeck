@@ -1,3 +1,4 @@
+using LoupixDeck.Localization;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
 
@@ -35,6 +36,8 @@ public sealed class KeyReferenceViewModel : ViewModelBase
         "keyboard types are resolved through the active keyboard layout, so they need no " +
         "name from this list. The names below identify a key by its physical place on the " +
         "board instead (US legend), which keeps a macro on the same key on every layout.";
+
+    public string PrimaryModifierHint { get; } = Loc.Tr("KeyReference_PrimaryModifierHint");
 
     private static string CategoryTitle(KeyNameCategory category) => category switch
     {

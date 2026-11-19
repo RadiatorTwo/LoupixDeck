@@ -1,3 +1,5 @@
+using LoupixDeck.Utils;
+
 namespace LoupixDeck.Services.Import.Lp5;
 
 /// <summary>
@@ -8,9 +10,9 @@ internal static class Lp5KeyCombo
 {
     private static readonly Dictionary<string, string> KeyMap = new(StringComparer.Ordinal)
     {
-        // Loupedeck's platform-neutral primary modifier: Ctrl on Windows and Linux, Command on a Mac
-        // (sent there as Win).
-        ["ControlOrCommand"] = OperatingSystem.IsMacOS() ? "Win" : "Ctrl",
+        // Loupedeck's platform-neutral primary modifier maps to LoupixDeck's own (Ctrl on Windows
+        // and Linux, Command on a Mac), so an imported profile stays usable on every platform.
+        ["ControlOrCommand"] = KeyNames.PrimaryModifier,
         ["Control"] = "Ctrl",
         ["AltOrOption"] = "Alt",
         ["Windows"] = "Win",
