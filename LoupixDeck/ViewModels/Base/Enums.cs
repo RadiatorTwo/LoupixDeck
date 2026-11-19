@@ -13,5 +13,6 @@ public enum SettingsView
     AppSwitching,
     Companions,
     Diagnostics,
-    LayerDefaults
+    LayerDefaults,
+    Apps
 }

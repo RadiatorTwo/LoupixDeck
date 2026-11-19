@@ -1377,6 +1377,9 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
 
     public IconLayerDefaults IconDefaults => LayerDefaults.Icon;
 
+    /// <summary>Holds the app options new launch commands start with (issue #647).</summary>
+    public LayerDefaultSettings AppDefaults => LayerDefaults.Current;
+
     /// <summary>The layout templates a key can get when an app is put on it, labelled as the button editor labels them.</summary>
     public IReadOnlyList<LayoutTemplateOption> AppLayoutChoices { get; } =
         LayoutTemplateOption.CreateAll().Where(o => o.Template != null).ToList();
