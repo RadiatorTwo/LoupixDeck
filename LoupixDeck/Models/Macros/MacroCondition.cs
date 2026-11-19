@@ -25,7 +25,21 @@ public enum ConditionType
     /// other way (editor test run, hotkey, plugin), so a wait on it falls through immediately
     /// instead of hanging. Uses no target or operand.
     /// </summary>
-    TriggerButtonReleased
+    TriggerButtonReleased,
+
+    /// <summary>
+    /// True when LoupixDeck runs on <see cref="MacroCondition.Platform"/>, so one macro can
+    /// branch per OS in a profile shared between machines. Uses no target or operand.
+    /// </summary>
+    OperatingSystem
+}
+
+/// <summary>Operating system tested by <see cref="ConditionType.OperatingSystem"/> conditions.</summary>
+public enum MacroPlatform
+{
+    Windows,
+    Linux,
+    MacOS
 }
 
 /// <summary>Comparison used by <see cref="ConditionType.Variable"/> conditions.</summary>
@@ -52,6 +66,7 @@ public partial class MacroCondition
 {
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsVariable))]
+    [NotifyPropertyChangedFor(nameof(IsOperatingSystem))]
     [NotifyPropertyChangedFor(nameof(HasTarget))]
     [NotifyPropertyChangedFor(nameof(TargetLabel))]
     [NotifyPropertyChangedFor(nameof(Summary))]
@@ -71,6 +86,11 @@ public partial class MacroCondition
     [NotifyPropertyChangedFor(nameof(Summary))]
     public partial string Operand { get; set; } = string.Empty;
 
+    /// <summary>Operating system to match (operating-system conditions only).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Summary))]
+    public partial MacroPlatform Platform { get; set; } = MacroPlatform.Windows;
+
     /// <summary>Inverts the test (e.g. "process is NOT running").</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Summary))]
@@ -81,15 +101,22 @@ public partial class MacroCondition
     public static ImmutableArray<ConditionType> AllTypes { get; } = ImmutableCollectionsMarshal.AsImmutableArray(Enum.GetValues<ConditionType>());
 
     [Newtonsoft.Json.JsonIgnore]
+    public static ImmutableArray<MacroPlatform> AllPlatforms { get; } = ImmutableCollectionsMarshal.AsImmutableArray(Enum.GetValues<MacroPlatform>());
+
+    [Newtonsoft.Json.JsonIgnore]
     public static ImmutableArray<ConditionOperator> AllOperators { get; } = ImmutableCollectionsMarshal.AsImmutableArray(Enum.GetValues<ConditionOperator>());
 
     /// <summary>True when the variable-specific operator/operand fields apply (editor visibility).</summary>
     [Newtonsoft.Json.JsonIgnore]
     public bool IsVariable => Type == ConditionType.Variable;
 
+    /// <summary>True when the operating-system picker applies (editor visibility).</summary>
+    [Newtonsoft.Json.JsonIgnore]
+    public bool IsOperatingSystem => Type == ConditionType.OperatingSystem;
+
     /// <summary>False for condition types that need no <see cref="Target"/> (editor visibility).</summary>
     [Newtonsoft.Json.JsonIgnore]
-    public bool HasTarget => Type != ConditionType.TriggerButtonReleased;
+    public bool HasTarget => Type is not (ConditionType.TriggerButtonReleased or ConditionType.OperatingSystem);
 
     /// <summary>Editor label for the <see cref="Target"/> field, which differs per type.</summary>
     [Newtonsoft.Json.JsonIgnore]
@@ -100,6 +127,7 @@ public partial class MacroCondition
         ConditionType.ActiveWindowTitleContains => "Title contains",
         ConditionType.Variable => "Variable",
         ConditionType.TriggerButtonReleased => string.Empty,
+        ConditionType.OperatingSystem => string.Empty,
         _ => "Value"
     };
 
@@ -117,10 +145,20 @@ public partial class MacroCondition
                 ConditionType.ActiveWindowTitleContains => $"title {not}contains '{Target}'",
                 ConditionType.Variable => $"{not}({Target} {OperatorText} {Operand})",
                 ConditionType.TriggerButtonReleased => $"trigger button {not}released",
+                ConditionType.OperatingSystem => $"OS is {not}{PlatformName(Platform)}",
                 _ => string.Empty
             };
         }
     }
+
+    /// <summary>Display name of an operating system, as the platform vendor spells it.</summary>
+    public static string PlatformName(MacroPlatform platform) => platform switch
+    {
+        MacroPlatform.Windows => "Windows",
+        MacroPlatform.Linux => "Linux",
+        MacroPlatform.MacOS => "macOS",
+        _ => platform.ToString()
+    };
 
     private string OperatorText => Operator switch
     {

@@ -24,6 +24,7 @@ public class ConditionTypeLabelConverter : IValueConverter
         ConditionType.ActiveWindowTitleContains => Loc.Tr("Condition_ActiveWindowTitleContains"),
         ConditionType.Variable => Loc.Tr("Condition_Variable"),
         ConditionType.TriggerButtonReleased => Loc.Tr("Condition_TriggerButtonReleased"),
+        ConditionType.OperatingSystem => Loc.Tr("Condition_OperatingSystem"),
         _ => type.ToString()
     };
 }
