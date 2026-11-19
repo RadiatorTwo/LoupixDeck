@@ -25,6 +25,18 @@ public sealed partial class LayerDefaultSettings : ObservableObject
     [ObservableProperty]
     [JsonConverter(typeof(StringEnumConverter))]
     public partial ButtonTemplate AppLayout { get; set; } = ButtonTemplate.IconOnly;
+
+    /// <summary>
+    /// Whether the launch command of a newly assigned app starts with "Single Instance" ticked
+    /// (issue #647). Off by default and absent from older files, so assignments behave as before.
+    /// Only new assignments read it; each key can still untick it on its own.
+    /// </summary>
+    [ObservableProperty]
+    public partial bool AppSingleInstance { get; set; }
+
+    /// <summary>Like <see cref="AppSingleInstance"/>, for "Show Running Indicator" (issue #647).</summary>
+    [ObservableProperty]
+    public partial bool AppShowRunningIndicator { get; set; }
 }
 
 /// <summary>

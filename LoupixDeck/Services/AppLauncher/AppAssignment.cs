@@ -48,14 +48,15 @@ public static class AppAssignment
 
     /// <summary>Builds the command string that launches <paramref name="app"/>, with the target
     /// escaped so it survives <see cref="CommandStringParser"/>. Single Instance and the running
-    /// indicator start off — the button keeps launching every time and shows no dot until the
-    /// user ticks them — but the process name is filled
-    /// in now, while discovery still knows the executable behind a launcher URI.</summary>
+    /// indicator start as set in Settings (issue #647), off unless the user turned them on there;
+    /// the process name is filled in now, while discovery still knows the executable behind a
+    /// launcher URI.</summary>
     public static string BuildLaunchCommand(InstalledApp app)
     {
         string processName = LaunchTargetProcess.Guess(app.Target, app.IconExtractSource);
-        return $"System.LaunchApp({CommandParameterEncoding.Encode(app.Target)}, False, " +
-               $"{CommandParameterEncoding.Encode(processName)}, False)";
+        LayerDefaultSettings defaults = LayerDefaults.Current;
+        return $"System.LaunchApp({CommandParameterEncoding.Encode(app.Target)}, {defaults.AppSingleInstance}, " +
+               $"{CommandParameterEncoding.Encode(processName)}, {defaults.AppShowRunningIndicator})";
     }
 
     /// <summary>
