@@ -136,6 +136,16 @@
                         </Grid>
                     </Button>
 
+                    <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Apps}"
+                            Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.Apps}">
+                        <Grid ColumnDefinitions="6,Auto,*">
+                            <Border Grid.Column="0" Classes="nav-accent" />
+                            <!-- mdi-apps -->
+                            <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF003B;" Margin="6,0,0,0"/>
+                            <TextBlock Grid.Column="2" Classes="nav-label" Text="{loc:Tr Settings_Apps}" />
+                        </Grid>
+                    </Button>
+
                     <TextBlock Classes="section-header" Text="{loc:Tr Settings_APP}" />
                     <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=About}"
                             Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.About}">
@@ -466,33 +476,6 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Layout a key gets when an app is put on it (issue #624). -->
-                    <Border Classes="card">
-                        <StackPanel>
-                            <TextBlock Classes="card-title" Text="{loc:Tr Settings_AppLayers}" />
-                            <TextBlock Classes="label" Text="{loc:Tr Settings_AppLayout}" />
-                            <ComboBox Margin="0,4,0,0" MinWidth="240"
-                                      ItemsSource="{Binding AppLayoutChoices}"
-                                      SelectedItem="{Binding SelectedAppLayoutChoice, Mode=TwoWay}">
-                                <ComboBox.ItemTemplate>
-                                    <DataTemplate x:DataType="vm:LayoutTemplateOption">
-                                        <TextBlock Text="{Binding Label}" />
-                                    </DataTemplate>
-                                </ComboBox.ItemTemplate>
-                            </ComboBox>
-                            <TextBlock Classes="hint" Margin="0,8,0,0" TextWrapping="Wrap"
-                                       Text="{loc:Tr Settings_AppLayoutHint}" />
-
-                            <!-- Options a newly assigned app's launch command starts with (issue #647). -->
-                            <CheckBox Content="{loc:Tr Settings_AppSingleInstance}" Margin="0,16,0,0"
-                                      IsChecked="{Binding AppDefaults.AppSingleInstance, Mode=TwoWay}" />
-                            <CheckBox Content="{loc:Tr Settings_AppShowRunningIndicator}" Margin="0,4,0,0"
-                                      IsChecked="{Binding AppDefaults.AppShowRunningIndicator, Mode=TwoWay}" />
-                            <TextBlock Classes="hint" Margin="0,8,0,0" TextWrapping="Wrap"
-                                       Text="{loc:Tr Settings_AppLaunchOptionsHint}" />
-                        </StackPanel>
-                    </Border>
-
                     <!-- Size, position and style new symbol and image layers start with (issue #564). -->
                     <Border Classes="card">
                         <StackPanel>
@@ -559,6 +542,43 @@
                                        Text="{loc:Tr Settings_IconDefaultsHint}" />
                             <TextBlock Classes="hint" Margin="0,4,0,0" TextWrapping="Wrap"
                                        Text="{loc:Tr Settings_LayerDefaultsHint}" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- ====== Apps ====== -->
+                <!-- Global like the layer defaults: how a key starts when an app is put on it. -->
+                <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Apps}">
+                    <TextBlock Classes="page-title" Text="{loc:Tr Settings_Apps}" />
+
+                    <!-- Layout a key gets when an app is put on it (issue #624). -->
+                    <Border Classes="card">
+                        <StackPanel>
+                            <TextBlock Classes="card-title" Text="{loc:Tr Settings_AppLayout}" />
+                            <ComboBox Margin="0,4,0,0" MinWidth="240"
+                                      ItemsSource="{Binding AppLayoutChoices}"
+                                      SelectedItem="{Binding SelectedAppLayoutChoice, Mode=TwoWay}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:LayoutTemplateOption">
+                                        <TextBlock Text="{Binding Label}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <TextBlock Classes="hint" Margin="0,8,0,0" TextWrapping="Wrap"
+                                       Text="{loc:Tr Settings_AppLayoutHint}" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Options a newly assigned app's launch command starts with (issue #647). -->
+                    <Border Classes="card">
+                        <StackPanel>
+                            <TextBlock Classes="card-title" Text="{loc:Tr Settings_AppLaunchOptions}" />
+                            <CheckBox Content="{loc:Tr Settings_AppSingleInstance}"
+                                      IsChecked="{Binding AppDefaults.AppSingleInstance, Mode=TwoWay}" />
+                            <CheckBox Content="{loc:Tr Settings_AppShowRunningIndicator}" Margin="0,4,0,0"
+                                      IsChecked="{Binding AppDefaults.AppShowRunningIndicator, Mode=TwoWay}" />
+                            <TextBlock Classes="hint" Margin="0,8,0,0" TextWrapping="Wrap"
+                                       Text="{loc:Tr Settings_AppLaunchOptionsHint}" />
                         </StackPanel>
                     </Border>
                 </StackPanel>
