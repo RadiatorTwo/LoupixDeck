@@ -34,12 +34,28 @@ die()  { printf '\033[1;31mERR\033[0m %s\n' "$*" >&2; exit 1; }
 require() { command -v "$1" >/dev/null 2>&1 || die "Required tool missing: $1"; }
 
 # ---------- root / sudo ----------
+# sudo or doas (the OpenBSD-style tool used by some minimal distributions). Both run the
+# commands below the same way, but doas has no 'sudo -v' to check the password up front.
 if [ "$(id -u)" -ne 0 ]; then
-    command -v sudo >/dev/null 2>&1 || die "Please run as root or install sudo."
-    SUDO="sudo"
+    if command -v sudo >/dev/null 2>&1; then
+        SUDO="sudo"
+    elif command -v doas >/dev/null 2>&1; then
+        SUDO="doas"
+    else
+        die "Please run as root or install sudo or doas."
+    fi
 else
     SUDO=""
 fi
+
+# Asks for the administrator password.
+sudo_validate() {
+    { [ "$SUDO" = doas ] && doas true; } || { [ "$SUDO" = sudo ] && sudo -v; }
+}
+# Keeps the credentials fresh during long builds.
+sudo_refresh() {
+    { [ "$SUDO" = doas ] && doas -n true; } || { [ "$SUDO" = sudo ] && sudo -n true; }
+}
 
 # ---------- Target user ----------
 # The user the app runs as: the one who gets the 'input' group and owns the plugin folder.
@@ -163,13 +179,13 @@ if [ -n "$SUDO" ]; then
     if [ "$STEAMOS" -eq 1 ]; then
         log "Administrator rights are needed to set up the device permissions (udev rule)."
         # The 'deck' user has no password until one is set, so sudo cannot succeed before that.
-        sudo -v || die "No administrator rights - nothing was changed. If your user has no password yet, set one with 'passwd' and run the installer again."
+        sudo_validate || die "No administrator rights - nothing was changed. If your user has no password yet, set one with 'passwd' and run the installer again."
     else
         log "Administrator rights are needed to install into $INSTALL_DIR."
-        sudo -v || die "No administrator rights - nothing was changed."
+        sudo_validate || die "No administrator rights - nothing was changed."
     fi
     # Keep the credentials fresh for long source builds; ends together with this script.
-    ( while kill -0 "$$" 2>/dev/null; do sudo -n true 2>/dev/null; sleep 50; done ) &
+    ( while kill -0 "$$" 2>/dev/null; do sudo_refresh 2>/dev/null; sleep 50; done ) &
 fi
 # With --from-source the version is not a release to download but the version the master build
 # reports, e.g. an older number to try the in-app updater against a published release.
