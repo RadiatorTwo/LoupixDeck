@@ -28,11 +28,20 @@ public sealed class MacroConditionEvaluator(IActiveWindowState activeWindow) : I
                 activeWindow.Current?.Title, context.Expand(condition.Target)),
             ConditionType.Variable => EvaluateVariable(condition, context),
             ConditionType.TriggerButtonReleased => !context.IsTriggerHeld,
+            ConditionType.OperatingSystem => IsCurrentPlatform(condition.Platform),
             _ => false
         };
 
         return condition.Negate ? !result : result;
     }
+
+    private static bool IsCurrentPlatform(MacroPlatform platform) => platform switch
+    {
+        MacroPlatform.Windows => OperatingSystem.IsWindows(),
+        MacroPlatform.Linux => OperatingSystem.IsLinux(),
+        MacroPlatform.MacOS => OperatingSystem.IsMacOS(),
+        _ => false
+    };
 
     private static bool IsProcessRunning(string name)
     {

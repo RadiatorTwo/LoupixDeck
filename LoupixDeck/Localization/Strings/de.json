@@ -108,6 +108,7 @@
   "Companions_FolderFollowHint": "Öffnet oder schließt der Master einen eigenen Ordner, öffnen oder schließen die Companions im selben Arbeitsbereich denselben Ordner mit ihrem eigenen Layout.",
   "Condition_ActiveWindowProcessIs": "Prozess des aktiven Fensters ist",
   "Condition_ActiveWindowTitleContains": "Titel des aktiven Fensters enthält",
+  "Condition_OperatingSystem": "Betriebssystem ist",
   "Condition_ProcessRunning": "Prozess läuft",
   "Condition_TriggerButtonReleased": "Auslösende Taste losgelassen",
   "Condition_Variable": "Variable",
