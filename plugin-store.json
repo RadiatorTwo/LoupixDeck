@@ -578,17 +578,17 @@
       "minSdkVersion": "1.36.0",
       "commandPrefixes": [ "System.Obs" ],
       "release": {
-        "version": "1.6.0",
-        "tag": "v1.6.0",
-        "publishedAt": "2026-11-05T20:36:51Z",
+        "version": "1.7.0",
+        "tag": "v1.7.0",
+        "publishedAt": "2026-11-20T23:19:57Z",
         "sdkVersion": "1.36.0",
-        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Obs/releases/tag/v1.6.0",
+        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Obs/releases/tag/v1.7.0",
         "packages": [
           {
             "platform": "any",
-            "fileName": "obs-1.6.0-any.zip",
-            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Obs/releases/download/v1.6.0/obs-1.6.0-any.zip",
-            "sha256": "c11a318cf17bee3b9d4c2545852a8c5025acfd4ff529ec3b35347fc20ae51b02"
+            "fileName": "obs-1.7.0-any.zip",
+            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Obs/releases/download/v1.7.0/obs-1.7.0-any.zip",
+            "sha256": "2d616271892fa05c58036d9b095edfb0ef865d464f731ea585673637e83f61de"
           }
         ]
       }
