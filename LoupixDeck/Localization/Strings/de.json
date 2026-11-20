@@ -1409,6 +1409,7 @@
   "Plugins_RestartFailed": "LoupixDeck konnte nicht neu gestartet werden. Bitte beenden und neu starten.",
   "SymbolPicker_AddPackTip": "Einen Ordner mit PNG- oder SVG-Icons als Icon-Pack hinzufügen. Der Ordner bleibt, wo er ist; ein Icon wird erst in LoupixDeck kopiert, wenn du es auf einen Button legst.",
   "SymbolPicker_RemovePackTip": "Das ausgewählte Icon-Pack aus der Liste entfernen. Der Ordner und Buttons mit seinen Icons bleiben unberührt.",
+  "SymbolPicker_ResolutionFmt": "{0} × {1} px",
   "SymbolPicker_SelectPackFolder": "Icon-Ordner auswählen",
   "SymbolPicker_PackMissingFmt": "{0} (Ordner fehlt)",
   "SymbolPicker_PackMissingInfo": "Der Ordner dieses Icon-Packs wurde nicht gefunden. Buttons mit seinen Icons funktionieren weiter, weil jedes platzierte Icon in LoupixDeck kopiert wurde.",

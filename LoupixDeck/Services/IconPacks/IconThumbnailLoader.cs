@@ -31,6 +31,7 @@ public sealed class IconThumbnailLoader : IDisposable
     private readonly ConcurrentQueue<(string Key, Bitmap Bitmap)> _finished = new();
     private readonly ConcurrentDictionary<string, Bitmap> _cache = new();
     private readonly ConcurrentDictionary<string, byte> _started = new();
+    private readonly ConcurrentDictionary<string, SKSizeI> _sourceSizes = new();
     private readonly SemaphoreSlim _signal = new(0);
     private readonly CancellationTokenSource _cancellation = new();
     private readonly DispatcherTimer _deliveryTimer;
@@ -85,6 +86,12 @@ public sealed class IconThumbnailLoader : IDisposable
         return null;
     }
 
+    /// <summary>
+    /// Pixel size of a raster icon's file, known once its thumbnail is decoded (recorded before the
+    /// thumbnail is handed out). Null for SVGs and icons not decoded yet.
+    /// </summary>
+    public SKSizeI? GetSourceSize(string key) => _sourceSizes.TryGetValue(key, out SKSizeI size) ? size : null;
+
     private async Task WorkAsync()
     {
         CancellationToken token = _cancellation.Token;
@@ -136,12 +143,16 @@ public sealed class IconThumbnailLoader : IDisposable
     {
         try
         {
+            SKSizeI sourceSize = default;
             using SKBitmap source = entry.Kind == IconEntryKind.SvgFile
                 ? RenderSvg(entry.FullPath)
-                : DecodeRaster(entry.FullPath);
+                : DecodeRaster(entry.FullPath, out sourceSize);
 
             if (source == null)
                 return null;
+
+            if (sourceSize.Width > 0 && sourceSize.Height > 0)
+                _sourceSizes[entry.Key] = sourceSize;
 
             using SKBitmap colored = IconColorAnalysis.IsMonochrome(source) ? Recolor(source) : null;
             return ToAvalonia(colored ?? source);
@@ -179,8 +190,9 @@ public sealed class IconThumbnailLoader : IDisposable
         return bitmap;
     }
 
-    private static SKBitmap DecodeRaster(string path)
+    private static SKBitmap DecodeRaster(string path, out SKSizeI sourceSize)
     {
+        sourceSize = default;
         using SKCodec codec = SKCodec.Create(path);
         if (codec == null)
             return null;
@@ -188,6 +200,8 @@ public sealed class IconThumbnailLoader : IDisposable
         SKImageInfo info = codec.Info;
         if (info.Width <= 0 || info.Height <= 0)
             return null;
+
+        sourceSize = new SKSizeI(info.Width, info.Height);
 
         // Let the codec downscale while decoding where it can (JPEG, WebP); PNG decodes full size.
         float scale = Math.Min(1f, (float)ThumbnailSize / Math.Max(info.Width, info.Height));

@@ -1409,6 +1409,7 @@
   "Plugins_RestartFailed": "LoupixDeck could not be restarted. Please close and start it again.",
   "SymbolPicker_AddPackTip": "Add a folder of PNG or SVG icons as an icon pack. The folder stays where it is; an icon is copied into LoupixDeck only when you place it on a button.",
   "SymbolPicker_RemovePackTip": "Remove the selected icon pack from the list. The folder and buttons using its icons are not affected.",
+  "SymbolPicker_ResolutionFmt": "{0} × {1} px",
   "SymbolPicker_SelectPackFolder": "Select icon folder",
   "SymbolPicker_PackMissingFmt": "{0} (folder missing)",
   "SymbolPicker_PackMissingInfo": "The folder of this icon pack can't be found. Buttons using its icons keep working, because each placed icon was copied into LoupixDeck.",
