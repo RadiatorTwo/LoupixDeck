@@ -139,6 +139,9 @@ public class CoreCommandProvider : ICommandProvider
             // Companion paging and group control (issue #232) — assignable to every button type.
             // The commands stay hidden; CompanionMenuContributor offers them on a master only.
             "Companions" => ButtonTargets.All,
+            // Switching another device's pages, profiles and workspaces (issue #666) — assignable to
+            // every button type. The commands stay hidden; OtherDevicesMenuContributor offers them.
+            "Other Devices" => ButtonTargets.All,
             // Switching another button's state (#651) — assignable to every button type.
             "Button States" => ButtonTargets.All,
             "Dynamic Text" => ButtonTargets.TouchButton,

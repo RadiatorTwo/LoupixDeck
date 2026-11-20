@@ -477,6 +477,7 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<IMenuContributor, UserMacroMenuContributor>();
         collection.AddSingleton<IMenuContributor, ProfileMenuContributor>();
         collection.AddSingleton<IMenuContributor, CompanionMenuContributor>();
+        collection.AddSingleton<IMenuContributor, OtherDevicesMenuContributor>();
         collection.AddSingleton<IMenuContributor, DisplayTestMenuContributor>();
         collection.AddSingleton<IMenuContributor, DialPresetMenuContributor>();
         collection.AddSingleton<IPluginMenuSource, PluginMenuContributor>();
