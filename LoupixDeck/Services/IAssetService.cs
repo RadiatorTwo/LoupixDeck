@@ -29,6 +29,14 @@ public interface IAssetService
     string Import(byte[] data, string extension, string subFolder = null);
 
     /// <summary>
+    /// Like <see cref="Import(string, string)"/>, but a raster image whose longest edge exceeds
+    /// <paramref name="maxEdge"/> is stored downscaled to it, as PNG. Only the small picture enters the
+    /// asset folder, so loading it later is cheap. SVGs, small images and files that cannot be decoded
+    /// are copied unchanged.
+    /// </summary>
+    string ImportDownscaled(string sourcePath, int maxEdge, string subFolder = null);
+
+    /// <summary>
     /// Loads (and caches) the bitmap for the given relative asset path.
     /// Returns null if the file is missing or unreadable.
     /// </summary>

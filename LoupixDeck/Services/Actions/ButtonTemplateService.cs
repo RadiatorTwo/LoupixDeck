@@ -186,7 +186,9 @@ public sealed class ButtonTemplateService(IDialogService dialogService, IAssetSe
         string relative;
         try
         {
-            relative = assetService.Import(icon.FullPath, "icons");
+            // A key never shows a pack icon larger than this; storing the original would make every
+            // start decode, and keep in memory, a full-size picture per key (#667).
+            relative = assetService.ImportDownscaled(icon.FullPath, AssetService.IconMaxEdge, "icons");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

@@ -104,6 +104,14 @@ public sealed partial class SymbolCell : ObservableObject
     public bool IsGlyph => Symbol != null;
 
     /// <summary>
+    /// Pixel size of a raster pack icon, e.g. "4000 × 4000 px", so an oversized picture is visible
+    /// before it is picked (#667). Null for glyphs, SVGs and icons whose thumbnail is still loading.
+    /// </summary>
+    public string ResolutionText => _thumbnails?.GetSourceSize(Key) is { } size
+        ? string.Format(Loc.Tr("SymbolPicker_ResolutionFmt"), size.Width, size.Height)
+        : null;
+
+    /// <summary>
     /// Preview of a pack icon. The whole pack is decoded while the picker is open; a cell the grid
     /// shows before its turn moves to the front of the queue, so visible icons come first.
     /// </summary>
@@ -119,7 +127,11 @@ public sealed partial class SymbolCell : ObservableObject
 
             return field;
         }
-        set => SetProperty(ref field, value);
+        set
+        {
+            if (SetProperty(ref field, value))
+                OnPropertyChanged(nameof(ResolutionText));
+        }
     }
 
     [ObservableProperty]
