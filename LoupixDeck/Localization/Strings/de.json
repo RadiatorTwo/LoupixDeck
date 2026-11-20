@@ -106,6 +106,8 @@
   "Companions_UnnamedGroup": "(unbenannte Gruppe)",
   "Companions_FolderFollow": "In Ordner folgen",
   "Companions_FolderFollowHint": "Öffnet oder schließt der Master einen eigenen Ordner, öffnen oder schließen die Companions im selben Arbeitsbereich denselben Ordner mit ihrem eigenen Layout.",
+  "Companions_BackgroundFollow": "Seitenhintergründe des Masters übernehmen",
+  "Companions_BackgroundFollowHint": "Companions zeigen den Hintergrund, den ihr Master zeigt, auch ein Video-Hintergrundbild. Ihre eigenen Hintergründe bleiben erhalten und kommen zurück, sobald dies aus ist.",
   "Condition_ActiveWindowProcessIs": "Prozess des aktiven Fensters ist",
   "Condition_ActiveWindowTitleContains": "Titel des aktiven Fensters enthält",
   "Condition_OperatingSystem": "Betriebssystem ist",

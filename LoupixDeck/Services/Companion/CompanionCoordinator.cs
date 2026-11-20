@@ -294,6 +294,20 @@ public sealed class CompanionCoordinator : ICompanionCoordinator
     public bool GetFolderFollow(string masterKey)
         => IsMaster(masterKey) && !IsPaused(masterKey) && FindGroup(masterKey)?.FolderFollow == true;
 
+    public void SetBackgroundFollow(Guid groupId, bool enabled)
+    {
+        lock (_gate)
+        {
+            CompanionGroup group = _config.Groups.FirstOrDefault(g => g.Id == groupId);
+            if (group == null || group.BackgroundFollow == enabled) return;
+            group.BackgroundFollow = enabled;
+        }
+        Persist();
+    }
+
+    public bool GetBackgroundFollow(string masterKey)
+        => IsMaster(masterKey) && !IsPaused(masterKey) && FindGroup(masterKey)?.BackgroundFollow == true;
+
     public bool TrySetMaster(Guid groupId, string deviceKey, out string error)
     {
         error = null;

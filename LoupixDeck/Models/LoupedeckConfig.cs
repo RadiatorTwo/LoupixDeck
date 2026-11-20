@@ -305,6 +305,14 @@ public partial class LoupedeckConfig : ObservableObject
     [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
     public Companion.ParkedCompanionProfiles ParkedCompanionProfiles { get; set; }
 
+    /// <summary>
+    /// Runtime-only: the config of the running master whose backgrounds this companion shows instead
+    /// of its own (issue #665). Null while the device shows its own. Set by the companion background
+    /// follow; this device's own wallpapers are never touched.
+    /// </summary>
+    [JsonIgnore]
+    public LoupedeckConfig WallpaperMaster { get; set; }
+
     /// <summary>The active profile resolved from <see cref="ActiveProfileId"/>, falling back to the
     /// first profile. Null only before <see cref="EnsureDefaultProfile"/> has run.</summary>
     [JsonIgnore]

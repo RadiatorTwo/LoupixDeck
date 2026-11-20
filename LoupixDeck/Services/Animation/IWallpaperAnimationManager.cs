@@ -13,6 +13,13 @@ public interface IWallpaperAnimationManager
     /// <summary>Begins following the active page. Called once per device after the device is up.</summary>
     void Start();
 
+    /// <summary>
+    /// Brings playback in line with the page whose wallpaper the device shows again. Needed when
+    /// that page changed without this device changing its own layout: a companion that follows its
+    /// master's backgrounds (issue #665) after the master switched page or edited its wallpaper.
+    /// </summary>
+    void Refresh();
+
     /// <summary>Whether a clip is currently being played behind the keys.</summary>
     bool IsPlaying { get; }
 

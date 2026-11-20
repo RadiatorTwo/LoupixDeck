@@ -106,6 +106,8 @@
   "Companions_UnnamedGroup": "(grupo sin nombre)",
   "Companions_FolderFollow": "Seguir dentro de las carpetas",
   "Companions_FolderFollowHint": "Cuando el maestro abre o cierra una carpeta propia, los acompañantes que muestran el mismo espacio de trabajo abren o cierran la misma carpeta con su propio diseño.",
+  "Companions_BackgroundFollow": "Seguir los fondos de página del maestro",
+  "Companions_BackgroundFollowHint": "Los acompañantes muestran el fondo que muestra su maestro, incluido un fondo de vídeo. Sus propios fondos se conservan y vuelven cuando esto está desactivado.",
   "Condition_ActiveWindowProcessIs": "El proceso de la ventana activa es",
   "Condition_ActiveWindowTitleContains": "El título de la ventana activa contiene",
   "Condition_OperatingSystem": "El sistema operativo es",
