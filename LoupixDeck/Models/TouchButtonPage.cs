@@ -106,6 +106,12 @@ public sealed partial class TouchButtonPage(int pageSize) : ButtonPageBase()
         (RightWallpaper?.HasStill ?? false);
 
     /// <summary>
+    /// True when the page draws a background of its own: a still image or generated fill in any
+    /// slot, or a clip in the main slot. A page without one shows an earlier page's background.
+    /// </summary>
+    public bool HasOwnBackground() => HasAnyWallpaper || (MainWallpaper?.HasVideo ?? false);
+
+    /// <summary>
     /// The page whose wallpapers are drawn for the page at <paramref name="index"/> when it has
     /// none of its own: the nearest page at or before <paramref name="index"/> that has one.
     /// Null when no such page exists.

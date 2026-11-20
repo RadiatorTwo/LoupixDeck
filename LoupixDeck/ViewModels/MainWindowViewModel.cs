@@ -1130,10 +1130,53 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private static RotarySide SideOf(PageSlot slot) => slot == PageSlot.RightRotary ? RotarySide.Right : RotarySide.Left;
 
+    /// <summary>
+    /// Puts the background of the current touch page on the clipboard (issue #663). A page that
+    /// shows an earlier page's background copies that one, because that is what the user sees.
+    /// </summary>
+    [RelayCommand]
+    private void CopyPageBackground(PageSlot slot)
+    {
+        if (slot != PageSlot.Touch) return;
+        _clipboard.CopyPageBackground(BitmapHelper.ResolveWallpaperSourcePage(_config));
+    }
+
+    private bool CanPastePageBackground(PageSlot slot)
+        => slot == PageSlot.Touch && _clipboard.CanPasteInto(ButtonKind.PageBackground);
+
+    /// <summary>
+    /// Replaces the background of the current touch page with the copied one, asking first when
+    /// the page has a background of its own (issue #663). The keys stay as they are.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanPastePageBackground))]
+    private async Task PastePageBackground(PageSlot slot)
+    {
+        if (!CanPastePageBackground(slot)) return;
+
+        TouchButtonPage page = LoupedeckController.PageManager.CurrentTouchButtonPage;
+        if (page == null) return;
+        if (page.HasOwnBackground() && !await ConfirmOverwriteBackground()) return;
+
+        _clipboard.PasteBackgroundInto(page);
+        LoupedeckController.SaveConfig();
+    }
+
+    private async Task<bool> ConfirmOverwriteBackground()
+    {
+        DialogResult result = await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
+            vm.Configure(
+                Loc.Tr("Confirm_OverwriteBackgroundMessage"),
+                title: Loc.Tr("Confirm_OverwriteButtonTitle"),
+                confirmText: Loc.Tr("Confirm_Overwrite"),
+                cancelText: Loc.Tr("Confirm_Cancel")));
+        return result.IsConfirmed;
+    }
+
     private void OnClipboardChanged()
     {
         PastePageCommand.NotifyCanExecuteChanged();
         PastePageAsNewCommand.NotifyCanExecuteChanged();
+        PastePageBackgroundCommand.NotifyCanExecuteChanged();
     }
 
     private readonly Services.History.IWorkspaceHistoryService _history;

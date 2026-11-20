@@ -28,7 +28,10 @@ public enum ButtonKind
     RotaryPage,
 
     /// <summary>A whole rotary page of one dial column on a side-strip device (issue #621).</summary>
-    SideRotaryPage
+    SideRotaryPage,
+
+    /// <summary>The three wallpaper slots of a touch page, without its keys (issue #663).</summary>
+    PageBackground
 }
 
 /// <summary>
@@ -80,6 +83,18 @@ public interface IButtonClipboardService
     /// pasted copies.
     /// </summary>
     string PageJson(IReadOnlyDictionary<Guid, Guid> idMap = null);
+
+    /// <summary>
+    /// Take a snapshot of the background of <paramref name="page"/>: its main and side wallpaper
+    /// slots, with image, clip, generated fill and their placement (issue #663). The keys stay out.
+    /// </summary>
+    void CopyPageBackground(TouchButtonPage page);
+
+    /// <summary>
+    /// Overwrite the wallpaper slots of <paramref name="target"/> with the copied background.
+    /// Does nothing unless <see cref="CurrentKind"/> is <see cref="ButtonKind.PageBackground"/>.
+    /// </summary>
+    void PasteBackgroundInto(TouchButtonPage target);
 
     /// <summary>
     /// Old → new ids of the <see cref="LinkedFolders"/> already pasted into the workspace, so
@@ -152,6 +167,39 @@ public sealed class ButtonClipboardService : IButtonClipboardService
     public string PageJson(IReadOnlyDictionary<Guid, Guid> idMap = null)
         => _json != null && IsPageKind(_kind) ? WithIds(_json, idMap) : null;
 
+    public void CopyPageBackground(TouchButtonPage page)
+    {
+        if (page == null) return;
+        _kind = ButtonKind.PageBackground;
+        _json = new JObject
+        {
+            [nameof(TouchButtonPage.MainWallpaper)] = SlotToken(page.MainWallpaper),
+            [nameof(TouchButtonPage.LeftWallpaper)] = SlotToken(page.LeftWallpaper),
+            [nameof(TouchButtonPage.RightWallpaper)] = SlotToken(page.RightWallpaper)
+        }.ToString(Formatting.None);
+        _linkedFolders = [];
+        _pastedFolders.Clear();
+        Changed?.Invoke();
+    }
+
+    public void PasteBackgroundInto(TouchButtonPage target)
+    {
+        if (target == null || _json == null || _kind != ButtonKind.PageBackground) return;
+
+        // Each slot gets its own copy, so editing the pasted background never touches the source.
+        JObject snapshot = JObject.Parse(_json);
+        target.MainWallpaper.CopyFrom(SlotFrom(snapshot, nameof(TouchButtonPage.MainWallpaper)));
+        target.LeftWallpaper.CopyFrom(SlotFrom(snapshot, nameof(TouchButtonPage.LeftWallpaper)));
+        target.RightWallpaper.CopyFrom(SlotFrom(snapshot, nameof(TouchButtonPage.RightWallpaper)));
+    }
+
+    private static JToken SlotToken(WallpaperSlot slot)
+        => JToken.FromObject(slot ?? new WallpaperSlot(), ButtonSnapshot.Serializer);
+
+    // A missing slot clears the target slot rather than leaving its old content behind.
+    private static WallpaperSlot SlotFrom(JObject snapshot, string name)
+        => snapshot[name]?.ToObject<WallpaperSlot>(ButtonSnapshot.Serializer) ?? new WallpaperSlot();
+
     private static bool IsPageKind(ButtonKind kind)
         => kind is ButtonKind.TouchPage or ButtonKind.RotaryPage or ButtonKind.SideRotaryPage;
 
@@ -168,7 +216,7 @@ public sealed class ButtonClipboardService : IButtonClipboardService
 
     public void PasteInto(LoupedeckButton target, IReadOnlyDictionary<Guid, Guid> idMap = null)
     {
-        if (_json == null || _kind == ButtonKind.Folder || IsPageKind(_kind)) return;
+        if (_json == null || _kind is ButtonKind.Folder or ButtonKind.PageBackground || IsPageKind(_kind)) return;
 
         ButtonSnapshot.Apply(WithIds(_json, idMap), target);
     }
