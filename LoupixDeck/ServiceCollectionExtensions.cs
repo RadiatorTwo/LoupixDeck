@@ -295,6 +295,9 @@ public static class ServiceCollectionExtensions
 
         // Mirrors each master's profiles and workspaces onto its companions, unplugged ones included.
         collection.AddSingleton<Services.Companion.ICompanionContextSync, Services.Companion.CompanionContextSyncService>();
+
+        // Lets companions show their master's backgrounds when their group asks for it (issue #665).
+        collection.AddSingleton<Services.Companion.CompanionBackgroundFollowService>();
     }
 
     // ───────────────────────── Device (per-device child) ─────────────────────────
@@ -703,6 +706,9 @@ public static class ServiceCollectionExtensions
 
         // Same for the context sync, which listens to group changes and master saves from then on.
         root.GetRequiredService<Services.Companion.ICompanionContextSync>();
+
+        // And the background follow, which links running companions to their master from the start.
+        root.GetRequiredService<Services.Companion.CompanionBackgroundFollowService>();
 
         // Let the (static) bitmap renderer resolve image-layer assets via DI.
         var assetService = root.GetRequiredService<IAssetService>();

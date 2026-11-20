@@ -1325,8 +1325,18 @@ public static class BitmapHelper
     /// wallpaper does not inherit another page's side wallpapers). With
     /// <see cref="LoupedeckConfig.InheritWallpaperFromPreviousPage"/> off, the current page
     /// is always its own source.
+    /// A companion following its master's backgrounds (<see cref="LoupedeckConfig.WallpaperMaster"/>)
+    /// resolves the page the master draws its wallpaper from instead.
     /// </summary>
-    private static TouchButtonPage ResolveWallpaperSourcePage(LoupedeckConfig config)
+    public static TouchButtonPage ResolveWallpaperSourcePage(LoupedeckConfig config)
+    {
+        if (config?.WallpaperMaster is { } master && !ReferenceEquals(master, config))
+            return ResolveOwnWallpaperSourcePage(master);
+
+        return ResolveOwnWallpaperSourcePage(config);
+    }
+
+    private static TouchButtonPage ResolveOwnWallpaperSourcePage(LoupedeckConfig config)
     {
         var current = config?.CurrentTouchButtonPage;
         // A page playing a clip has a wallpaper of its own even without a still image: while the

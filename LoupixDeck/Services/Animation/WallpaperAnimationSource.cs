@@ -325,7 +325,11 @@ public sealed class WallpaperAnimationSource : IAnimationSource, IDisposable
         // each key's cutout as it renders it, which leaves a gapped grid's gaps undimmed — with a
         // still image nothing else is drawn there anyway, but a video frame fills the panel edge to
         // edge, so per-key dimming would leave bright seams between the keys.
-        var opacity = page.MainWallpaper?.Opacity ?? 0;
+        // The wallpaper may come from another page than the keys: a companion following its
+        // master's backgrounds (issue #665) draws the master's.
+        var wallpaperPage = BitmapHelper.ResolveWallpaperSourcePage(_config) ?? page;
+
+        var opacity = wallpaperPage.MainWallpaper?.Opacity ?? 0;
         if (opacity > 0)
         {
             using var dim = new SKPaint
@@ -336,8 +340,8 @@ public sealed class WallpaperAnimationSource : IAnimationSource, IDisposable
         }
 
         var rightColumnX = _geometry.PanelWidth - _geometry.StripWidth;
-        DrawSideSlot(canvas, page.LeftWallpaper, 0);
-        DrawSideSlot(canvas, page.RightWallpaper, rightColumnX);
+        DrawSideSlot(canvas, wallpaperPage.LeftWallpaper, 0);
+        DrawSideSlot(canvas, wallpaperPage.RightWallpaper, rightColumnX);
 
         DrawStrip(canvas, _strips[0], 0);
         DrawStrip(canvas, _strips[1], rightColumnX);

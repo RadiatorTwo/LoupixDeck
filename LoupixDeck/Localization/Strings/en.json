@@ -106,6 +106,8 @@
   "Companions_UnnamedGroup": "(unnamed group)",
   "Companions_FolderFollow": "Follow into folders",
   "Companions_FolderFollowHint": "When the master opens or closes a custom folder, companions showing the same workspace open or close the same folder with their own layout.",
+  "Companions_BackgroundFollow": "Follow master page backgrounds",
+  "Companions_BackgroundFollowHint": "Companions show the background their master shows, including a video wallpaper. Their own backgrounds are kept and come back when this is off.",
   "Condition_ActiveWindowProcessIs": "Active window process is",
   "Condition_ActiveWindowTitleContains": "Active window title contains",
   "Condition_OperatingSystem": "Operating system is",

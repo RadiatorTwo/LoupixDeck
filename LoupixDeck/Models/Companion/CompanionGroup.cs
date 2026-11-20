@@ -29,4 +29,10 @@ public sealed class CompanionGroup
     /// Off by default and omitted while off, so existing files load and save unchanged.</summary>
     [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
     public bool FolderFollow { get; set; }
+
+    /// <summary>Whether the companions show the background their master shows instead of their own
+    /// (issue #665). Their own backgrounds stay stored and come back once this is off. Off by default
+    /// and omitted while off, so existing files load and save unchanged.</summary>
+    [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+    public bool BackgroundFollow { get; set; }
 }

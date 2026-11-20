@@ -904,6 +904,14 @@
                                                            Text="{loc:Tr Companions_FolderFollowHint}" />
                                             </StackPanel>
 
+                                            <!-- Background follow (issue #665) -->
+                                            <StackPanel Spacing="4">
+                                                <CheckBox Content="{loc:Tr Companions_BackgroundFollow}"
+                                                          IsChecked="{Binding BackgroundFollow, Mode=TwoWay}" />
+                                                <TextBlock Classes="hint" FontSize="12" TextWrapping="Wrap"
+                                                           Text="{loc:Tr Companions_BackgroundFollowHint}" />
+                                            </StackPanel>
+
                                             <TextBlock IsVisible="{Binding HasError}" Text="{Binding Error}" TextWrapping="Wrap"
                                                        Foreground="#E07A7A" />
                                         </StackPanel>
