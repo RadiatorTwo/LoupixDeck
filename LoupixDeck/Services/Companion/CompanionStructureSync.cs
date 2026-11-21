@@ -1,7 +1,10 @@
 using System.Collections.ObjectModel;
+using System.Security.Cryptography;
 using System.Text;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Companion;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace LoupixDeck.Services.Companion;
 
@@ -42,6 +45,7 @@ public static class CompanionStructureSync
             changed |= Link(companion, masterKey);
 
         changed |= Reconcile(companion, master);
+        changed |= ReconcileFolderContent(companion, master);
         return changed;
     }
 
@@ -182,8 +186,9 @@ public static class CompanionStructureSync
 
     /// <summary>
     /// Gives a mirrored workspace the master's custom folder tree (issue #249): the same ids, names,
-    /// nesting and order. Folders the mirror already has keep their own layouts, wherever they moved
-    /// to; new ones start without a layout. Links to folders the master removed are cleared.
+    /// nesting and order. Folders the mirror already has stay the same objects, wherever they moved
+    /// to; their content comes from <see cref="ReconcileFolderContent"/>. Links to folders the master
+    /// removed are cleared.
     /// </summary>
     private static void ReconcileFolders(Workspace mirror, Workspace wanted, SimpleButton[] ledButtons)
     {
@@ -213,6 +218,73 @@ public static class CompanionStructureSync
         HashSet<Guid> removed = [.. existing.Keys.Where(id => !kept.Contains(id))];
         if (removed.Count > 0)
             Folders.FolderReferenceCleaner.Clean(mirror, removed, ledButtons);
+    }
+
+    /// <summary>
+    /// Shows the master's folder content in every mirrored custom folder (issue #673): a folder is the
+    /// same folder on both devices, buttons included. The content lives in the master's config only;
+    /// the mirror holds a runtime copy that is never saved with the companion (<see cref="CustomFolder.IsMirror"/>).
+    /// A copy rather than the master's own objects, so the companion can fit the pages to its key
+    /// count without touching the master. Only folders whose master content changed are copied again.
+    /// </summary>
+    private static bool ReconcileFolderContent(LoupedeckConfig companion, LoupedeckConfig master)
+    {
+        bool changed = false;
+        foreach (Profile profile in master.Profiles ?? [])
+        foreach (Workspace workspace in profile?.Workspaces ?? [])
+        {
+            Workspace mirror = companion.Profiles.FirstOrDefault(p => p.Id == profile.Id)?
+                .Workspaces.FirstOrDefault(w => w.Id == workspace.Id);
+            if (mirror == null) continue;
+
+            Dictionary<Guid, CustomFolder> mirrors = mirror.EnumerateFolders()
+                .GroupBy(static f => f.Id)
+                .ToDictionary(static g => g.Key, static g => g.First());
+
+            foreach (CustomFolder source in workspace.EnumerateFolders())
+            {
+                if (!mirrors.TryGetValue(source.Id, out CustomFolder target)) continue;
+
+                // Dropping a layout the companion's file still holds from before is a change to save.
+                if (!target.IsMirror)
+                {
+                    target.IsMirror = true;
+                    changed = true;
+                }
+
+                string content = FolderContentJson(source);
+                string hash = Hash(content);
+                if (string.Equals(target.MirroredContentHash, hash, StringComparison.Ordinal)) continue;
+
+                List<TouchButtonPage> pages = [.. JArray.Parse(content).Select(static p => p.ToObject<TouchButtonPage>(ButtonSnapshot.Serializer))];
+                target.ExtraPages = pages.Skip(1).ToList();
+                target.Layout = pages.FirstOrDefault();
+                target.CurrentPageIndex = Math.Clamp(target.CurrentPageIndex, 0, target.PageCount - 1);
+                target.MirroredContentHash = hash;
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    /// <summary>The pages of a folder as JSON, first page first; an empty array while it has no layout.</summary>
+    private static string FolderContentJson(CustomFolder folder)
+        => new JArray(folder.Pages().Select(static p => JObject.FromObject(p, ButtonSnapshot.Serializer))).ToString(Formatting.None);
+
+    private static string Hash(string text) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text)));
+
+    /// <summary>
+    /// What a master's companions follow: <see cref="StructureFingerprint"/> plus the content of its
+    /// custom folders, so a button edited inside a folder reaches the companions too.
+    /// </summary>
+    public static string SyncFingerprint(LoupedeckConfig config)
+    {
+        StringBuilder text = new(StructureFingerprint(config));
+        foreach (Profile profile in config.Profiles ?? [])
+        foreach (Workspace workspace in profile?.Workspaces ?? [])
+        foreach (CustomFolder folder in workspace?.EnumerateFolders() ?? [])
+            text.Append("C:").Append(folder.Id).Append(':').Append(Hash(FolderContentJson(folder))).Append(';');
+        return text.ToString();
     }
 
     private static void ReplaceIfDifferent(ObservableCollection<CustomFolder> target, List<CustomFolder> items)

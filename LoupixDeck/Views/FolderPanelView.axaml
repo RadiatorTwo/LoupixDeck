@@ -196,6 +196,7 @@
                                                           CommandParameter="{Binding}" />
                                                 <Separator />
                                                 <MenuItem Header="{loc:Tr FolderPanel_Copy}"
+                                                          IsEnabled="{Binding Panel.CanEditStructure}"
                                                           Command="{Binding Panel.CopyCommand}"
                                                           CommandParameter="{Binding}" />
                                                 <MenuItem Header="{loc:Tr FolderPanel_PasteAsSubfolder}"

@@ -321,7 +321,7 @@ public sealed class CompanionContextSyncService : ICompanionContextSync
         LoupedeckConfig master = _coordinator.GetDeviceConfig(masterKey);
         if (master == null) return;
 
-        string fingerprint = CompanionStructureSync.StructureFingerprint(master);
+        string fingerprint = CompanionStructureSync.SyncFingerprint(master);
         if (!force && _syncedFingerprints.TryGetValue(masterKey, out string synced) &&
             string.Equals(synced, fingerprint, StringComparison.Ordinal))
             return;
@@ -353,6 +353,9 @@ public sealed class CompanionContextSyncService : ICompanionContextSync
             if (host != null)
             {
                 host.Controller.SaveConfig();
+                // The open folder may have got new content from the master (issue #673).
+                if (_coordinator.IsReady(host))
+                    _ = host.Controller.PageManager.RefreshOpenFolder();
                 RefreshActiveState(host, masterKey);
             }
             else if (_coordinator.GetConfigPath(deviceKey) is { } path)
