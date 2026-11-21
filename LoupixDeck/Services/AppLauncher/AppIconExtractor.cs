@@ -123,10 +123,14 @@ public sealed class AppIconExtractor : IAppIconExtractor
     {
         try
         {
-            // Keying on the write time as well as the path means an updated or reinstalled
-            // application gets a fresh icon instead of the stale one being served forever.
-            DateTime writeTime = File.GetLastWriteTimeUtc(source);
-            string cached = Path.Combine(_cacheDirectory, $"{Fingerprint(source, writeTime)}.png");
+            // Keying a file on its write time as well as the path means an updated or reinstalled
+            // application gets a fresh icon instead of the stale one being served forever. A shell
+            // item (a Store app's shell:AppsFolder\… target) has no file on disk, so it is keyed on
+            // the path alone.
+            string material = IsShellItem(source)
+                ? source.ToLowerInvariant()
+                : $"{source.ToLowerInvariant()}|{File.GetLastWriteTimeUtc(source).Ticks}";
+            string cached = Path.Combine(_cacheDirectory, $"{Fingerprint(material)}.png");
 
             if (File.Exists(cached) && new FileInfo(cached).Length > 0)
                 return cached;
@@ -162,6 +166,9 @@ public sealed class AppIconExtractor : IAppIconExtractor
         return false;
 #endif
     }
+
+    private static bool IsShellItem(string source)
+        => source.StartsWith("shell:", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsSvg(string file)
         => string.Equals(Path.GetExtension(file), ".svg", StringComparison.OrdinalIgnoreCase);
@@ -241,9 +248,8 @@ public sealed class AppIconExtractor : IAppIconExtractor
         }
     }
 
-    private static string Fingerprint(string source, DateTime writeTime)
+    private static string Fingerprint(string material)
     {
-        string material = $"{source.ToLowerInvariant()}|{writeTime.Ticks}";
         byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(material));
         return Convert.ToHexString(hash)[..16].ToLowerInvariant();
     }

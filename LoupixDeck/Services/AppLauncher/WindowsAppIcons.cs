@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using SkiaSharp;
 
 namespace LoupixDeck.Services.AppLauncher;
 
@@ -20,7 +21,7 @@ internal static partial class WindowsAppIcons
     private const int PreferredSize = 256;
 
     public static bool TryExtractPng(string executable, string destination)
-        => TryExtractPreferred(executable, destination) || TryExtractAssociated(executable, destination);
+        => TryExtractPreferred(executable, destination) || TryExtractAssociated(executable, destination) || TryExtractStoreIcon(executable, destination);
 
     private static bool TryExtractPreferred(string executable, string destination)
     {
@@ -60,6 +61,27 @@ internal static partial class WindowsAppIcons
 
             using Bitmap bitmap = icon.ToBitmap();
             bitmap.Save(destination, ImageFormat.Png);
+            return true;
+        }
+        catch (Exception ex) when (ex is ExternalException or IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            Console.WriteLine($"[AppIcon] Cannot extract an icon from '{executable}': {ex.Message}");
+            return false;
+        }
+    }
+
+    private static bool TryExtractStoreIcon(string executable, string destination)
+    {
+        try
+        {
+            using SKImage icon = WindowsShellIconExtractor.Extract(executable, PreferredSize);
+            if (icon == null)
+                return false;
+
+            using SKData data = icon.Encode(SKEncodedImageFormat.Png, 100);
+            using FileStream stream = File.Create(destination);
+            data.SaveTo(stream);
+
             return true;
         }
         catch (Exception ex) when (ex is ExternalException or IOException or UnauthorizedAccessException or ArgumentException)
