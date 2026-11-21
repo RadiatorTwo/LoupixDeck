@@ -356,11 +356,14 @@ public sealed partial class FolderPanelViewModel : ViewModelBase, IDisposable
         return $"{baseName} {n}";
     }
 
-    /// <summary>Puts the folder with its layout and sub-folders on the clipboard (issue #535).</summary>
+    /// <summary>
+    /// Puts the folder with its layout and sub-folders on the clipboard (issue #535). Not on a
+    /// companion: its folders show the master's content, which it does not store (issue #673).
+    /// </summary>
     [RelayCommand]
     private void Copy(FolderNodeViewModel node)
     {
-        if (node != null)
+        if (node != null && CanEditStructure)
             _clipboard.CopyFolder(node.Folder);
     }
 

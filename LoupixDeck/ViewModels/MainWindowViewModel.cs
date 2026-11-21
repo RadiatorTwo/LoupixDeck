@@ -941,7 +941,9 @@ public partial class MainWindowViewModel : ViewModelBase
         return page.StripCanvas;
     }
 
-    public bool CanCopySelected() => Classify(_selectedButton) != null;
+    public bool CanCopySelected()
+        => Classify(_selectedButton) != null &&
+           !(_selectedButton is TouchButton touch && CopiesMirroredFolder(CommandsOf(touch)));
 
     public bool CanPasteSelected()
     {
@@ -970,6 +972,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void CopySelected()
     {
+        if (!CanCopySelected()) return;
+
         LoupedeckButton button = _selectedButton;
         ButtonKind? kind = Classify(button);
         if (kind == null) return;
@@ -1047,19 +1051,18 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     /// <summary>Puts the current page of <paramref name="slot"/> on the clipboard (issue #621).</summary>
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanCopyPage))]
     private void CopyPage(PageSlot slot)
     {
+        if (!CanCopyPage(slot)) return;
+
         IPageManager pages = LoupedeckController.PageManager;
         switch (slot)
         {
             case PageSlot.Touch:
                 TouchButtonPage page = pages.CurrentTouchButtonPage;
                 if (page == null) return;
-                IEnumerable<string> commands = page.TouchButtons.SelectMany(CommandsOf)
-                    .Append(page.TouchButtonWrap?.PreCommands)
-                    .Append(page.TouchButtonWrap?.PostCommands);
-                _clipboard.CopyPage(page, ButtonKind.TouchPage, CaptureLinkedFolders(commands));
+                _clipboard.CopyPage(page, ButtonKind.TouchPage, CaptureLinkedFolders(TouchPageCommands(page)));
                 break;
             case PageSlot.Rotary:
                 _clipboard.CopyPage(pages.GetCurrentRotaryPage(RotarySide.Both), ButtonKind.RotaryPage);
@@ -1070,6 +1073,25 @@ public partial class MainWindowViewModel : ViewModelBase
                 break;
         }
     }
+
+    /// <summary>A touch page that opens a folder cannot be copied on a companion, see <see cref="CopiesMirroredFolder"/>.</summary>
+    private bool CanCopyPage(PageSlot slot)
+        => slot != PageSlot.Touch || !CopiesMirroredFolder(TouchPageCommands(LoupedeckController.PageManager.CurrentTouchButtonPage));
+
+    private static IEnumerable<string> TouchPageCommands(TouchButtonPage page)
+        => page == null
+            ? []
+            : page.TouchButtons.SelectMany(CommandsOf)
+                .Append(page.TouchButtonWrap?.PreCommands)
+                .Append(page.TouchButtonWrap?.PostCommands);
+
+    /// <summary>
+    /// True on a companion when <paramref name="commands"/> open a custom folder. A companion's folders
+    /// show their master's content, which is never stored with the companion, so a copy made here would
+    /// carry the folders empty (issue #673). They are copied on the master instead.
+    /// </summary>
+    private bool CopiesMirroredFolder(IEnumerable<string> commands)
+        => _config.CompanionLink != null && commands.SelectMany(Services.Folders.FolderCommand.ReferencedFolders).Any();
 
     private bool CanPastePage(PageSlot slot) => !(slot == PageSlot.Touch && IsMirroredFolderOpen) && _clipboard.CanPasteInto(slot switch
     {
@@ -1228,7 +1250,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void CutSelected()
     {
-        if (!CanClearSelected()) return;
+        // Without a copy a cut would only clear the button.
+        if (!CanClearSelected() || !CanCopySelected()) return;
         CopySelected();
         ClearSelected();
     }
