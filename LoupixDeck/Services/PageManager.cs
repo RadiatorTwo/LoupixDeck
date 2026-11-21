@@ -147,6 +147,10 @@ public interface IPageManager
     /// <summary>Shows page <paramref name="pageIndex"/> (0-based) of the open folder.</summary>
     Task GotoFolderPage(int pageIndex);
 
+    /// <summary>Repaints the open folder after its pages were replaced from outside, such as a
+    /// companion getting its master's folder content (issue #673). Does nothing while no folder is open.</summary>
+    Task RefreshOpenFolder();
+
     Task NextFolderPage();
 
     Task PreviousFolderPage();
@@ -816,6 +820,12 @@ public class PageManager : IPageManager
         return ShowFolderPage(workspace, folder);
     }
 
+    public Task RefreshOpenFolder()
+    {
+        Workspace workspace = _config.ActiveWorkspace;
+        return workspace?.OpenFolder is { } folder ? ShowFolderPage(workspace, folder, showName: false) : Task.CompletedTask;
+    }
+
     public Task AddFolderPage()
     {
         Workspace workspace = _config.ActiveWorkspace;
@@ -881,7 +891,7 @@ public class PageManager : IPageManager
     }
 
     /// <summary>Repaints the open folder after its current page or its set of pages changed.</summary>
-    private async Task ShowFolderPage(Workspace workspace, CustomFolder folder)
+    private async Task ShowFolderPage(Workspace workspace, CustomFolder folder, bool showName = true)
     {
         PrepareFolderLayout(folder);
         workspace.NotifyFolderPageChanged();
@@ -895,7 +905,7 @@ public class PageManager : IPageManager
 
         await DrawTouchButtons();
 
-        if (_config.ShowPageNameOverlayEnabled && folder.CurrentLayout is { } layout)
+        if (showName && _config.ShowPageNameOverlayEnabled && folder.CurrentLayout is { } layout)
             _ = _deviceService.ShowTemporaryTextButton(0, layout.PageName, 2000);
     }
 

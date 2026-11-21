@@ -53,7 +53,10 @@ public sealed partial class CustomFolder : ObservableObject
         set => field = value?.Where(static p => p != null).ToList() ?? [];
     } = [];
 
-    public bool ShouldSerializeExtraPages() => ExtraPages is { Count: > 0 };
+    public bool ShouldSerializeExtraPages() => !IsMirror && ExtraPages is { Count: > 0 };
+
+    /// <summary>A companion's mirror keeps no layout of its own in the file; it shows its master's (issue #673).</summary>
+    public bool ShouldSerializeLayout() => !IsMirror;
 
     /// <summary>
     /// The page shown while this folder is open, 0 being <see cref="Layout"/>. Runtime only: a folder
@@ -61,6 +64,19 @@ public sealed partial class CustomFolder : ObservableObject
     /// </summary>
     [JsonIgnore]
     public int CurrentPageIndex { get; set; }
+
+    /// <summary>
+    /// True on a companion's mirror of its master's folder (issue #673). Its pages are then a runtime
+    /// copy of the master's: they are shown and run on the companion, edited on the master only, and
+    /// never written to the companion's config. Set by the companion structure sync, runtime only.
+    /// </summary>
+    [JsonIgnore]
+    public bool IsMirror { get; set; }
+
+    /// <summary>On a mirror: the hash of the master content it last copied, so an unchanged folder is
+    /// not copied again on every sync. Runtime only.</summary>
+    [JsonIgnore]
+    public string MirroredContentHash { get; set; }
 
     /// <summary>Number of pages; a folder without a layout yet counts as one empty page.</summary>
     [JsonIgnore]

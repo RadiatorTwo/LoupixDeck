@@ -40,7 +40,7 @@ public static class CompanionImpact
                 exceptCompanionKeys);
 
     /// <summary>
-    /// The companions of <paramref name="masterKey"/> whose own layouts in the given custom folders of
+    /// The companions of <paramref name="masterKey"/> whose own layouts (not yet replaced by the master's) in the given custom folders of
     /// the workspace hold anything (issue #249). Their folder layouts go when the master deletes the folders.
     /// </summary>
     public static IReadOnlyList<CompanionLossEntry> ForFolders(ICompanionCoordinator coordinator, string masterKey,
@@ -56,7 +56,8 @@ public static class CompanionImpact
             if (workspace == null) continue;
 
             int layouts = workspace.EnumerateFolders()
-                .Where(f => folderIds.Contains(f.Id))
+                // A mirror shows the master's content, which the master's own dialog already covers (issue #673).
+                .Where(f => folderIds.Contains(f.Id) && !f.IsMirror)
                 .Sum(f => f.Pages().Count(p => p.TouchButtons.Any(b => b != null && !b.IsFolderNavTile && !ButtonSnapshot.IsEmpty(b))));
             if (layouts > 0)
                 losses.Add(new CompanionLossEntry(coordinator.GetDisplayName(companionKey), coordinator.IsOnline(companionKey), layouts));

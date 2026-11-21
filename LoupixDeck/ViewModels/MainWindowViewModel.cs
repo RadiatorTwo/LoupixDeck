@@ -570,6 +570,11 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool HasFolderPages { get; private set; }
 
+    /// <summary>True while the open folder is a companion's view of its master's folder (issue #673):
+    /// its keys and pages are edited on the master.</summary>
+    [ObservableProperty]
+    public partial bool IsFolderReadOnly { get; private set; }
+
     [RelayCommand]
     private Task NextFolderPage()
     {
@@ -595,6 +600,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private async Task EditFolderPages(Func<IPageManager, Task> edit)
     {
+        if (IsMirroredFolderOpen) return;
         EndExclusiveModeForPageChange();
         await edit(LoupedeckController.PageManager);
         LoupedeckController.SaveConfig();
@@ -627,6 +633,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         IsFolderOpen = path.Count > 0;
         HasFolderPages = _config.OpenFolder?.PageCount > 1;
+        IsFolderReadOnly = IsMirroredFolderOpen;
     }
 
     /// <summary>Badge text for the device switcher: "Master", "Companion" (marked while the group is
@@ -832,7 +839,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private async Task TouchButton_Click(TouchButton button)
     {
-        if (button == null || button.IsFolderNavTile) return;
+        if (button == null || button.IsFolderNavTile || IsMirroredFolderKey(button)) return;
 
         await _dialogService.ShowDialogAsync<TouchButtonSettingsViewModel, DialogResult>(vm => vm.Initialize(button));
 
@@ -893,6 +900,9 @@ public partial class MainWindowViewModel : ViewModelBase
             // be copied, pasted over, cleared, dragged or dropped onto.
             case TouchButton { IsFolderNavTile: true }:
                 return null;
+            // A companion shows its master's folder content, which is edited on the master (issue #673).
+            case TouchButton touch when IsMirroredFolderKey(touch):
+                return null;
             case TouchButton touch when IsSideStripButton(touch):
                 return ButtonKind.SideDisplay;
             case TouchButton:
@@ -905,6 +915,14 @@ public partial class MainWindowViewModel : ViewModelBase
                 return null;
         }
     }
+
+    /// <summary>True for a key of the folder open on this companion, whose content is its master's.</summary>
+    private bool IsMirroredFolderKey(TouchButton button)
+        => IsMirroredFolderOpen && _config.OpenFolder.Pages().Any(p => p.TouchButtons.Contains(button));
+
+    /// <summary>True while this device is a companion showing one of its master's custom folders (issue
+    /// #673). The folder's keys and pages are then edited on the master only.</summary>
+    private bool IsMirroredFolderOpen => _config.OpenFolder is { IsMirror: true };
 
     private bool IsSideStripButton(TouchButton button)
         => LoupedeckController.HasSideStrips &&
@@ -1053,7 +1071,7 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    private bool CanPastePage(PageSlot slot) => _clipboard.CanPasteInto(slot switch
+    private bool CanPastePage(PageSlot slot) => !(slot == PageSlot.Touch && IsMirroredFolderOpen) && _clipboard.CanPasteInto(slot switch
     {
         PageSlot.Touch => ButtonKind.TouchPage,
         PageSlot.Rotary => ButtonKind.RotaryPage,
@@ -1142,7 +1160,7 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     private bool CanPastePageBackground(PageSlot slot)
-        => slot == PageSlot.Touch && _clipboard.CanPasteInto(ButtonKind.PageBackground);
+        => slot == PageSlot.Touch && !IsMirroredFolderOpen && _clipboard.CanPasteInto(ButtonKind.PageBackground);
 
     /// <summary>
     /// Replaces the background of the current touch page with the copied one, asking first when

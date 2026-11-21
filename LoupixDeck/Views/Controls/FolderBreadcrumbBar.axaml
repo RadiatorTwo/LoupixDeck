@@ -74,10 +74,17 @@
         <!-- The open folder's own pages (issue #603), managed like the touch pages. -->
         <Border Classes="Pager">
             <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+                <!-- On a companion the folder's content is its master's and edited there (issue #673). -->
+                <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF033E;"
+                           VerticalAlignment="Center" Margin="4,0"
+                           Foreground="{DynamicResource AppTextSecondary}"
+                           ToolTip.Tip="{loc:Tr Device_CompanionFolderReadOnly}"
+                           IsVisible="{Binding IsFolderReadOnly}" />
                 <Button Classes="PagerBtn PagerNav" Content="‹"
                         ToolTip.Tip="{loc:Tr Device_PreviousFolderPage}"
                         Command="{Binding PreviousFolderPageCommand}" />
                 <TextBox Classes="PageName"
+                         IsReadOnly="{Binding IsFolderReadOnly}"
                          Text="{Binding LoupedeckController.Config.CurrentTouchButtonPage.Name, Mode=TwoWay}"
                          PlaceholderText="{Binding LoupedeckController.Config.CurrentTouchButtonPage.PageName}"
                          KeyDown="OnPageNameKeyDown" LostFocus="OnPageNameCommit" />
@@ -89,15 +96,18 @@
                            ToolTip.Tip="{loc:Tr Device_CurrentTotalFolderPages}" />
                 <Button Classes="PagerBtn" Content="+"
                         ToolTip.Tip="{loc:Tr Device_AddFolderPage}"
+                        IsVisible="{Binding !IsFolderReadOnly}"
                         Command="{Binding AddFolderPageCommand}" />
                 <Button Classes="PagerBtn"
                         ToolTip.Tip="{loc:Tr Device_DuplicateFolderPage}"
+                        IsVisible="{Binding !IsFolderReadOnly}"
                         Command="{Binding DuplicateFolderPageCommand}">
                     <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF018F;" />
                 </Button>
                 <Button Classes="PagerBtn delete" Content="✕"
                         ToolTip.Tip="{loc:Tr Device_DeleteCurrentFolderPage}"
                         IsEnabled="{Binding HasFolderPages}"
+                        IsVisible="{Binding !IsFolderReadOnly}"
                         Command="{Binding DeleteFolderPageCommand}" />
             </StackPanel>
         </Border>
