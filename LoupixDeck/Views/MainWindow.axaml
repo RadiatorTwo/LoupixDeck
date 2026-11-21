@@ -545,24 +545,40 @@
                     <Border Classes="SwitcherSegment" IsVisible="{Binding HasMultipleDevices}">
                         <StackPanel>
                             <TextBlock Classes="SwitcherCaption" Text="{loc:Tr MainWindow_DEVICE}" />
-                            <ComboBox Classes="Switcher"
-                                      ItemsSource="{Binding Devices}"
-                                      SelectedItem="{Binding SelectedDevice}">
-                                <ComboBox.ItemTemplate>
-                                    <DataTemplate x:DataType="vm:MainWindowViewModel">
-                                        <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <TextBlock Text="{Binding DeviceName}" VerticalAlignment="Center" />
-                                            <!-- Companion role badge -->
-                                            <Border IsVisible="{Binding HasCompanionRole}" CornerRadius="3" Padding="5,0"
-                                                    VerticalAlignment="Center"
-                                                    Background="{DynamicResource AppSurfaceAlt}">
-                                                <TextBlock Text="{Binding CompanionRoleText}" FontSize="10" Opacity="0.8"
-                                                           VerticalAlignment="Center" />
-                                            </Border>
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </ComboBox.ItemTemplate>
-                            </ComboBox>
+                            <StackPanel Orientation="Horizontal" Spacing="2">
+                                <ComboBox Classes="Switcher"
+                                          ItemsSource="{Binding Devices}"
+                                          SelectedItem="{Binding SelectedDevice}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:MainWindowViewModel">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <TextBlock Text="{Binding DeviceName}" VerticalAlignment="Center" />
+                                                <!-- Companion role badge -->
+                                                <Border IsVisible="{Binding HasCompanionRole}" CornerRadius="3" Padding="5,0"
+                                                        VerticalAlignment="Center"
+                                                        Background="{DynamicResource AppSurfaceAlt}">
+                                                    <TextBlock Text="{Binding CompanionRoleText}" FontSize="10" Opacity="0.8"
+                                                               VerticalAlignment="Center" />
+                                                </Border>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <!-- Companion group: pause or resume the sync (issue #675) -->
+                                <Button Classes="SwitcherMenu"
+                                        IsVisible="{Binding SelectedDevice.IsInCompanionGroup, FallbackValue=False}"
+                                        Command="{Binding SelectedDevice.ToggleCompanionSyncPauseCommand}"
+                                        ToolTip.Tip="{Binding SelectedDevice.CompanionSyncToggleTip}">
+                                    <Panel>
+                                        <!-- mdi-pause -->
+                                        <TextBlock FontFamily="{DynamicResource MdiFont}" Text="&#xF03E4;"
+                                                   IsVisible="{Binding !SelectedDevice.IsCompanionSyncPaused, FallbackValue=False}" />
+                                        <!-- mdi-play -->
+                                        <TextBlock FontFamily="{DynamicResource MdiFont}" Text="&#xF040A;"
+                                                   IsVisible="{Binding SelectedDevice.IsCompanionSyncPaused, FallbackValue=False}" />
+                                    </Panel>
+                                </Button>
+                            </StackPanel>
                             <!-- Companion: whom the locked profile and workspace follow. Click selects the master. -->
                             <Button Classes="CompanionHint"
                                     IsVisible="{Binding SelectedDevice.ProfileMenu.IsCompanionDevice, FallbackValue=False}"
@@ -577,6 +593,15 @@
                                                TextTrimming="CharacterEllipsis" MaxWidth="240" />
                                 </StackPanel>
                             </Button>
+                            <!-- Master of a paused group: a hint line like the companion's, so the selector keeps its width. -->
+                            <StackPanel Orientation="Horizontal" Spacing="4" Margin="8,1,4,0"
+                                        IsVisible="{Binding SelectedDevice.ShowsCompanionPausedHint, FallbackValue=False}">
+                                <!-- mdi-pause -->
+                                <TextBlock FontFamily="{DynamicResource MdiFont}" Text="&#xF03E4;" FontSize="11"
+                                           Foreground="{DynamicResource CompanionHintForeground}" VerticalAlignment="Center" />
+                                <TextBlock Text="{loc:Tr MainWindow_CompanionSyncPaused}" FontSize="11"
+                                           Foreground="{DynamicResource CompanionHintForeground}" VerticalAlignment="Center" />
+                            </StackPanel>
                         </StackPanel>
                     </Border>
 

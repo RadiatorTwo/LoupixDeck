@@ -77,6 +77,21 @@ public interface ICompanionCoordinator
     /// device that is not an active master. Raises <see cref="GroupsChanged"/> when the state changed.</summary>
     void SetPaused(string masterKey, bool paused);
 
+    // ── Stop ────────────────────────────────────────────────────────────────
+
+    /// <summary>True when the device belongs to a complete group that is stopped. A stopped group
+    /// assigns no roles, so its devices show their own profiles; unlike a pause it is saved.</summary>
+    bool IsStopped(string deviceKey);
+
+    /// <summary>True when the device is the master of a complete group, running or stopped. Lets a
+    /// stopped group's master start it again.</summary>
+    bool LeadsGroup(string deviceKey);
+
+    /// <summary>Stops or starts the group. Stopping lets its companions leave the group (their own
+    /// profiles come back) while the group stays configured; starting links them again with the
+    /// mirrors they had. Saved, so the state survives a restart.</summary>
+    void SetStopped(Guid groupId, bool stopped);
+
     // ── Devices ─────────────────────────────────────────────────────────────
 
     /// <summary>The running host for a device key, or null when it is not brought up.</summary>

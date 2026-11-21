@@ -35,4 +35,10 @@ public sealed class CompanionGroup
     /// and omitted while off, so existing files load and save unchanged.</summary>
     [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
     public bool BackgroundFollow { get; set; }
+
+    /// <summary>Whether the group is stopped (issue #675): it assigns no roles, so its companions show
+    /// their own profiles again, but it stays configured and can be started again. Unlike a pause this
+    /// is saved and survives a restart. Omitted while off, so existing files load and save unchanged.</summary>
+    [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+    public bool Stopped { get; set; }
 }

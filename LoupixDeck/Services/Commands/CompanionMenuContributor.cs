@@ -13,7 +13,8 @@ namespace LoupixDeck.Services.Commands;
 /// Lists a master's group commands (pause, resync, page follow, start pages) and its companions in the
 /// "Companions" command group, each companion with its paging commands and its pages per profile and workspace, so the picker offers "Touch page 2: Scenes" instead of raw
 /// device keys and page ids. Offline companions are listed from their config file, so their commands
-/// can be assigned while they are unplugged. Offered on an active master only.
+/// can be assigned while they are unplugged. Offered on an active master; the master of a stopped
+/// group gets only the commands that start it again.
 /// </summary>
 public sealed class CompanionMenuContributor(
     IGroupCatalog groupCatalog,
@@ -24,10 +25,11 @@ public sealed class CompanionMenuContributor(
 
     public Task<IReadOnlyList<MenuEntry>> Contribute(ButtonTargets target)
     {
+        bool stopped = companions.IsStopped(device.ScopeKey) && companions.LeadsGroup(device.ScopeKey);
         IReadOnlyList<string> companionKeys = companions.IsMaster(device.ScopeKey)
             ? companions.GetCompanionKeys(device.ScopeKey)
             : [];
-        if (companionKeys.Count == 0)
+        if (companionKeys.Count == 0 && !stopped)
             return Task.FromResult<IReadOnlyList<MenuEntry>>([]);
 
         GroupInfo info = groupCatalog.Resolve(GroupName);
@@ -38,7 +40,8 @@ public sealed class CompanionMenuContributor(
             Section = info.Section
         };
 
-        group.Children.Add(BuildGroupCommands(info));
+        // A stopped group's master can only start it again; everything else waits for the start.
+        group.Children.Add(stopped ? BuildStopCommands(info) : BuildGroupCommands(info));
         foreach (string companionKey in companionKeys)
             group.Children.Add(BuildCompanion(companionKey, info));
 
@@ -58,6 +61,8 @@ public sealed class CompanionMenuContributor(
                      ("Toggle Companion Group Pause", "Companion.TogglePause"),
                      ("Pause Companion Group", "Companion.PauseGroup"),
                      ("Resume Companion Group", "Companion.ResumeGroup"),
+                     ("Toggle Companion Group Stop", "Companion.ToggleStop"),
+                     ("Stop Companion Group", "Companion.StopGroup"),
                      ("Cycle Companion Page Follow", "Companion.CyclePageFollow"),
                      ("Show Companion Start Pages", "Companion.ShowStartPages"),
                      ("Resync Companions", "Companion.Resync")
@@ -80,6 +85,19 @@ public sealed class CompanionMenuContributor(
             });
         }
 
+        return folder;
+    }
+
+    private static MenuEntry BuildStopCommands(GroupInfo info)
+    {
+        MenuEntry folder = new(Loc.Tr("CompanionMenu_WholeGroup"), string.Empty)
+        {
+            Icon = info.Icon,
+            Section = info.Section
+        };
+
+        folder.Children.Add(new MenuEntry("Toggle Companion Group Stop", "Companion.ToggleStop") { Icon = info.Icon });
+        folder.Children.Add(new MenuEntry("Start Companion Group", "Companion.StartGroup") { Icon = info.Icon });
         return folder;
     }
 

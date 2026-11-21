@@ -145,5 +145,11 @@
   "Return another device to the home workspace of its active profile": "Devolver otro dispositivo al espacio de trabajo de inicio de su perfil activo",
   "Activate a profile on another device and open its home workspace": "Activar un perfil en otro dispositivo y abrir su espacio de trabajo de inicio",
   "Switch another device to a workspace, activating its profile first when needed": "Cambiar otro dispositivo a un espacio de trabajo, activando antes su perfil si hace falta",
-  "Open a touch page on another device, switching to its profile and workspace first when needed": "Abrir una página táctil en otro dispositivo, cambiando antes a su perfil y espacio de trabajo si hace falta"
+  "Open a touch page on another device, switching to its profile and workspace first when needed": "Abrir una página táctil en otro dispositivo, cambiando antes a su perfil y espacio de trabajo si hace falta",
+  "Stop Companion Group": "Detener grupo de acompañantes",
+  "Start Companion Group": "Iniciar grupo de acompañantes",
+  "Toggle Companion Group Stop": "Detener/iniciar grupo de acompañantes",
+  "Companions show their own profiles again until the group is started, also after a restart": "Los acompañantes vuelven a mostrar sus propios perfiles hasta que se inicie el grupo, también tras reiniciar",
+  "Companions follow the master again with the mirrored profiles they had": "Los acompañantes vuelven a seguir al maestro con los perfiles reflejados que tenían",
+  "Stop the companion group, or start it when stopped": "Detener el grupo de acompañantes o iniciarlo si está detenido"
 }

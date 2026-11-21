@@ -56,8 +56,11 @@ public sealed class CompanionCoordinator : ICompanionCoordinator
     // ── Roles ───────────────────────────────────────────────────────────────
 
     /// <summary>A group only assigns roles once it is complete: a master with no companion controls
-    /// nothing, and companions without a master would be locked out of their own navigation.</summary>
-    private static bool IsEffective(CompanionGroup group) =>
+    /// nothing, and companions without a master would be locked out of their own navigation. A stopped
+    /// group assigns no roles either.</summary>
+    private static bool IsEffective(CompanionGroup group) => IsComplete(group) && !group.Stopped;
+
+    private static bool IsComplete(CompanionGroup group) =>
         !string.IsNullOrWhiteSpace(group.MasterDeviceKey) && group.CompanionDeviceKeys.Count > 0;
 
     public CompanionRole GetRole(string deviceKey)
@@ -98,6 +101,37 @@ public sealed class CompanionCoordinator : ICompanionCoordinator
 
         Console.WriteLine($"[Companions] Group '{group.Name}' {(paused ? "paused" : "resumed")}.");
         GroupsChanged?.Invoke();
+    }
+
+    // ── Stop ────────────────────────────────────────────────────────────────
+
+    public bool IsStopped(string deviceKey)
+    {
+        CompanionGroup group = FindGroup(deviceKey);
+        lock (_gate) return group != null && group.Stopped && IsComplete(group);
+    }
+
+    public bool LeadsGroup(string deviceKey)
+    {
+        CompanionGroup group = FindGroup(deviceKey);
+        lock (_gate) return group != null && IsComplete(group) && KeyEquals(group.MasterDeviceKey, deviceKey);
+    }
+
+    public void SetStopped(Guid groupId, bool stopped)
+    {
+        CompanionGroup group;
+        lock (_gate)
+        {
+            group = _config.Groups.FirstOrDefault(g => g.Id == groupId);
+            if (group == null || group.Stopped == stopped) return;
+            group.Stopped = stopped;
+
+            // A pause belongs to the running group; a later start begins unpaused.
+            _pausedGroups.Remove(group.Id);
+        }
+
+        Console.WriteLine($"[Companions] Group '{group.Name}' {(stopped ? "stopped" : "started")}.");
+        Persist();
     }
 
     public CompanionGroup FindGroup(string deviceKey)
