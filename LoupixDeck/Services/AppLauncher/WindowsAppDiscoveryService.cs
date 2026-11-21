@@ -1,9 +1,9 @@
 #if WINDOWS
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.Marshalling;
 using System.Runtime.Versioning;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using System.Runtime.InteropServices.Marshalling;
 
 namespace LoupixDeck.Services.AppLauncher;
 
@@ -263,7 +263,7 @@ public sealed partial class WindowsAppDiscoveryService : AppDiscoveryServiceBase
 
             try
             {
-                var item2 = (IShellItem2)item;
+                IShellItem2 item2 = (IShellItem2)item;
                 string packageFullName = GetProperty(item2, "System.AppUserModel.PackageFullName");
 
                 // app is not from Store

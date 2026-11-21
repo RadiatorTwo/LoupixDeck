@@ -78,8 +78,8 @@ internal static partial class WindowsAppIcons
             if (icon == null)
                 return false;
 
-            using var data = icon.Encode(SKEncodedImageFormat.Png, 100);
-            using var stream = File.Create(destination);
+            using SKData data = icon.Encode(SKEncodedImageFormat.Png, 100);
+            using FileStream stream = File.Create(destination);
             data.SaveTo(stream);
 
             return true;
