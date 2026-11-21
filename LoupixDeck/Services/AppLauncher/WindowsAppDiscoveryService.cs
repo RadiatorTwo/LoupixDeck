@@ -1,20 +1,15 @@
 #if WINDOWS
+using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Runtime.InteropServices.Marshalling;
 
 namespace LoupixDeck.Services.AppLauncher;
 
 /// <summary>
-/// Finds applications from the Start Menu and from the Steam and Epic libraries.
+/// Finds applications from the Start Menu, Microsoft Store apps, from the Steam and Epic libraries.
 /// </summary>
-/// <remarks>
-/// Microsoft Store apps are not enumerated. They live only in the virtual <c>shell:AppsFolder</c>,
-/// which has no on-disk listing, and the ways to read it (a PowerShell <c>Get-AppxPackage</c> hop or
-/// late-bound Shell COM) each cost more at start-up than the coverage is worth here.
-/// <c>System.LaunchApp</c> already launches a <c>shell:AppsFolder\…</c> target, so support can be
-/// added later without changing anything the user has configured.
-/// </remarks>
 [SupportedOSPlatform("windows")]
 public sealed partial class WindowsAppDiscoveryService : AppDiscoveryServiceBase
 {
@@ -58,6 +53,9 @@ public sealed partial class WindowsAppDiscoveryService : AppDiscoveryServiceBase
         using WindowsShortcutResolver shortcuts = new();
 
         foreach (InstalledApp app in DiscoverStartMenu(shortcuts, cancellationToken))
+            yield return app;
+
+        foreach (InstalledApp app in DiscoverMicrosoftStoreApps(cancellationToken))
             yield return app;
 
         foreach (InstalledApp app in DiscoverSteam(cancellationToken))
@@ -122,6 +120,176 @@ public sealed partial class WindowsAppDiscoveryService : AppDiscoveryServiceBase
                 if (Directory.Exists(programs))
                     yield return programs;
             }
+        }
+    }
+
+    // ────────────────────── Microsoft Store ───────────────────────
+
+    private static readonly Guid BHID_EnumItems = new("94F60519-2850-4924-AA5A-D15E84868039");
+    private static readonly Guid IID_IEnumShellItems = new("70629033-E363-4A28-A567-0DB78006E6D7");
+
+    internal enum SIGDN : uint
+    {
+        NORMALDISPLAY = 0x00000000,
+        DESKTOPABSOLUTEPARSING = 0x80028000
+    }
+
+    [GeneratedComInterface]
+    [Guid("43826D1E-E718-42EE-BC55-A1E261C37BFE")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    internal partial interface IShellItem
+    {
+        void BindToHandler(IntPtr pbc, ref Guid bhid, ref Guid riid, [MarshalAs(UnmanagedType.Interface)] out object ppv);
+        void GetParent(out IShellItem ppsi);
+        void GetDisplayName(SIGDN sigdnName, out IntPtr ppszName);
+        void GetAttributes(uint sfgaoMask, out uint psfgaoAttribs);
+        void Compare(IShellItem psi, uint hint, out int piOrder);
+    }
+
+    [GeneratedComInterface]
+    [Guid("7E9FB0D3-919F-4307-AB2E-9B1860310C93")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    internal partial interface IShellItem2
+    {
+        void BindToHandler(IntPtr pbc, ref Guid bhid, ref Guid riid, [MarshalAs(UnmanagedType.Interface)] out object ppv);
+        void GetParent(out IShellItem ppsi);
+        void GetDisplayName(SIGDN sigdnName, out IntPtr ppszName);
+        void GetAttributes(uint sfgaoMask, out uint psfgaoAttribs);
+        void Compare(IShellItem psi, uint hint, out int piOrder);
+        void GetPropertyStore(int flags, ref Guid riid, out IntPtr ppv);
+        void GetPropertyStoreWithCreateObject(int flags, IntPtr punkCreateObject, ref Guid riid, out IntPtr ppv);
+        void GetPropertyStoreForKeys(IntPtr rgKeys, uint cKeys, int flags, ref Guid riid, out IntPtr ppv);
+        void GetPropertyDescriptionList(ref PROPERTYKEY keyType, ref Guid riid, out IntPtr ppv);
+        void Update(IntPtr pbc);
+        void GetProperty(ref PROPERTYKEY key, out IntPtr pv);
+        void GetCLSID(ref PROPERTYKEY key, out Guid clsid);
+        void GetFileTime(ref PROPERTYKEY key, out long fileTime);
+        void GetInt32(ref PROPERTYKEY key, out int value);
+        void GetString(ref PROPERTYKEY key, out IntPtr value);
+    }
+
+    [GeneratedComInterface]
+    [Guid("70629033-E363-4A28-A567-0DB78006E6D7")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    internal partial interface IEnumShellItems
+    {
+        [PreserveSig]
+        int Next(uint celt, out IShellItem rgelt, out uint pceltFetched);
+        void Skip(uint celt);
+        void Reset();
+        void Clone(out IEnumShellItems ppenum);
+    }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 4)]
+    internal struct PROPERTYKEY
+    {
+        public Guid fmtid;
+        public uint pid;
+    }
+
+    [LibraryImport("shell32.dll")]
+    internal static partial int SHGetKnownFolderItem(ref Guid rfid, uint dwFlags, IntPtr hToken, ref Guid riid, out IShellItem ppv);
+
+    [LibraryImport("propsys.dll", StringMarshalling = StringMarshalling.Utf16)]
+    internal static partial int PSGetPropertyKeyFromName(string pszName, out PROPERTYKEY propkey);
+
+    [LibraryImport("ole32.dll")]
+    internal static partial void CoTaskMemFree(IntPtr pv);
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = false)]
+    internal static extern void SHCreateItemFromParsingName(
+    [MarshalAs(UnmanagedType.LPWStr)] string pszPath,
+    IntPtr pbc,
+    ref Guid riid,
+    [MarshalAs(UnmanagedType.Interface)] out IShellItem2 ppv);
+
+    private static string GetDisplayName(IShellItem item, SIGDN format)
+    {
+        item.GetDisplayName(format, out IntPtr ptr);
+
+        try
+        {
+            return Marshal.PtrToStringUni(ptr);
+        }
+        finally
+        {
+            if (ptr != IntPtr.Zero)
+                Marshal.FreeCoTaskMem(ptr);
+        }
+    }
+
+    private static string GetProperty(IShellItem2 item, string propertyName)
+    {
+        Marshal.ThrowExceptionForHR(PSGetPropertyKeyFromName(propertyName, out PROPERTYKEY key));
+        item.GetString(ref key, out IntPtr ptr);
+
+        try
+        {
+            return ptr == IntPtr.Zero ? null : Marshal.PtrToStringUni(ptr);
+        }
+        finally
+        {
+            if (ptr != IntPtr.Zero)
+                Marshal.FreeCoTaskMem(ptr);
+        }
+    }
+
+    private static IEnumerable<InstalledApp> DiscoverMicrosoftStoreApps(CancellationToken cancellationToken)
+    {
+        // virtual AppsFolder
+        Guid folderId = new("1E87508D-89C2-42F0-8A7E-645A0F50CA58");
+        Guid interfaceId = typeof(IShellItem).GUID;
+        Marshal.ThrowExceptionForHR(SHGetKnownFolderItem(ref folderId, 0, IntPtr.Zero, ref interfaceId, out IShellItem folder));
+
+        Guid bhid = BHID_EnumItems;
+        Guid iid = IID_IEnumShellItems;
+        folder.BindToHandler(IntPtr.Zero, ref bhid, ref iid, out object enumeratorObject);
+        var enumerator = (IEnumShellItems)enumeratorObject;
+
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            int hr = enumerator.Next(1, out IShellItem item, out uint fetched);
+
+            if (hr != 0 || fetched == 0)
+                break;
+
+            InstalledApp app = null;
+
+            try
+            {
+                var item2 = (IShellItem2)item;
+                string packageFullName = GetProperty(item2, "System.AppUserModel.PackageFullName");
+
+                // app is not from Store
+                if (string.IsNullOrWhiteSpace(packageFullName))
+                    continue;
+
+                string name = GetDisplayName(item, SIGDN.NORMALDISPLAY);
+                string appId = GetProperty(item2, "System.AppUserModel.ID");
+
+                if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(appId))
+                    continue;
+
+                string target = $@"shell:AppsFolder\{appId}";
+
+                app = new InstalledApp
+                {
+                    Name = name,
+                    Target = target,
+                    Source = AppSource.Store,
+                    IsGame = false,
+                    PreResolvedIcon = null,
+                    IconExtractSource = target
+                };
+            }
+            catch (COMException)
+            {
+                // Skip invalid entries.
+            }
+
+            if (app != null)
+                yield return app;
         }
     }
 

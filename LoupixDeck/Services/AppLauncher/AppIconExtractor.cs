@@ -124,8 +124,12 @@ public sealed class AppIconExtractor : IAppIconExtractor
         try
         {
             // Keying on the write time as well as the path means an updated or reinstalled
-            // application gets a fresh icon instead of the stale one being served forever.
+#if WINDOWS
+            // Get the current time for Shell items, which don't have a file on disk to check.
+            DateTime writeTime = !source.StartsWith("shell:AppsFolder") ? File.GetLastWriteTimeUtc(source) : DateTime.UtcNow;
+#else
             DateTime writeTime = File.GetLastWriteTimeUtc(source);
+#endif
             string cached = Path.Combine(_cacheDirectory, $"{Fingerprint(source, writeTime)}.png");
 
             if (File.Exists(cached) && new FileInfo(cached).Length > 0)
