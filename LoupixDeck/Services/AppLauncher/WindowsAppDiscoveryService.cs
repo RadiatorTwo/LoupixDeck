@@ -234,17 +234,36 @@ public sealed partial class WindowsAppDiscoveryService : AppDiscoveryServiceBase
         }
     }
 
+    /// <summary>
+    /// Opens an enumerator over the virtual AppsFolder, or null when the shell refuses. A failure
+    /// here must not abort the whole scan, or the Steam and Epic entries would be lost with it.
+    /// </summary>
+    private static IEnumShellItems OpenAppsFolder()
+    {
+        try
+        {
+            // FOLDERID_AppsFolder
+            Guid folderId = new("1E87508D-89C2-42F0-8A7E-645A0F50CA58");
+            Guid interfaceId = typeof(IShellItem).GUID;
+            Marshal.ThrowExceptionForHR(SHGetKnownFolderItem(ref folderId, 0, IntPtr.Zero, ref interfaceId, out IShellItem folder));
+
+            Guid bhid = BHID_EnumItems;
+            Guid iid = IID_IEnumShellItems;
+            folder.BindToHandler(IntPtr.Zero, ref bhid, ref iid, out object enumeratorObject);
+            return (IEnumShellItems)enumeratorObject;
+        }
+        catch (Exception ex) when (ex is COMException or InvalidCastException)
+        {
+            Console.WriteLine($"[AppDiscovery] Cannot list the Microsoft Store apps: {ex.Message}");
+            return null;
+        }
+    }
+
     private static IEnumerable<InstalledApp> DiscoverMicrosoftStoreApps(CancellationToken cancellationToken)
     {
-        // virtual AppsFolder
-        Guid folderId = new("1E87508D-89C2-42F0-8A7E-645A0F50CA58");
-        Guid interfaceId = typeof(IShellItem).GUID;
-        Marshal.ThrowExceptionForHR(SHGetKnownFolderItem(ref folderId, 0, IntPtr.Zero, ref interfaceId, out IShellItem folder));
-
-        Guid bhid = BHID_EnumItems;
-        Guid iid = IID_IEnumShellItems;
-        folder.BindToHandler(IntPtr.Zero, ref bhid, ref iid, out object enumeratorObject);
-        var enumerator = (IEnumShellItems)enumeratorObject;
+        IEnumShellItems enumerator = OpenAppsFolder();
+        if (enumerator == null)
+            yield break;
 
         while (true)
         {
