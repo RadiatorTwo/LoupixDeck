@@ -130,13 +130,11 @@ public sealed partial class WindowsAppDiscoveryService : AppDiscoveryServiceBase
 
     internal enum SIGDN : uint
     {
-        NORMALDISPLAY = 0x00000000,
-        DESKTOPABSOLUTEPARSING = 0x80028000
+        NORMALDISPLAY = 0x00000000
     }
 
     [GeneratedComInterface]
     [Guid("43826D1E-E718-42EE-BC55-A1E261C37BFE")]
-    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     internal partial interface IShellItem
     {
         void BindToHandler(IntPtr pbc, ref Guid bhid, ref Guid riid, [MarshalAs(UnmanagedType.Interface)] out object ppv);
@@ -148,7 +146,6 @@ public sealed partial class WindowsAppDiscoveryService : AppDiscoveryServiceBase
 
     [GeneratedComInterface]
     [Guid("7E9FB0D3-919F-4307-AB2E-9B1860310C93")]
-    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     internal partial interface IShellItem2
     {
         void BindToHandler(IntPtr pbc, ref Guid bhid, ref Guid riid, [MarshalAs(UnmanagedType.Interface)] out object ppv);
@@ -170,7 +167,6 @@ public sealed partial class WindowsAppDiscoveryService : AppDiscoveryServiceBase
 
     [GeneratedComInterface]
     [Guid("70629033-E363-4A28-A567-0DB78006E6D7")]
-    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     internal partial interface IEnumShellItems
     {
         [PreserveSig]
@@ -192,16 +188,6 @@ public sealed partial class WindowsAppDiscoveryService : AppDiscoveryServiceBase
 
     [LibraryImport("propsys.dll", StringMarshalling = StringMarshalling.Utf16)]
     internal static partial int PSGetPropertyKeyFromName(string pszName, out PROPERTYKEY propkey);
-
-    [LibraryImport("ole32.dll")]
-    internal static partial void CoTaskMemFree(IntPtr pv);
-
-    [DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = false)]
-    internal static extern void SHCreateItemFromParsingName(
-    [MarshalAs(UnmanagedType.LPWStr)] string pszPath,
-    IntPtr pbc,
-    ref Guid riid,
-    [MarshalAs(UnmanagedType.Interface)] out IShellItem2 ppv);
 
     private static string GetDisplayName(IShellItem item, SIGDN format)
     {
