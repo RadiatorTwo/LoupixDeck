@@ -1,4 +1,4 @@
-using LoupixDeck.Controllers;
+﻿using LoupixDeck.Controllers;
 using LoupixDeck.Models;
 using LoupixDeck.Registry;
 using LoupixDeck.Services;
@@ -196,6 +196,9 @@ public static class ServiceCollectionExtensions
         // Monitor power state, for turning the device off with the displays (issue #382).
         collection.AddSingleton(CreatePlatformDisplayStateService());
 
+        // Session lock state, for keeping the device off until the user unlocks (issue #522).
+        collection.AddSingleton(CreatePlatformSessionLockService());
+
         // Foreground-window monitor. The Linux monitors need no #if guard (they only use
         // Process + /proc); only the Windows type lives behind #if WINDOWS.
         // On Linux the session type sets the baseline: X11 sessions keep the xprop spy.
@@ -292,6 +295,9 @@ public static class ServiceCollectionExtensions
 
         // Mirrors each master's profiles and workspaces onto its companions, unplugged ones included.
         collection.AddSingleton<Services.Companion.ICompanionContextSync, Services.Companion.CompanionContextSyncService>();
+
+        // Lets companions show their master's backgrounds when their group asks for it (issue #665).
+        collection.AddSingleton<Services.Companion.CompanionBackgroundFollowService>();
     }
 
     // ───────────────────────── Device (per-device child) ─────────────────────────
@@ -329,6 +335,7 @@ public static class ServiceCollectionExtensions
         collection.Forward<ICommandRunner>(root);
         collection.Forward<ISystemPowerService>(root);
         collection.Forward<IDisplayStateService>(root);
+        collection.Forward<ISessionLockService>(root);
         collection.Forward<IActiveWindowMonitor>(root);
         collection.Forward<IActiveWindowState>(root);
         collection.Forward<IAppWindowActivator>(root);
@@ -439,6 +446,7 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<IDeviceService, LoupedeckDeviceService>();
         collection.AddSingleton<IPageManager, PageManager>();
         collection.AddSingleton<IWorkspaceActivationService, WorkspaceActivationService>();
+        collection.AddSingleton<Services.History.IWorkspaceHistoryService, Services.History.WorkspaceHistoryService>();
         collection.AddSingleton<IProfileEditingService, ProfileEditingService>();
         collection.AddSingleton<Services.Folders.ICustomFolderService, Services.Folders.CustomFolderService>();
         collection.AddSingleton<Services.Companion.ICommandLockService, Services.Companion.CommandLockService>();
@@ -448,6 +456,7 @@ public static class ServiceCollectionExtensions
         // resolves the device-bound services commands inject.
         collection.AddSingleton<ICommandService, CommandService>();
         collection.AddSingleton<ICommandBuilder, CommandBuilder>();
+        collection.AddSingleton<Services.Commands.ICommandParameterOptions, Services.Commands.CommandParameterOptions>();
         collection.AddSingleton<ISysCommandService, SysCommandService>();
         collection.AddSingleton<ICommandProvider, CoreCommandProvider>();
         collection.AddSingleton<ICommandProvider, PluginCommandProvider>();
@@ -468,6 +477,7 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<IMenuContributor, UserMacroMenuContributor>();
         collection.AddSingleton<IMenuContributor, ProfileMenuContributor>();
         collection.AddSingleton<IMenuContributor, CompanionMenuContributor>();
+        collection.AddSingleton<IMenuContributor, OtherDevicesMenuContributor>();
         collection.AddSingleton<IMenuContributor, DisplayTestMenuContributor>();
         collection.AddSingleton<IMenuContributor, DialPresetMenuContributor>();
         collection.AddSingleton<IPluginMenuSource, PluginMenuContributor>();
@@ -570,7 +580,17 @@ public static class ServiceCollectionExtensions
         if (OperatingSystem.IsWindows())
             return new WindowsSystemPowerService();
 #endif
+        if (OperatingSystem.IsMacOS())
+            return new MacSystemPowerService();
         return new NoOpSystemPowerService();
+    }
+
+    /// <summary>The OS-level session lock source, or a no-op on platforms without one (issue #522).</summary>
+    private static ISessionLockService CreatePlatformSessionLockService()
+    {
+        if (OperatingSystem.IsMacOS())
+            return new MacSessionLockService();
+        return new NoOpSessionLockService();
     }
 
     /// <summary>The OS-level monitor power source, or a no-op on platforms without one.</summary>
@@ -687,6 +707,9 @@ public static class ServiceCollectionExtensions
 
         // Same for the context sync, which listens to group changes and master saves from then on.
         root.GetRequiredService<Services.Companion.ICompanionContextSync>();
+
+        // And the background follow, which links running companions to their master from the start.
+        root.GetRequiredService<Services.Companion.CompanionBackgroundFollowService>();
 
         // Let the (static) bitmap renderer resolve image-layer assets via DI.
         var assetService = root.GetRequiredService<IAssetService>();

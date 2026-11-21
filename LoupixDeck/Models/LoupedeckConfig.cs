@@ -163,6 +163,11 @@ public partial class LoupedeckConfig : ObservableObject
         get; set => SetProperty(ref field, value, EpsilonComparer.Default);
     } = 0.5;
 
+    // Shrink the pressed touch key's content while the finger stays on it, like a physical
+    // button going down (issue #627). Absent in older configs, which keeps keys unchanged.
+    [ObservableProperty]
+    public partial bool TouchPressShrinkEnabled { get; set; }
+
     // While a finger is down, ignore further TOUCH_START events until TOUCH_END.
     // Defends against the device emitting duplicate TOUCH_START at button
     // boundaries or when the finger slides across slots.
@@ -173,6 +178,12 @@ public partial class LoupedeckConfig : ObservableObject
     // (issue #382). Absent in older configs, which keeps the device lit as before.
     [ObservableProperty]
     public partial bool TurnOffWithDisplays { get; set; }
+
+    // Turn the device off while the host's session is locked, so only controls set to run while
+    // the device is off can be used from the lock screen (issue #522). On by default, also for
+    // older configs that do not have it.
+    [ObservableProperty]
+    public partial bool TurnOffWhenLocked { get; set; } = true;
 
     // Whether following the monitors turns the device off or only dims it, and how far
     // (percent of full brightness). Absent in older configs, which keeps turning it off.
@@ -293,6 +304,14 @@ public partial class LoupedeckConfig : ObservableObject
     /// </summary>
     [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
     public Companion.ParkedCompanionProfiles ParkedCompanionProfiles { get; set; }
+
+    /// <summary>
+    /// Runtime-only: the config of the running master whose backgrounds this companion shows instead
+    /// of its own (issue #665). Null while the device shows its own. Set by the companion background
+    /// follow; this device's own wallpapers are never touched.
+    /// </summary>
+    [JsonIgnore]
+    public LoupedeckConfig WallpaperMaster { get; set; }
 
     /// <summary>The active profile resolved from <see cref="ActiveProfileId"/>, falling back to the
     /// first profile. Null only before <see cref="EnsureDefaultProfile"/> has run.</summary>

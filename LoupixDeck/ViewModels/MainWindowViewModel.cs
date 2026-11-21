@@ -158,6 +158,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IExclusiveModeService _exclusiveMode;
     private readonly ISystemPowerService _powerService;
     private readonly IDisplayStateService _displayState;
+    private readonly ISessionLockService _sessionLock;
 
     private bool _isExclusiveModeActive;
 
@@ -293,6 +294,7 @@ public partial class MainWindowViewModel : ViewModelBase
         Services.Animation.IWheelAnimationManager wheelAnimationManager,
         ISystemPowerService powerService,
         IDisplayStateService displayState,
+        ISessionLockService sessionLock,
         IExclusiveModeService exclusiveMode,
         IAppSwitchingService appSwitching,
         IWorkspaceActivationService workspaceActivation,
@@ -312,9 +314,12 @@ public partial class MainWindowViewModel : ViewModelBase
         ViewModels.FolderPanel.FolderPanelViewModel folderPanel,
         IDeviceService deviceService,
         IPastePluginActivation pastePlugins,
+        Services.History.IWorkspaceHistoryService history,
         IButtonStateService buttonStates = null)
     {
         FolderPanel = folderPanel;
+        _history = history;
+        _history.Changed += OnHistoryChanged;
         _pastePlugins = pastePlugins;
         _buttonStates = buttonStates;
         LoupedeckController = loupedeck;
@@ -400,12 +405,23 @@ public partial class MainWindowViewModel : ViewModelBase
         displayState.ScreenSaverStopped += OnDesktopScreenSaverStopped;
         displayState.StartMonitoring();
 
+        // Keep the device off while the session is locked (issue #522). Like the monitors, the
+        // controller checks the setting itself.
+        _sessionLock = sessionLock;
+        sessionLock.Locked += OnSessionLocked;
+        sessionLock.Unlocked += OnSessionUnlocked;
+        sessionLock.StartMonitoring();
+        // A device that connects while the session is already locked starts out locked as well.
+        if (sessionLock.IsLocked)
+            OnSessionLocked(sessionLock, EventArgs.Empty);
+
         // Foreground-window → page switching. Started on the UI thread because the
         // Windows WinEvent hook requires the message pump of the thread that sets it.
         appSwitching.Start();
 
         _dialogService = dialogService;
         _clipboard = clipboard;
+        _clipboard.Changed += OnClipboardChanged;
 
         RotaryButtonCommand = new AsyncRelayCommand<RotaryButton>(RotaryButton_Click);
         SimpleButtonCommand = new AsyncRelayCommand<SimpleButton>(SimpleButton_Click);
@@ -490,12 +506,16 @@ public partial class MainWindowViewModel : ViewModelBase
         _hostRegistry.HostRemoved -= OnHostsChanged;
         _config.PropertyChanged -= OnConfigFolderPropertyChanged;
         _folders.StructureChanged -= RefreshFolderBreadcrumbs;
+        _clipboard.Changed -= OnClipboardChanged;
+        _history.Changed -= OnHistoryChanged;
         _powerService.Suspending -= OnSystemSuspending;
         _powerService.Resuming -= OnSystemResuming;
         _displayState.DisplaysOff -= OnDisplaysOff;
         _displayState.DisplaysOn -= OnDisplaysOn;
         _displayState.ScreenSaverStarted -= OnDesktopScreenSaverStarted;
         _displayState.ScreenSaverStopped -= OnDesktopScreenSaverStopped;
+        _sessionLock.Locked -= OnSessionLocked;
+        _sessionLock.Unlocked -= OnSessionUnlocked;
     }
 
     // The power and display handlers hop to the UI thread because they touch
@@ -518,6 +538,12 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void OnDisplaysOn(object sender, EventArgs e) =>
         Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = LoupedeckController.HandleDisplaysOn());
+
+    private void OnSessionLocked(object sender, EventArgs e) =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = LoupedeckController.HandleSessionLock(true));
+
+    private void OnSessionUnlocked(object sender, EventArgs e) =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = LoupedeckController.HandleSessionLock(false));
 
     private void OnDesktopScreenSaverStarted(object sender, EventArgs e) =>
         Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = LoupedeckController.HandleDesktopScreenSaver(true));
@@ -938,20 +964,22 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        _clipboard.Copy(button, kind.Value, button is TouchButton touch ? CaptureLinkedFolders(touch) : null);
+        _clipboard.Copy(button, kind.Value, button is TouchButton touch ? CaptureLinkedFolders(CommandsOf(touch)) : null);
     }
 
+    private static IEnumerable<string> CommandsOf(TouchButton button)
+        => (button?.States ?? []).Select(static s => s?.Command).Append(button?.Command);
+
     /// <summary>
-    /// Snapshots of the folders <paramref name="button"/> opens, so a paste on a workspace or device
-    /// without them can recreate them (issue #535). A folder below another linked one travels
+    /// Snapshots of the folders the <paramref name="commands"/> open, so a paste on a workspace or
+    /// device without them can recreate them (issue #535). A folder below another linked one travels
     /// inside that one's snapshot.
     /// </summary>
-    private List<string> CaptureLinkedFolders(TouchButton button)
+    private List<string> CaptureLinkedFolders(IEnumerable<string> commands)
     {
         Workspace workspace = _config.ActiveWorkspace;
-        List<Models.CustomFolder> linked = [.. (button.States ?? [])
-            .SelectMany(static s => Services.Folders.FolderCommand.ReferencedFolders(s?.Command))
-            .Concat(Services.Folders.FolderCommand.ReferencedFolders(button.Command))
+        List<Models.CustomFolder> linked = [.. commands
+            .SelectMany(Services.Folders.FolderCommand.ReferencedFolders)
             .Distinct()
             .Select(id => Services.Folders.FolderTree.Find(workspace, id))
             .Where(static f => f != null)];
@@ -998,6 +1026,186 @@ public partial class MainWindowViewModel : ViewModelBase
             _clipboard.RememberPastedFolders(workspace.Id, map);
 
         return map;
+    }
+
+    /// <summary>Puts the current page of <paramref name="slot"/> on the clipboard (issue #621).</summary>
+    [RelayCommand]
+    private void CopyPage(PageSlot slot)
+    {
+        IPageManager pages = LoupedeckController.PageManager;
+        switch (slot)
+        {
+            case PageSlot.Touch:
+                TouchButtonPage page = pages.CurrentTouchButtonPage;
+                if (page == null) return;
+                IEnumerable<string> commands = page.TouchButtons.SelectMany(CommandsOf)
+                    .Append(page.TouchButtonWrap?.PreCommands)
+                    .Append(page.TouchButtonWrap?.PostCommands);
+                _clipboard.CopyPage(page, ButtonKind.TouchPage, CaptureLinkedFolders(commands));
+                break;
+            case PageSlot.Rotary:
+                _clipboard.CopyPage(pages.GetCurrentRotaryPage(RotarySide.Both), ButtonKind.RotaryPage);
+                break;
+            case PageSlot.LeftRotary:
+            case PageSlot.RightRotary:
+                _clipboard.CopyPage(pages.GetCurrentRotaryPage(SideOf(slot)), ButtonKind.SideRotaryPage);
+                break;
+        }
+    }
+
+    private bool CanPastePage(PageSlot slot) => _clipboard.CanPasteInto(slot switch
+    {
+        PageSlot.Touch => ButtonKind.TouchPage,
+        PageSlot.Rotary => ButtonKind.RotaryPage,
+        _ => ButtonKind.SideRotaryPage
+    });
+
+    /// <summary>
+    /// Overwrites the current page of <paramref name="slot"/> with the copied page, asking first
+    /// when that page is not empty, like a paste onto a button (issue #644).
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanPastePage))]
+    private async Task PastePage(PageSlot slot)
+    {
+        if (!CanPastePage(slot)) return;
+
+        IPageManager pages = LoupedeckController.PageManager;
+        bool empty = slot == PageSlot.Touch
+            ? ButtonSnapshot.IsEmpty(pages.CurrentTouchButtonPage)
+            : ButtonSnapshot.IsEmpty(pages.GetCurrentRotaryPage(RotarySideOf(slot)));
+        if (!empty && !await ConfirmOverwritePage()) return;
+
+        await PastePage(slot, replace: true);
+
+        // The selected button belonged to the page that was just replaced.
+        SelectButton(null);
+    }
+
+    /// <summary>Inserts the copied page after the current page of <paramref name="slot"/> (issue #621).</summary>
+    [RelayCommand(CanExecute = nameof(CanPastePage))]
+    private Task PastePageAsNew(PageSlot slot) => CanPastePage(slot) ? PastePage(slot, replace: false) : Task.CompletedTask;
+
+    private async Task PastePage(PageSlot slot, bool replace)
+    {
+        // Before the paste, so the pasted commands and plugin layers resolve right away.
+        await _pastePlugins.EnableRequiredAsync(_clipboard.Snapshots);
+
+        IPageManager pages = LoupedeckController.PageManager;
+        if (slot == PageSlot.Touch)
+        {
+            EndExclusiveModeForPageChange();
+            string json = _clipboard.PageJson(PasteLinkedFolders());
+            if (replace)
+                await pages.ReplaceTouchButtonPage(json);
+            else
+                await pages.PasteTouchButtonPage(json);
+        }
+        else if (replace)
+        {
+            pages.ReplaceRotaryButtonPage(RotarySideOf(slot), _clipboard.PageJson());
+        }
+        else
+        {
+            pages.PasteRotaryButtonPage(RotarySideOf(slot), _clipboard.PageJson());
+        }
+
+        // A page from another workspace can link folders this one does not have; those links
+        // would navigate nowhere.
+        Services.Folders.FolderReferenceCleaner.CleanDangling(_config.ActiveWorkspace);
+        LoupedeckController.SaveConfig();
+    }
+
+    private static RotarySide RotarySideOf(PageSlot slot) => slot == PageSlot.Rotary ? RotarySide.Both : SideOf(slot);
+
+    private async Task<bool> ConfirmOverwritePage()
+    {
+        DialogResult result = await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
+            vm.Configure(
+                Loc.Tr("Confirm_OverwritePageMessage"),
+                title: Loc.Tr("Confirm_OverwriteButtonTitle"),
+                confirmText: Loc.Tr("Confirm_Overwrite"),
+                cancelText: Loc.Tr("Confirm_Cancel")));
+        return result.IsConfirmed;
+    }
+
+    private static RotarySide SideOf(PageSlot slot) => slot == PageSlot.RightRotary ? RotarySide.Right : RotarySide.Left;
+
+    /// <summary>
+    /// Puts the background of the current touch page on the clipboard (issue #663). A page that
+    /// shows an earlier page's background copies that one, because that is what the user sees.
+    /// </summary>
+    [RelayCommand]
+    private void CopyPageBackground(PageSlot slot)
+    {
+        if (slot != PageSlot.Touch) return;
+        _clipboard.CopyPageBackground(BitmapHelper.ResolveWallpaperSourcePage(_config));
+    }
+
+    private bool CanPastePageBackground(PageSlot slot)
+        => slot == PageSlot.Touch && _clipboard.CanPasteInto(ButtonKind.PageBackground);
+
+    /// <summary>
+    /// Replaces the background of the current touch page with the copied one, asking first when
+    /// the page has a background of its own (issue #663). The keys stay as they are.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanPastePageBackground))]
+    private async Task PastePageBackground(PageSlot slot)
+    {
+        if (!CanPastePageBackground(slot)) return;
+
+        TouchButtonPage page = LoupedeckController.PageManager.CurrentTouchButtonPage;
+        if (page == null) return;
+        if (page.HasOwnBackground() && !await ConfirmOverwriteBackground()) return;
+
+        _clipboard.PasteBackgroundInto(page);
+        LoupedeckController.SaveConfig();
+    }
+
+    private async Task<bool> ConfirmOverwriteBackground()
+    {
+        DialogResult result = await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
+            vm.Configure(
+                Loc.Tr("Confirm_OverwriteBackgroundMessage"),
+                title: Loc.Tr("Confirm_OverwriteButtonTitle"),
+                confirmText: Loc.Tr("Confirm_Overwrite"),
+                cancelText: Loc.Tr("Confirm_Cancel")));
+        return result.IsConfirmed;
+    }
+
+    private void OnClipboardChanged()
+    {
+        PastePageCommand.NotifyCanExecuteChanged();
+        PastePageAsNewCommand.NotifyCanExecuteChanged();
+        PastePageBackgroundCommand.NotifyCanExecuteChanged();
+    }
+
+    private readonly Services.History.IWorkspaceHistoryService _history;
+
+    /// <summary>Undoes the last edit made in the main window (issue #622).</summary>
+    [RelayCommand(CanExecute = nameof(CanUndo))]
+    private async Task Undo()
+    {
+        EndExclusiveModeForPageChange();
+        await _history.Undo();
+    }
+
+    private bool CanUndo() => _history.CanUndo;
+
+    /// <summary>Redoes the last undone edit in the main window (issue #622).</summary>
+    [RelayCommand(CanExecute = nameof(CanRedo))]
+    private async Task Redo()
+    {
+        EndExclusiveModeForPageChange();
+        await _history.Redo();
+    }
+
+    private bool CanRedo() => _history.CanRedo;
+
+    // Raised from the save path, which runs on the UI thread.
+    private void OnHistoryChanged()
+    {
+        UndoCommand.NotifyCanExecuteChanged();
+        RedoCommand.NotifyCanExecuteChanged();
     }
 
     private void CutSelected()

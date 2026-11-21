@@ -1,7 +1,8 @@
-<Window xmlns="https://github.com/avaloniaui"
+﻿<Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:loc="using:LoupixDeck.Localization"
         xmlns:vm="using:LoupixDeck.ViewModels"
+        xmlns:cnv="using:LoupixDeck.Models.Converter"
         xmlns:models="using:LoupixDeck.Models"
         xmlns:notices="using:LoupixDeck.Services.Notices"
         xmlns:controls="using:LoupixDeck.Views.Controls"
@@ -29,12 +30,16 @@
              TextBoxes are the page-name fields (TextBox.PageName in Views/Devices/*), so
              scoping the override here hits exactly those and no search or settings field. -->
         <x:Double x:Key="TextControlPlaceholderOpacity">1.0</x:Double>
+        <cnv:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
     </Window.Resources>
 
     <Window.KeyBindings>
         <KeyBinding Gesture="Ctrl+C" Command="{Binding SelectedDevice.CopySelectedCommand}" />
         <KeyBinding Gesture="Ctrl+X" Command="{Binding SelectedDevice.CutSelectedCommand}" />
         <KeyBinding Gesture="Ctrl+V" Command="{Binding SelectedDevice.PasteSelectedCommand}" />
+        <KeyBinding Gesture="Ctrl+Z" Command="{Binding SelectedDevice.UndoCommand}" />
+        <KeyBinding Gesture="Ctrl+Shift+Z" Command="{Binding SelectedDevice.RedoCommand}" />
+        <KeyBinding Gesture="Ctrl+Y" Command="{Binding SelectedDevice.RedoCommand}" />
     </Window.KeyBindings>
     <Window.Styles>
         <!-- Device touch button chrome. The Razer centre grid relies on this
@@ -122,6 +127,47 @@
             <Setter Property="CornerRadius" Value="4" />
             <Setter Property="TextAlignment" Value="Center" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
+            <!-- The text edits name the page name so they read apart from the page copy and
+                 paste below them (issue #621). The page items show only on a pager field,
+                 whose Tag says which pager it is (a PageSlot). -->
+            <Setter Property="ContextFlyout">
+                <MenuFlyout x:DataType="vm:MainWindowViewModel">
+                    <MenuItem Header="{loc:Tr PageName_Cut}"
+                              Command="{Binding $parent[TextBox].Cut}"
+                              IsEnabled="{Binding $parent[TextBox].CanCut}"
+                              InputGesture="{x:Static TextBox.CutGesture}" />
+                    <MenuItem Header="{loc:Tr PageName_Copy}"
+                              Command="{Binding $parent[TextBox].Copy}"
+                              IsEnabled="{Binding $parent[TextBox].CanCopy}"
+                              InputGesture="{x:Static TextBox.CopyGesture}" />
+                    <MenuItem Header="{loc:Tr PageName_Paste}"
+                              Command="{Binding $parent[TextBox].Paste}"
+                              IsEnabled="{Binding $parent[TextBox].CanPaste}"
+                              InputGesture="{x:Static TextBox.PasteGesture}" />
+                    <Separator IsVisible="{Binding $parent[TextBox].Tag, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                    <MenuItem Header="{loc:Tr Page_CopyPage}"
+                              Command="{Binding CopyPageCommand}"
+                              CommandParameter="{Binding $parent[TextBox].Tag}"
+                              IsVisible="{Binding $parent[TextBox].Tag, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                    <MenuItem Header="{loc:Tr Page_PastePage}"
+                              Command="{Binding PastePageCommand}"
+                              CommandParameter="{Binding $parent[TextBox].Tag}"
+                              IsVisible="{Binding $parent[TextBox].Tag, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                    <MenuItem Header="{loc:Tr Page_PastePageAsNew}"
+                              Command="{Binding PastePageAsNewCommand}"
+                              CommandParameter="{Binding $parent[TextBox].Tag}"
+                              IsVisible="{Binding $parent[TextBox].Tag, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                    <!-- Only touch pages have a background (issue #663). -->
+                    <MenuItem Header="{loc:Tr Page_CopyPageBackground}"
+                              Command="{Binding CopyPageBackgroundCommand}"
+                              CommandParameter="{Binding $parent[TextBox].Tag}"
+                              IsVisible="{Binding $parent[TextBox].Tag, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Touch}" />
+                    <MenuItem Header="{loc:Tr Page_PastePageBackground}"
+                              Command="{Binding PastePageBackgroundCommand}"
+                              CommandParameter="{Binding $parent[TextBox].Tag}"
+                              IsVisible="{Binding $parent[TextBox].Tag, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Touch}" />
+                </MenuFlyout>
+            </Setter>
         </Style>
         <!-- The placeholder (shown when no custom page name is set) defaults to a very
              faint Fluent colour that is hard to read. Avalonia 12 exposes it as
@@ -456,6 +502,24 @@
                         ToolTip.Tip="{loc:Tr MainWindow_About}">
                     <!-- mdi-information-outline -->
                     <TextBlock Classes="HeaderGlyph" Text="&#xF02FD;" />
+                </Button>
+                <!-- Undo / redo of the edits made in this window (issue #622). -->
+                <Border Classes="HeaderDivider" IsVisible="{Binding HasDevice}" />
+                <Button Classes="HeaderAction"
+                        VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                        IsVisible="{Binding HasDevice}"
+                        Command="{Binding SelectedDevice.UndoCommand, FallbackValue={x:Null}}"
+                        ToolTip.Tip="{loc:Tr History_UndoTip}">
+                    <!-- mdi-undo -->
+                    <TextBlock Classes="HeaderGlyph" Text="&#xF054C;" />
+                </Button>
+                <Button Classes="HeaderAction"
+                        VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                        IsVisible="{Binding HasDevice}"
+                        Command="{Binding SelectedDevice.RedoCommand, FallbackValue={x:Null}}"
+                        ToolTip.Tip="{loc:Tr History_RedoTip}">
+                    <!-- mdi-redo -->
+                    <TextBlock Classes="HeaderGlyph" Text="&#xF044E;" />
                 </Button>
                 <!-- Quits the whole app, not just the window, so it sits apart from the rest. -->
                 <Border Classes="HeaderDivider" IsVisible="{Binding ShowQuitButton}" />

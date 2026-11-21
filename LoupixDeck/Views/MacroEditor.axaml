@@ -20,6 +20,7 @@
 
     <Window.Resources>
         <conv:ConditionTypeLabelConverter x:Key="ConditionTypeLabel" />
+        <conv:MacroPlatformLabelConverter x:Key="MacroPlatformLabel" />
     </Window.Resources>
 
     <Window.Styles>
@@ -656,6 +657,17 @@
                                                                                  IsVisible="{Binding HasTarget}"
                                                                                  PlaceholderText="{Binding TargetLabel}"
                                                                                  Text="{Binding Target, Mode=TwoWay}" />
+                                                                        <ComboBox Grid.Column="3"
+                                                                                  HorizontalAlignment="Stretch"
+                                                                                  IsVisible="{Binding IsOperatingSystem}"
+                                                                                  ItemsSource="{x:Static macros:MacroCondition.AllPlatforms}"
+                                                                                  SelectedItem="{Binding Platform, Mode=TwoWay}">
+                                                                            <ComboBox.ItemTemplate>
+                                                                                <DataTemplate x:DataType="macros:MacroPlatform">
+                                                                                    <TextBlock Text="{Binding Converter={StaticResource MacroPlatformLabel}}" />
+                                                                                </DataTemplate>
+                                                                            </ComboBox.ItemTemplate>
+                                                                        </ComboBox>
                                                                     </Grid>
                                                                     <Grid ColumnDefinitions="Auto,170,Auto,*"
                                                                           IsVisible="{Binding IsVariable}">
@@ -801,6 +813,17 @@
                                                                                  IsVisible="{Binding Condition.HasTarget}"
                                                                                  PlaceholderText="{Binding Condition.TargetLabel}"
                                                                                  Text="{Binding Condition.Target, Mode=TwoWay}" />
+                                                                        <ComboBox Grid.Column="3"
+                                                                                  HorizontalAlignment="Stretch"
+                                                                                  IsVisible="{Binding Condition.IsOperatingSystem}"
+                                                                                  ItemsSource="{x:Static macros:MacroCondition.AllPlatforms}"
+                                                                                  SelectedItem="{Binding Condition.Platform, Mode=TwoWay}">
+                                                                            <ComboBox.ItemTemplate>
+                                                                                <DataTemplate x:DataType="macros:MacroPlatform">
+                                                                                    <TextBlock Text="{Binding Converter={StaticResource MacroPlatformLabel}}" />
+                                                                                </DataTemplate>
+                                                                            </ComboBox.ItemTemplate>
+                                                                        </ComboBox>
                                                                     </Grid>
                                                                     <Grid ColumnDefinitions="Auto,170,Auto,*"
                                                                           IsVisible="{Binding Condition.IsVariable}">

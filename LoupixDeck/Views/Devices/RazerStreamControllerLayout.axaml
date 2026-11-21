@@ -175,6 +175,7 @@
                             ToolTip.Tip="{loc:Tr Device_PreviousLeftRotaryPage}"
                             Command="{Binding PreviousLeftRotaryPageCommand}" />
                     <TextBox Classes="PageName" Width="130"
+                             Tag="{x:Static vm:PageSlot.LeftRotary}"
                              Text="{Binding LoupedeckController.Config.CurrentLeftRotaryButtonPage.Name, Mode=TwoWay}"
                              PlaceholderText="{Binding LoupedeckController.Config.CurrentLeftRotaryButtonPage.PageName}"
                              KeyDown="OnPageNameKeyDown" LostFocus="OnPageNameCommit" />
@@ -211,6 +212,7 @@
                             ToolTip.Tip="{loc:Tr Device_PreviousRightRotaryPage}"
                             Command="{Binding PreviousRightRotaryPageCommand}" />
                     <TextBox Classes="PageName" Width="130"
+                             Tag="{x:Static vm:PageSlot.RightRotary}"
                              Text="{Binding LoupedeckController.Config.CurrentRightRotaryButtonPage.Name, Mode=TwoWay}"
                              PlaceholderText="{Binding LoupedeckController.Config.CurrentRightRotaryButtonPage.PageName}"
                              KeyDown="OnPageNameKeyDown" LostFocus="OnPageNameCommit" />
@@ -554,6 +556,7 @@
                             ToolTip.Tip="{loc:Tr Device_PreviousTouchPage}"
                             Command="{Binding PreviousTouchPageCommand}" />
                     <TextBox Classes="PageName"
+                             Tag="{x:Static vm:PageSlot.Touch}"
                              Text="{Binding LoupedeckController.Config.CurrentTouchButtonPage.Name, Mode=TwoWay}"
                              PlaceholderText="{Binding LoupedeckController.Config.CurrentTouchButtonPage.PageName}"
                              KeyDown="OnPageNameKeyDown" LostFocus="OnPageNameCommit" />

@@ -61,7 +61,7 @@
                 <ComboBox Grid.Column="1"
                           HorizontalAlignment="Stretch"
                           ItemsSource="{Binding Options}"
-                          SelectedItem="{Binding Value, Mode=TwoWay}"
+                          SelectedItem="{Binding SelectedOption, Mode=TwoWay}"
                           IsVisible="{Binding IsEnum}" />
                 <CheckBox Grid.Column="1"
                           IsChecked="{Binding BoolValue, Mode=TwoWay}"
@@ -270,6 +270,13 @@
                                 <TextBlock Classes="hint" Margin="0,8,0,0" TextWrapping="Wrap"
                                            IsVisible="{Binding IsSegmentCommandMode}"
                                            Text="{loc:Tr TouchButton_ThisStripHasThreeTap}" />
+                                <!-- One set of divider bars at most, so an option instead of an
+                                     add button (#630). The bars are ordinary layers afterwards. -->
+                                <CheckBox Margin="0,8,0,0"
+                                          IsVisible="{Binding IsSegmentCommandMode}"
+                                          IsChecked="{Binding ShowZoneDividers, Mode=TwoWay}"
+                                          Content="{loc:Tr TouchButton_ZoneDividers}"
+                                          ToolTip.Tip="{loc:Tr TouchButton_ZoneDividersHint}" />
 
                                 <Separator Margin="0,12,0,0" />
                             </StackPanel>
@@ -439,7 +446,8 @@
                         <!-- Fills the remaining height but asks the scroll viewer only for its
                              minimum, so the list keeps its own scrolling. -->
                         <controls:FillRemainingDecorator Grid.Row="5" Name="LayerListHost" MinHeight="120">
-                            <ListBox IsEnabled="{Binding CanEditCanvas}"
+                            <ListBox Name="LayerList"
+                                     IsEnabled="{Binding CanEditCanvas}"
                                      ContextRequested="LayerList_ContextRequested"
                                      ItemsSource="{Binding LayerListItems}"
                                      SelectedItem="{Binding SelectedLayer, Mode=TwoWay}"
@@ -628,6 +636,18 @@
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4"
                                     VerticalAlignment="Center">
+                            <!-- Undo / redo of the edits made in this editor (issue #622). -->
+                            <Button Classes="toolbar"
+                                    FontFamily="{StaticResource MdiFont}"
+                                    Content="&#xF054C;" FontSize="16"
+                                    Command="{Binding History.UndoCommand, FallbackValue={x:Null}}"
+                                    ToolTip.Tip="{loc:Tr History_UndoTip}" />
+                            <Button Classes="toolbar"
+                                    FontFamily="{StaticResource MdiFont}"
+                                    Content="&#xF044E;" FontSize="16"
+                                    Command="{Binding History.RedoCommand, FallbackValue={x:Null}}"
+                                    ToolTip.Tip="{loc:Tr History_RedoTip}"
+                                    Margin="0,0,8,0" />
                             <Button Classes="toolbar" Content="&#x2212;"
                                     Command="{Binding ZoomOutCommand}"
                                     ToolTip.Tip="{loc:Tr TouchButton_ZoomOut}" />
@@ -666,6 +686,7 @@
                                  keeps the children's local 600×600 coordinate space, so the
                                  pointer math in the code-behind needs no zoom adjustment. -->
                             <ScrollViewer Name="PreviewScroll"
+                                          Focusable="True"
                                           HorizontalScrollBarVisibility="Auto"
                                           VerticalScrollBarVisibility="Auto">
                                 <LayoutTransformControl HorizontalAlignment="Center"

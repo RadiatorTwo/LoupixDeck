@@ -1,5 +1,8 @@
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
+using LoupixDeck.Services.Actions;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 
 namespace LoupixDeck.Models;
 
@@ -8,11 +11,32 @@ namespace LoupixDeck.Models;
 /// font: stored in <c>layer-defaults.json</c> next to the device configs, never in a device config.
 /// Each group is off until the user turns it on, so the built-in look stays as it was.
 /// </summary>
-public sealed class LayerDefaultSettings
+public sealed partial class LayerDefaultSettings : ObservableObject
 {
     public TextLayerDefaults Text { get; set; } = new();
 
     public IconLayerDefaults Icon { get; set; } = new();
+
+    /// <summary>
+    /// How a key is laid out when an app is put on it (issue #624). Icon only, the default, keeps the
+    /// icon on its own as before; the other layouts add the app's name as a caption. Absent from a
+    /// file saved before the option existed, so such a file keeps the old behaviour.
+    /// </summary>
+    [ObservableProperty]
+    [JsonConverter(typeof(StringEnumConverter))]
+    public partial ButtonTemplate AppLayout { get; set; } = ButtonTemplate.IconOnly;
+
+    /// <summary>
+    /// Whether the launch command of a newly assigned app starts with "Single Instance" ticked
+    /// (issue #647). Off by default and absent from older files, so assignments behave as before.
+    /// Only new assignments read it; each key can still untick it on its own.
+    /// </summary>
+    [ObservableProperty]
+    public partial bool AppSingleInstance { get; set; }
+
+    /// <summary>Like <see cref="AppSingleInstance"/>, for "Show Running Indicator" (issue #647).</summary>
+    [ObservableProperty]
+    public partial bool AppShowRunningIndicator { get; set; }
 }
 
 /// <summary>

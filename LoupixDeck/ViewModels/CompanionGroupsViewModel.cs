@@ -189,6 +189,18 @@ public sealed partial class CompanionGroupRow : ObservableObject
         }
     }
 
+    /// <summary>Whether the companions show the background their master shows (issue #665).</summary>
+    public bool BackgroundFollow
+    {
+        get => Group.BackgroundFollow;
+        set
+        {
+            if (value == Group.BackgroundFollow) return;
+            _owner.Coordinator.SetBackgroundFollow(Group.Id, value);
+            OnPropertyChanged();
+        }
+    }
+
     public ObservableCollection<CompanionDeviceOption> CompanionCandidates { get; } = new();
 
     [ObservableProperty]

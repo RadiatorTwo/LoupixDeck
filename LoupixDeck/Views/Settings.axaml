@@ -136,6 +136,16 @@
                         </Grid>
                     </Button>
 
+                    <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Apps}"
+                            Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.Apps}">
+                        <Grid ColumnDefinitions="6,Auto,*">
+                            <Border Grid.Column="0" Classes="nav-accent" />
+                            <!-- mdi-apps -->
+                            <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF003B;" Margin="6,0,0,0"/>
+                            <TextBlock Grid.Column="2" Classes="nav-label" Text="{loc:Tr Settings_Apps}" />
+                        </Grid>
+                    </Button>
+
                     <TextBlock Classes="section-header" Text="{loc:Tr Settings_APP}" />
                     <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=About}"
                             Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.About}">
@@ -279,6 +289,12 @@
                             <TextBlock Classes="hint" Margin="0,4,0,0" Foreground="#E6A23C"
                                        IsVisible="{Binding !IsDisplayStateSupported}"
                                        Text="{loc:Tr Settings_TurnOffWithDisplaysUnsupported}" />
+                            <CheckBox Content="{loc:Tr Settings_TurnOffWhenLocked}" Margin="0,12,0,0"
+                                      IsVisible="{Binding IsSessionLockSupported}"
+                                      IsChecked="{Binding Config.TurnOffWhenLocked, Mode=TwoWay}" />
+                            <TextBlock Classes="hint" Margin="0,4,0,0"
+                                       IsVisible="{Binding IsSessionLockSupported}"
+                                       Text="{loc:Tr Settings_TurnOffWhenLockedHint}" />
                         </StackPanel>
                     </Border>
 
@@ -385,7 +401,11 @@
                                        Text="{loc:Tr Settings_ChooseQuitOnDesktopsWithout}" />
                             <CheckBox Content="{loc:Tr Settings_StartMinimizedToTray}"
                                       HorizontalAlignment="Left" Margin="0,10,0,0"
+                                      IsEnabled="{Binding !StartMaximized}"
                                       IsChecked="{Binding StartMinimizedToTray, Mode=TwoWay}" />
+                            <CheckBox Content="{loc:Tr Settings_StartMaximized}"
+                                      HorizontalAlignment="Left" Margin="0,4,0,0"
+                                      IsChecked="{Binding StartMaximized, Mode=TwoWay}" />
                         </StackPanel>
                     </Border>
                 </StackPanel>
@@ -522,6 +542,43 @@
                                        Text="{loc:Tr Settings_IconDefaultsHint}" />
                             <TextBlock Classes="hint" Margin="0,4,0,0" TextWrapping="Wrap"
                                        Text="{loc:Tr Settings_LayerDefaultsHint}" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- ====== Apps ====== -->
+                <!-- Global like the layer defaults: how a key starts when an app is put on it. -->
+                <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Apps}">
+                    <TextBlock Classes="page-title" Text="{loc:Tr Settings_Apps}" />
+
+                    <!-- Layout a key gets when an app is put on it (issue #624). -->
+                    <Border Classes="card">
+                        <StackPanel>
+                            <TextBlock Classes="card-title" Text="{loc:Tr Settings_AppLayout}" />
+                            <ComboBox Margin="0,4,0,0" MinWidth="240"
+                                      ItemsSource="{Binding AppLayoutChoices}"
+                                      SelectedItem="{Binding SelectedAppLayoutChoice, Mode=TwoWay}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:LayoutTemplateOption">
+                                        <TextBlock Text="{Binding Label}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <TextBlock Classes="hint" Margin="0,8,0,0" TextWrapping="Wrap"
+                                       Text="{loc:Tr Settings_AppLayoutHint}" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Options a newly assigned app's launch command starts with (issue #647). -->
+                    <Border Classes="card">
+                        <StackPanel>
+                            <TextBlock Classes="card-title" Text="{loc:Tr Settings_AppLaunchOptions}" />
+                            <CheckBox Content="{loc:Tr Settings_AppSingleInstance}"
+                                      IsChecked="{Binding AppDefaults.AppSingleInstance, Mode=TwoWay}" />
+                            <CheckBox Content="{loc:Tr Settings_AppShowRunningIndicator}" Margin="0,4,0,0"
+                                      IsChecked="{Binding AppDefaults.AppShowRunningIndicator, Mode=TwoWay}" />
+                            <TextBlock Classes="hint" Margin="0,8,0,0" TextWrapping="Wrap"
+                                       Text="{loc:Tr Settings_AppLaunchOptionsHint}" />
                         </StackPanel>
                     </Border>
                 </StackPanel>
@@ -847,6 +904,14 @@
                                                            Text="{loc:Tr Companions_FolderFollowHint}" />
                                             </StackPanel>
 
+                                            <!-- Background follow (issue #665) -->
+                                            <StackPanel Spacing="4">
+                                                <CheckBox Content="{loc:Tr Companions_BackgroundFollow}"
+                                                          IsChecked="{Binding BackgroundFollow, Mode=TwoWay}" />
+                                                <TextBlock Classes="hint" FontSize="12" TextWrapping="Wrap"
+                                                           Text="{loc:Tr Companions_BackgroundFollowHint}" />
+                                            </StackPanel>
+
                                             <TextBlock IsVisible="{Binding HasError}" Text="{Binding Error}" TextWrapping="Wrap"
                                                        Foreground="#E07A7A" />
                                         </StackPanel>
@@ -955,6 +1020,16 @@
                                                                               Command="{Binding $parent[Window].DataContext.EditPageCommandsCommand}"
                                                                               CommandParameter="{Binding}">
                                                                         <MenuItem.Icon><TextBlock Classes="menu-icon" Text="&#xF18D8;" /></MenuItem.Icon>
+                                                                    </MenuItem>
+                                                                    <MenuItem Header="{loc:Tr Page_CopyPageBackground}"
+                                                                              Command="{Binding $parent[Window].DataContext.CopyPageBackgroundCommand}"
+                                                                              CommandParameter="{Binding}">
+                                                                        <MenuItem.Icon><TextBlock Classes="menu-icon" Text="&#xF018F;" /></MenuItem.Icon>
+                                                                    </MenuItem>
+                                                                    <MenuItem Header="{loc:Tr Page_PastePageBackground}"
+                                                                              Command="{Binding $parent[Window].DataContext.PastePageBackgroundCommand}"
+                                                                              CommandParameter="{Binding}">
+                                                                        <MenuItem.Icon><TextBlock Classes="menu-icon" Text="&#xF0192;" /></MenuItem.Icon>
                                                                     </MenuItem>
                                                                     <MenuItem Header="{loc:Tr Settings_DuplicateMenu}"
                                                                               Command="{Binding $parent[Window].DataContext.DuplicateTouchPageCommand}"
@@ -1245,6 +1320,16 @@
                                            Text="{Binding Config.TouchFeedbackOpacity, StringFormat='{}{0:F2}'}"
                                            VerticalAlignment="Center" HorizontalAlignment="Right" />
                             </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Press shrink: the held key's content shrinks like a pushed button (#627) -->
+                    <Border Classes="card">
+                        <StackPanel>
+                            <TextBlock Classes="card-title" Text="{loc:Tr Settings_TouchPress}" />
+                            <CheckBox Content="{loc:Tr Settings_ShrinkTouchButtonsWhilePressed}"
+                                      IsChecked="{Binding Config.TouchPressShrinkEnabled, Mode=TwoWay}"
+                                      ToolTip.Tip="{loc:Tr Settings_ShrinkTouchButtonsWhilePressedTip}" />
                         </StackPanel>
                     </Border>
 

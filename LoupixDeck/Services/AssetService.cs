@@ -13,6 +13,14 @@ public class AssetService : IAssetService
     /// <summary>Longest edge, in pixels, that SVG assets are rasterized to.</summary>
     private const float SvgRasterSize = 512f;
 
+    /// <summary>
+    /// Longest edge, in pixels, of a pack icon (the "icons" sub-folder). A picked icon is stored at
+    /// this size; one stored full size before #667 is scaled down to it when loaded.
+    /// </summary>
+    public const int IconMaxEdge = 256;
+
+    private const string IconsPrefix = AssetsFolderName + "/icons/";
+
     private readonly ConcurrentDictionary<string, SKBitmap> _cache = new(StringComparer.OrdinalIgnoreCase);
 
     public string AssetsRoot { get; }
@@ -94,6 +102,62 @@ public class AssetService : IAssetService
         return (relativeDir + "/" + targetFileName).Replace('\\', '/');
     }
 
+    public string ImportDownscaled(string sourcePath, int maxEdge, string subFolder = null)
+    {
+        if (string.IsNullOrWhiteSpace(sourcePath) || !File.Exists(sourcePath))
+            return null;
+
+        if (maxEdge <= 0 || string.Equals(Path.GetExtension(sourcePath), ".svg", StringComparison.OrdinalIgnoreCase))
+            return Import(sourcePath, subFolder);
+
+        byte[] png = null;
+        try
+        {
+            using SKBitmap decoded = SKBitmap.Decode(sourcePath);
+            if (decoded != null && Math.Max(decoded.Width, decoded.Height) > maxEdge)
+            {
+                using SKBitmap scaled = Downscale(decoded, maxEdge);
+                using SKData data = scaled.Encode(SKEncodedImageFormat.Png, 100);
+                png = data?.ToArray();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"AssetService: failed to downscale '{sourcePath}', copying it unchanged: {ex.Message}");
+        }
+
+        return png is { Length: > 0 } ? Import(png, ".png", subFolder) : Import(sourcePath, subFolder);
+    }
+
+    /// <summary>
+    /// A pack icon larger than <see cref="IconMaxEdge"/> (stored full size before #667) replaced by a
+    /// downscaled copy, so a key keeps a quarter megabyte in memory instead of the whole picture. The
+    /// file stays as it is. Pack icons carry no crop window, so nothing measures them in source pixels.
+    /// </summary>
+    private static SKBitmap ShrinkPackIcon(string relativePath, SKBitmap bitmap)
+    {
+        if (bitmap == null || Math.Max(bitmap.Width, bitmap.Height) <= IconMaxEdge ||
+            !relativePath.Replace('\\', '/').TrimStart('/').StartsWith(IconsPrefix, StringComparison.OrdinalIgnoreCase))
+            return bitmap;
+
+        SKBitmap scaled = Downscale(bitmap, IconMaxEdge);
+        bitmap.Dispose();
+        return scaled;
+    }
+
+    /// <summary>A copy of <paramref name="source"/> whose longest edge is <paramref name="maxEdge"/>, aspect kept.</summary>
+    private static SKBitmap Downscale(SKBitmap source, int maxEdge)
+    {
+        float scale = (float)maxEdge / Math.Max(source.Width, source.Height);
+        SKImageInfo info = new(
+            Math.Max(1, (int)Math.Round(source.Width * scale)),
+            Math.Max(1, (int)Math.Round(source.Height * scale)),
+            SKColorType.Bgra8888, SKAlphaType.Premul);
+        SKBitmap scaled = new(info);
+        source.ScalePixels(scaled, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
+        return scaled;
+    }
+
     public SKBitmap Load(string relativePath)
     {
         if (string.IsNullOrWhiteSpace(relativePath)) return null;
@@ -109,6 +173,7 @@ public class AssetService : IAssetService
             var bitmap = string.Equals(Path.GetExtension(absolute), ".svg", StringComparison.OrdinalIgnoreCase)
                 ? RasterizeSvg(absolute)
                 : SKBitmap.Decode(absolute);
+            bitmap = ShrinkPackIcon(relativePath, bitmap);
             if (bitmap != null)
             {
                 // Cached assets are only ever drawn from. Without the flag Skia copies the whole

@@ -22,7 +22,8 @@ public sealed class ResumeDetectingSystemPowerService(ISystemPowerService inner)
     private static readonly TimeSpan SuspendGap = TimeSpan.FromSeconds(25);
 
     /// <summary>A gap right after the platform service reported the resume itself is the
-    /// same wake — reported once, not twice.</summary>
+    /// same wake — reported once, not twice. The same holds the other way round: the timer can
+    /// tick before the platform's own wake notification arrives (#522).</summary>
     private static readonly TimeSpan DuplicateWindow = TimeSpan.FromSeconds(60);
 
     public event EventHandler Suspending;
@@ -46,9 +47,25 @@ public sealed class ResumeDetectingSystemPowerService(ISystemPowerService inner)
         _timer = new Timer(_ => Tick(), null, TickInterval, TickInterval);
     }
 
-    private void OnInnerSuspending(object sender, EventArgs e) => Suspending?.Invoke(this, EventArgs.Empty);
+    private void OnInnerSuspending(object sender, EventArgs e)
+    {
+        // A sleep in between makes the next wake a new one, however soon it comes.
+        _lastResumeUtc = DateTime.MinValue;
+        Suspending?.Invoke(this, EventArgs.Empty);
+    }
 
-    private void OnInnerResuming(object sender, EventArgs e) => RaiseResume("reported by the OS");
+    private void OnInnerResuming(object sender, EventArgs e)
+    {
+        // The clock check may already have reported this wake; reconnecting a second time would
+        // tear down the link the first reconnect just built.
+        if (DateTime.UtcNow - _lastResumeUtc < DuplicateWindow)
+        {
+            Console.WriteLine("[Power] Wake reported by the OS after the clock check already caught it; ignored.");
+            return;
+        }
+
+        RaiseResume("reported by the OS");
+    }
 
     private void Tick()
     {

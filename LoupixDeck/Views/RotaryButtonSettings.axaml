@@ -94,7 +94,7 @@
                                                             <ComboBox Grid.Column="1"
                                                                       HorizontalAlignment="Stretch"
                                                                       ItemsSource="{Binding Options}"
-                                                                      SelectedItem="{Binding Value, Mode=TwoWay}"
+                                                                      SelectedItem="{Binding SelectedOption, Mode=TwoWay}"
                                                                       IsVisible="{Binding IsEnum}" />
                                                             <CheckBox Grid.Column="1"
                                                                       IsChecked="{Binding BoolValue, Mode=TwoWay}"
@@ -238,11 +238,26 @@
     <Grid>
         <Grid RowDefinitions="Auto,Auto,*" Margin="12">
 
-            <!-- Title -->
-            <TextBlock Grid.Row="0"
-                       Text="{Binding KnobLabel}"
-                       FontSize="22" FontWeight="Bold"
-                       Margin="0,0,0,8" />
+            <!-- Title, with undo / redo of the edits made in this editor (issue #622). -->
+            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                <TextBlock Grid.Column="0"
+                           Text="{Binding KnobLabel}"
+                           FontSize="22" FontWeight="Bold"
+                           VerticalAlignment="Center" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4"
+                            VerticalAlignment="Center">
+                    <Button Classes="toolbar"
+                            FontFamily="{StaticResource MdiFont}"
+                            Content="&#xF054C;" FontSize="16"
+                            Command="{Binding History.UndoCommand, FallbackValue={x:Null}}"
+                            ToolTip.Tip="{loc:Tr History_UndoTip}" />
+                    <Button Classes="toolbar"
+                            FontFamily="{StaticResource MdiFont}"
+                            Content="&#xF044E;" FontSize="16"
+                            Command="{Binding History.RedoCommand, FallbackValue={x:Null}}"
+                            ToolTip.Tip="{loc:Tr History_RedoTip}" />
+                </StackPanel>
+            </Grid>
 
             <!-- OFF toggle + side-strip label sit directly under the title, above
                  the command slots. The label shows on the dial's side-strip segment

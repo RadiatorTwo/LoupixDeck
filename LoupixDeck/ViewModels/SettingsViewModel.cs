@@ -36,6 +36,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     private readonly IDeviceService _deviceService;
     private readonly IPageManager _pageManager;
     private readonly IDialogService _dialogService;
+    private readonly IButtonClipboardService _clipboard;
     private readonly IInterceptionService _interceptionService;
     private readonly IPluginManager _pluginManager;
     private readonly IAutostartService _autostart;
@@ -81,6 +82,16 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         p => _pageManager.DuplicateTouchButtonPage(_pageManager.TouchButtonPages.IndexOf(p)),
         static p => p != null);
     public IRelayCommand<TouchButtonPage> EditWallpaperCommand => field ??= Relay.Create<TouchButtonPage>(p => _ = EditWallpaper(p), p => p != null);
+
+    // A page that shows an earlier page's background copies that one, because that is what its
+    // thumbnail shows (issue #663).
+    public IRelayCommand<TouchButtonPage> CopyPageBackgroundCommand => field ??= Relay.Create<TouchButtonPage>(
+        p => _clipboard.CopyPageBackground(p.HasOwnBackground() ? p : p.InheritedWallpaperSource ?? p),
+        static p => p != null);
+
+    public IRelayCommand<TouchButtonPage> PastePageBackgroundCommand => field ??= Relay.Create<TouchButtonPage>(
+        p => _ = PastePageBackground(p),
+        p => p != null && _clipboard.CanPasteInto(ButtonKind.PageBackground));
 
     public IRelayCommand EditPageCommandsCommand => field ??= Relay.Create<object>(
         p => _ = EditPageCommands(p),
@@ -155,6 +166,21 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     }
 
     /// <summary>
+    /// Start maximized with both side panels open. Global (WindowSettings); turning it on clears
+    /// <see cref="StartMinimizedToTray"/>, whose checkbox is disabled while it is on.
+    /// </summary>
+    public bool StartMaximized
+    {
+        get => WindowSettings.StartMaximized;
+        set
+        {
+            WindowSettings.StartMaximized = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(StartMinimizedToTray));
+        }
+    }
+
+    /// <summary>
     /// App-focus page switching is available on Windows and on Linux (X11/XWayland).
     /// Gates the "App Switching" settings page — wider than <see cref="IsWindows"/>,
     /// so the editor stays hidden only on macOS / unsupported platforms.
@@ -172,6 +198,12 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     /// screen saver" depends on (issue #382). Windows only.
     /// </summary>
     public bool IsDesktopScreenSaverSupported { get; }
+
+    /// <summary>
+    /// Whether this platform reports the session lock state, which "Turn off while the computer
+    /// is locked" depends on (issue #522). macOS only.
+    /// </summary>
+    public bool IsSessionLockSupported { get; }
 
     public SettingsViewModel(LoupedeckConfig config,
         IDeviceService deviceService,
@@ -191,9 +223,13 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         IDeviceController controller,
         ResolvedDevice device,
         LinuxDiagnosticsViewModel diagnostics,
-        IDisplayStateService displayState)
+        IDisplayStateService displayState,
+        ISessionLockService sessionLock,
+        IButtonClipboardService clipboard)
     {
+        _clipboard = clipboard;
         IsDisplayStateSupported = displayState.IsSupported;
+        IsSessionLockSupported = sessionLock.IsSupported;
         IsDesktopScreenSaverSupported = displayState.IsScreenSaverSupported;
         _companions = companions;
         Diagnostics = diagnostics;
@@ -223,6 +259,11 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
 
         // The companion editor listens to the root-level coordinator; unhook it with the window.
         _ = DialogResult.Task.ContinueWith(_ => _companionGroups?.Dispose(),
+            TaskScheduler.Default);
+
+        // Paste background enables once something copies one, even from the main window.
+        _clipboard.Changed += OnClipboardChanged;
+        _ = DialogResult.Task.ContinueWith(_ => _clipboard.Changed -= OnClipboardChanged,
             TaskScheduler.Default);
 
         // A companion's profiles follow its master and are read-only here. Joining or leaving a group,
@@ -1354,6 +1395,24 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
 
     public IconLayerDefaults IconDefaults => LayerDefaults.Icon;
 
+    /// <summary>Holds the app options new launch commands start with (issue #647).</summary>
+    public LayerDefaultSettings AppDefaults => LayerDefaults.Current;
+
+    /// <summary>The layout templates a key can get when an app is put on it, labelled as the button editor labels them.</summary>
+    public IReadOnlyList<LayoutTemplateOption> AppLayoutChoices { get; } =
+        LayoutTemplateOption.CreateAll().Where(o => o.Template != null).ToList();
+
+    public LayoutTemplateOption SelectedAppLayoutChoice
+    {
+        get => AppLayoutChoices.FirstOrDefault(o => o.Template == LayerDefaults.AppLayout);
+        set
+        {
+            if (value?.Template is not { } template) return;
+            LayerDefaults.Current.AppLayout = template;
+            OnPropertyChanged();
+        }
+    }
+
     // ───────── About ─────────
 
     public string Version { get; }
@@ -1372,6 +1431,31 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         if (page == null) return;
         await _dialogService.ShowDialogAsync<TouchPageWallpaperSettingsViewModel, DialogResult>(
             vm => vm.Initialize(page));
+    }
+
+    private void OnClipboardChanged() =>
+        Dispatcher.UIThread.Post(() => PastePageBackgroundCommand.NotifyCanExecuteChanged());
+
+    /// <summary>
+    /// Replaces the background of <paramref name="page"/> with the copied one, asking first when
+    /// the page has a background of its own. Saved with the rest of the window on close.
+    /// </summary>
+    private async Task PastePageBackground(TouchButtonPage page)
+    {
+        if (page == null || !_clipboard.CanPasteInto(ButtonKind.PageBackground)) return;
+
+        if (page.HasOwnBackground())
+        {
+            DialogResult result = await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
+                vm.Configure(
+                    Loc.Tr("Confirm_OverwriteBackgroundMessage"),
+                    title: Loc.Tr("Confirm_OverwriteButtonTitle"),
+                    confirmText: Loc.Tr("Confirm_Overwrite"),
+                    cancelText: Loc.Tr("Confirm_Cancel")));
+            if (!result.IsConfirmed) return;
+        }
+
+        _clipboard.PasteBackgroundInto(page);
     }
 
     private async Task EditPageCommands(object page)

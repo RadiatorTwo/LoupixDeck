@@ -37,6 +37,7 @@ public static class LayerDefaults
                 if (_current == null)
                 {
                     _current = Load();
+                    _current.PropertyChanged += OnChanged;
                     _current.Text.PropertyChanged += OnChanged;
                     _current.Icon.PropertyChanged += OnChanged;
                 }
@@ -49,6 +50,9 @@ public static class LayerDefaults
     public static TextLayerDefaults Text => Current.Text;
 
     public static IconLayerDefaults Icon => Current.Icon;
+
+    /// <summary>The layout a key gets when an app is put on it.</summary>
+    public static Services.Actions.ButtonTemplate AppLayout => Current.AppLayout;
 
     private static LayerDefaultSettings Load()
     {
@@ -120,32 +124,43 @@ public static class LayerDefaults
     /// <summary>The icon size as a share of the key: the default when it is on, else <paramref name="builtIn"/>.</summary>
     public static double IconSizeOr(double builtIn) => Icon.Enabled ? Math.Clamp(Icon.SizePercent, 5, 100) / 100.0 : builtIn;
 
-    /// <summary>Gives <paramref name="layer"/> the default colour, weight, slant and outline.</summary>
-    public static void ApplyTextStyle(TextLayer layer)
+    /// <summary>
+    /// Gives <paramref name="layer"/> the default colour, weight, slant and outline. Without
+    /// <paramref name="includeColor"/> the layer keeps its own text colour.
+    /// </summary>
+    public static void ApplyTextStyle(TextLayer layer, bool includeColor = true)
     {
         TextLayerDefaults text = Text;
         if (layer == null || !text.Enabled)
             return;
 
-        layer.TextColor = text.TextColor;
+        if (includeColor)
+            layer.TextColor = text.TextColor;
         layer.Bold = text.Bold;
         layer.Italic = text.Italic;
         layer.Outlined = text.Outlined;
         layer.OutlineColor = text.OutlineColor;
     }
 
-    /// <summary>Gives <paramref name="layer"/> the default tint, gradient, outline and shadow.</summary>
-    public static void ApplyIconStyle(SymbolLayer layer)
+    /// <summary>
+    /// Gives <paramref name="layer"/> the default tint, gradient, outline and shadow. Without
+    /// <paramref name="includeColors"/> the layer keeps its own tint and gradient.
+    /// </summary>
+    public static void ApplyIconStyle(SymbolLayer layer, bool includeColors = true)
     {
         IconLayerDefaults icon = Icon;
         if (layer == null || !icon.Enabled)
             return;
 
-        layer.Tint = icon.Tint;
-        layer.UseGradient = icon.UseGradient;
-        layer.GradientStartColor = icon.GradientStartColor;
-        layer.GradientEndColor = icon.GradientEndColor;
-        layer.GradientAngle = icon.GradientAngle;
+        if (includeColors)
+        {
+            layer.Tint = icon.Tint;
+            layer.UseGradient = icon.UseGradient;
+            layer.GradientStartColor = icon.GradientStartColor;
+            layer.GradientEndColor = icon.GradientEndColor;
+            layer.GradientAngle = icon.GradientAngle;
+        }
+
         layer.Outlined = icon.Outlined;
         layer.OutlineColor = icon.OutlineColor;
         layer.OutlineWidth = icon.OutlineWidth;

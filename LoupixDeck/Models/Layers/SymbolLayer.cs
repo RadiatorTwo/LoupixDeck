@@ -47,6 +47,15 @@ public partial class SymbolLayer : LayerBase
     [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
     public partial bool KeepOriginalColors { get; set; }
 
+    /// <summary>
+    /// Marks one of the bars the "Zone dividers" option of a tap-zone strip draws between its zones
+    /// (issue #630), so unticking the option finds them again. Otherwise a normal layer the user may
+    /// restyle, move or delete. Written only when set, so other layers save unchanged.
+    /// </summary>
+    [ObservableProperty]
+    [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+    public partial bool IsZoneDivider { get; set; }
+
     /// <summary>True when the layer shows a pack icon rather than a font glyph.</summary>
     [JsonIgnore]
     public bool IsImageIcon => !string.IsNullOrEmpty(IconAssetPath);

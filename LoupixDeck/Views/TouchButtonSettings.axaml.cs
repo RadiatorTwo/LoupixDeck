@@ -1,4 +1,4 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
 using Avalonia.Input;
@@ -138,6 +138,15 @@ public partial class TouchButtonSettings : Window
 
         // Copy/cut/paste/delete of the selected layer (issue #583).
         AddHandler(KeyDownEvent, OnLayerShortcutKeyDown, RoutingStrategies.Bubble);
+
+        // Arrow keys nudge the selected layer (issue #623). Tunnel, so the layer list and the
+        // preview scroller don't consume the keys for selection or scrolling first.
+        AddHandler(KeyDownEvent, OnLayerNudgeKeyDown, RoutingStrategies.Tunnel);
+
+        // Ctrl +/- and Ctrl 0 zoom the preview, Ctrl + mouse wheel anywhere in the window too, as in
+        // the main window (issue #645). Tunnel, so the wheel is ours before a scroller pans with it.
+        AddHandler(KeyDownEvent, OnZoomKeyDown, RoutingStrategies.Tunnel);
+        AddHandler(PointerWheelChangedEvent, OnZoomWheel, RoutingStrategies.Tunnel);
 
         // Card-based command picker → sequence-strip assignment (issue #171).
         PickerControl.CommandActivated += Picker_CommandActivated;
@@ -704,15 +713,47 @@ public partial class TouchButtonSettings : Window
             vm.ClearWheelHover();
     }
 
+    private void OnZoomKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Handled || e.KeyModifiers != KeyModifiers.Control || DataContext is not TouchButtonSettingsViewModel vm)
+            return;
+
+        System.Windows.Input.ICommand command = e.Key switch
+        {
+            Key.OemPlus or Key.Add => vm.ZoomInCommand,
+            Key.OemMinus or Key.Subtract => vm.ZoomOutCommand,
+            Key.D0 or Key.NumPad0 => vm.ResetZoomCommand,
+            _ => null
+        };
+        if (command == null) return;
+
+        command.Execute(null);
+        e.Handled = true;
+    }
+
+    private void OnZoomWheel(object sender, PointerWheelEventArgs e)
+    {
+        if ((e.KeyModifiers & KeyModifiers.Control) == 0 || e.Delta.Y == 0 ||
+            DataContext is not TouchButtonSettingsViewModel vm)
+            return;
+
+        vm.ZoomByWheel(e.Delta.Y);
+        e.Handled = true;
+    }
+
     /// <summary>Right-click on a row of the layer list: selects that layer and opens its menu.</summary>
     private static readonly KeyGesture CopyGesture = new(Key.C, KeyModifiers.Control);
     private static readonly KeyGesture CutGesture = new(Key.X, KeyModifiers.Control);
     private static readonly KeyGesture PasteGesture = new(Key.V, KeyModifiers.Control);
     private static readonly KeyGesture DeleteGesture = new(Key.Delete);
+    private static readonly KeyGesture UndoGesture = new(Key.Z, KeyModifiers.Control);
+    private static readonly KeyGesture RedoGesture = new(Key.Z, KeyModifiers.Control | KeyModifiers.Shift);
+    private static readonly KeyGesture RedoAltGesture = new(Key.Y, KeyModifiers.Control);
 
     /// <summary>
     /// Ctrl+C / Ctrl+X / Ctrl+V / Delete act on the selected layer, the same gestures as for buttons
-    /// in the main window. Not while a text field has focus: its own text editing wins, also when it
+    /// in the main window; Ctrl+Z undoes and Ctrl+Shift+Z / Ctrl+Y redo (issue #622). Not while a
+    /// text field has focus: its own text editing wins, also when it
     /// leaves the key unhandled (Delete at the end of the text).
     /// </summary>
     private void OnLayerShortcutKeyDown(object sender, KeyEventArgs e)
@@ -726,11 +767,71 @@ public partial class TouchButtonSettings : Window
             CutGesture.Matches(e) ? vm.CutLayerCommand :
             PasteGesture.Matches(e) ? vm.PasteLayerCommand :
             DeleteGesture.Matches(e) ? vm.DeleteLayerKeyCommand :
+            UndoGesture.Matches(e) ? vm.History?.UndoCommand :
+            RedoGesture.Matches(e) || RedoAltGesture.Matches(e) ? vm.History?.RedoCommand :
             null;
         if (command == null) return;
 
         command.Execute(null);
         e.Handled = true;
+    }
+
+    /// <summary>
+    /// Arrow keys move the selected layer by one device pixel, Shift+arrow by ten. With snap-to-grid
+    /// on, the layer jumps to the next grid line instead. Only while the focus is on the preview or
+    /// the layer list (or nowhere), so arrows keep working in every other control.
+    /// </summary>
+    private void OnLayerNudgeKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Handled || DataContext is not TouchButtonSettingsViewModel vm) return;
+        if (!vm.CanEditCanvas || vm.SelectedLayer is not { } layer || vm.ButtonData == null) return;
+        if (e.KeyModifiers is not (KeyModifiers.None or KeyModifiers.Shift)) return;
+
+        (int dirX, int dirY) = e.Key switch
+        {
+            Key.Left => (-1, 0),
+            Key.Right => (1, 0),
+            Key.Up => (0, -1),
+            Key.Down => (0, 1),
+            _ => (0, 0)
+        };
+        if (dirX == 0 && dirY == 0) return;
+
+        if (FocusManager?.GetFocusedElement() is Visual focused &&
+            !LayerList.IsVisualAncestorOf(focused) && !ReferenceEquals(focused, LayerList) &&
+            !PreviewScroll.IsVisualAncestorOf(focused) && !ReferenceEquals(focused, PreviewScroll) &&
+            !ReferenceEquals(focused, this))
+            return;
+
+        if (vm.SnapToGrid && TryGetMoveBase(vm, layer, out double baseLeft, out double baseTop))
+        {
+            const int step = TouchButtonSettingsViewModel.GridStepDevice;
+            if (dirX != 0)
+                layer.PositionX = SnapStep(baseLeft, layer.PositionX, dirX, step);
+            if (dirY != 0)
+                layer.PositionY = SnapStep(baseTop, layer.PositionY, dirY, step);
+        }
+        else
+        {
+            int step = (e.KeyModifiers & KeyModifiers.Shift) != 0 ? 10 : 1;
+            layer.PositionX += dirX * step;
+            layer.PositionY += dirY * step;
+        }
+
+        e.Handled = true;
+    }
+
+    /// <summary>
+    /// Next position offset in <paramref name="dir"/> that puts the layer's edge on a grid line.
+    /// An edge already off the grid lands on the nearest line in that direction.
+    /// </summary>
+    private static int SnapStep(double baseEdge, int position, int dir, int step)
+    {
+        double edge = baseEdge + position;
+        double target = dir > 0
+            ? (Math.Floor((edge / step) + 1e-6) + 1) * step
+            : (Math.Ceiling((edge / step) - 1e-6) - 1) * step;
+        return (int)Math.Round(target - baseEdge);
     }
 
     private void LayerList_ContextRequested(object sender, ContextRequestedEventArgs e)
@@ -875,6 +976,9 @@ public partial class TouchButtonSettings : Window
             if (!ReferenceEquals(picked, vm.SelectedLayer))
                 vm.SelectedLayer = picked;
 
+            // Take the focus off any slider or field, so arrow keys nudge the layer next.
+            PreviewScroll.Focus(NavigationMethod.Pointer);
+
             // A double-click on a text layer starts typing instead of dragging it.
             if (e.ClickCount == 2 && picked is TextLayer)
             {
@@ -993,27 +1097,34 @@ public partial class TouchButtonSettings : Window
         _startPosX = layer.PositionX;
         _startPosY = layer.PositionY;
 
-        // Capture the rect's device-space origin minus the current position offset, so
-        // snap-to-grid can compute the rect's edge from any candidate position offset.
+        _moveHasBase = TryGetMoveBase(vm, layer, out _moveBaseLeftDev, out _moveBaseTopDev);
+
+        vm.ButtonData.IgnoreRefresh = true;
+    }
+
+    /// <summary>
+    /// The layer rect's device-space origin minus its current position offset, so snap-to-grid
+    /// can compute the rect's edge from any candidate position offset.
+    /// </summary>
+    private static bool TryGetMoveBase(TouchButtonSettingsViewModel vm, LayerBase layer,
+                                       out double baseLeft, out double baseTop)
+    {
         var bounds = BitmapHelper.GetLayerEditorBounds(
             layer,
             vm.EditorCanvasWidth,
             vm.EditorCanvasHeight,
             vm.DeviceWidth,
             vm.DeviceHeight);
-        if (bounds is { } b)
+        if (bounds is not { } b)
         {
-            var scale = vm.EditorToDeviceScale;
-            _moveBaseLeftDev = ((b.Left - vm.FrameOffsetX) / scale) - _startPosX;
-            _moveBaseTopDev = ((b.Top - vm.FrameOffsetY) / scale) - _startPosY;
-            _moveHasBase = true;
-        }
-        else
-        {
-            _moveHasBase = false;
+            baseLeft = baseTop = 0;
+            return false;
         }
 
-        vm.ButtonData.IgnoreRefresh = true;
+        var scale = vm.EditorToDeviceScale;
+        baseLeft = ((b.Left - vm.FrameOffsetX) / scale) - layer.PositionX;
+        baseTop = ((b.Top - vm.FrameOffsetY) / scale) - layer.PositionY;
+        return true;
     }
 
     private void BeginHandleDrag(TouchButtonSettingsViewModel vm, LayerBase layer,

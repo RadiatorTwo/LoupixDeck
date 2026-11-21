@@ -73,6 +73,22 @@ public interface IPageManager
     /// and makes the copy current.</summary>
     Task DuplicateTouchButtonPage(int pageIndex);
 
+    /// <summary>Inserts the touch page of a clipboard snapshot right after the current page and
+    /// shows it (issue #621).</summary>
+    Task PasteTouchButtonPage(string json);
+
+    /// <summary>Inserts the rotary page of a clipboard snapshot right after the side's current
+    /// page and makes it current (issue #621).</summary>
+    void PasteRotaryButtonPage(RotarySide side, string json);
+
+    /// <summary>Replaces the content of the current touch page with a clipboard snapshot, keeping
+    /// the page's id, number and name (issue #644).</summary>
+    Task ReplaceTouchButtonPage(string json);
+
+    /// <summary>Replaces the content of the side's current rotary page with a clipboard snapshot,
+    /// keeping the page's id, number and name (issue #644).</summary>
+    void ReplaceRotaryButtonPage(RotarySide side, string json);
+
     void RefreshTouchButtons();
     void RefreshSimpleButtons();
 
@@ -353,6 +369,14 @@ public class PageManager : IPageManager
         PreviousTouchPageIndex = CurrentTouchPageIndex;
         CurrentTouchPageIndex = pageIndex;
 
+        OnTouchPageChanged?.Invoke(PreviousTouchPageIndex, CurrentTouchPageIndex);
+        await ShowCurrentTouchPage(init, draw);
+    }
+
+    /// <summary>Marks the current touch page selected, signals the new layout and, unless
+    /// <paramref name="draw"/> is false, paints it.</summary>
+    private async Task ShowCurrentTouchPage(bool init, bool draw)
+    {
         foreach (var page in TouchButtonPages)
         {
             page.Selected = false;
@@ -360,7 +384,6 @@ public class PageManager : IPageManager
 
         CurrentTouchButtonPage.Selected = true;
 
-        OnTouchPageChanged?.Invoke(PreviousTouchPageIndex, CurrentTouchPageIndex);
         TouchLayoutChanged?.Invoke();
 
         // The animated path (draw:false) commits page state only; it renders the incoming
@@ -476,10 +499,53 @@ public class PageManager : IPageManager
             return;
 
         RotaryButtonPage copy = PageCloner.Clone(pages[pageIndex], _deviceService.RotaryButtonCount, SideRotaryButtonCount);
-        pages.Insert(pageIndex + 1, copy);
+        InsertRotaryPage(side, pageIndex + 1, copy);
+    }
+
+    public void PasteRotaryButtonPage(RotarySide side, string json)
+    {
+        if (string.IsNullOrEmpty(json)) return;
+
+        RotaryButtonPage page = PageCloner.FromSnapshot(json, side, _deviceService.RotaryButtonCount, SideRotaryButtonCount);
+        InsertRotaryPage(side, GetCurrentRotaryPageIndex(side) + 1, page);
+    }
+
+    public void ReplaceRotaryButtonPage(RotarySide side, string json)
+    {
+        if (string.IsNullOrEmpty(json)) return;
+
+        var pages = GetRotaryPages(side);
+        int index = GetCurrentRotaryPageIndex(side);
+        if (index < 0 || index >= pages.Count) return;
+
+        RotaryButtonPage page = PageCloner.FromSnapshot(json, side, _deviceService.RotaryButtonCount, SideRotaryButtonCount);
+        KeepIdentity(pages[index], page);
+        pages[index] = page;
+
+        ApplyRotaryPage(side, index, init: true);
+    }
+
+    /// <summary>
+    /// Gives a page that replaces <paramref name="target"/> the target's id and number, so context
+    /// rules and companion targets keep pointing at it. A named target keeps its name; an unnamed
+    /// one takes the pasted page's.
+    /// </summary>
+    private static void KeepIdentity(ButtonPageBase target, ButtonPageBase replacement)
+    {
+        replacement.Id = target.Id;
+        replacement.Page = target.Page;
+        if (!string.IsNullOrWhiteSpace(target.Name))
+            replacement.Name = target.Name;
+    }
+
+    private void InsertRotaryPage(RotarySide side, int insertAt, RotaryButtonPage page)
+    {
+        var pages = GetRotaryPages(side);
+        insertAt = Math.Clamp(insertAt, 0, pages.Count);
+        pages.Insert(insertAt, page);
         Renumber(pages);
 
-        ApplyRotaryPage(side, pageIndex + 1, init: true);
+        ApplyRotaryPage(side, insertAt, init: true);
     }
 
     public async Task AddTouchButtonPage(bool init = false)
@@ -533,8 +599,40 @@ public class PageManager : IPageManager
             return;
 
         TouchButtonPage copy = PageCloner.Clone(TouchButtonPages[pageIndex], _deviceService.TouchButtonCount);
-        int insertAt = pageIndex + 1;
-        TouchButtonPages.Insert(insertAt, copy);
+        await InsertTouchPage(pageIndex + 1, copy);
+    }
+
+    public async Task PasteTouchButtonPage(string json)
+    {
+        if (string.IsNullOrEmpty(json)) return;
+
+        TouchButtonPage page = PageCloner.FromSnapshot(json, _deviceService.TouchButtonCount);
+        page.Geometry = _config.Geometry;
+        await InsertTouchPage(CurrentTouchPageIndex + 1, page);
+    }
+
+    public async Task ReplaceTouchButtonPage(string json)
+    {
+        if (string.IsNullOrEmpty(json)) return;
+
+        int index = CurrentTouchPageIndex;
+        if (index < 0 || index >= TouchButtonPages.Count) return;
+
+        TouchButtonPage page = PageCloner.FromSnapshot(json, _deviceService.TouchButtonCount);
+        page.Geometry = _config.Geometry;
+        KeepIdentity(TouchButtonPages[index], page);
+
+        // Folders opened from the old content would no longer match the page under them.
+        ClearFolderPath();
+        TouchButtonPages[index] = page;
+
+        await ShowCurrentTouchPage(init: true, draw: true);
+    }
+
+    private async Task InsertTouchPage(int insertAt, TouchButtonPage page)
+    {
+        insertAt = Math.Clamp(insertAt, 0, TouchButtonPages.Count);
+        TouchButtonPages.Insert(insertAt, page);
         Renumber(TouchButtonPages);
 
         // The startup page is stored by index; keep it on the page it pointed at. Context rules

@@ -50,7 +50,10 @@ public enum SymbolSource
     MdiLight,
 
     /// <summary>A folder of icon files the user added (<see cref="SymbolSourceOption.Pack"/>).</summary>
-    IconPack
+    IconPack,
+
+    /// <summary>The symbols and pack icons chosen last, from any source (<see cref="RecentSymbols"/>).</summary>
+    Recent
 }
 
 public sealed record SymbolSourceOption(SymbolSource Source, string DisplayName, IconPack Pack = null)
@@ -101,6 +104,14 @@ public sealed partial class SymbolCell : ObservableObject
     public bool IsGlyph => Symbol != null;
 
     /// <summary>
+    /// Pixel size of a raster pack icon, e.g. "4000 × 4000 px", so an oversized picture is visible
+    /// before it is picked (#667). Null for glyphs, SVGs and icons whose thumbnail is still loading.
+    /// </summary>
+    public string ResolutionText => _thumbnails?.GetSourceSize(Key) is { } size
+        ? string.Format(Loc.Tr("SymbolPicker_ResolutionFmt"), size.Width, size.Height)
+        : null;
+
+    /// <summary>
     /// Preview of a pack icon. The whole pack is decoded while the picker is open; a cell the grid
     /// shows before its turn moves to the front of the queue, so visible icons come first.
     /// </summary>
@@ -116,7 +127,11 @@ public sealed partial class SymbolCell : ObservableObject
 
             return field;
         }
-        set => SetProperty(ref field, value);
+        set
+        {
+            if (SetProperty(ref field, value))
+                OnPropertyChanged(nameof(ResolutionText));
+        }
     }
 
     [ObservableProperty]
@@ -160,6 +175,9 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
     private int _scanGeneration;
     private string _pendingSelectKey;
     private IconThumbnailLoader _thumbnails;
+
+    // The recently used entries resolved when that source is shown; each is a glyph or a pack icon.
+    private List<(SymbolDefinition Symbol, IconPackEntry Icon)> _recent = [];
 
     public ObservableCollection<SymbolRow> Rows { get; } = [];
 
@@ -227,7 +245,7 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
 
         // A remembered pack that was removed since falls back to the curated list.
         _persistSource = false;
-        SelectedSource = Sources.FirstOrDefault(o => o.Key == saved) ?? Sources[0];
+        SelectedSource = Sources.FirstOrDefault(o => o.Key == saved) ?? CuratedSource();
         _persistSource = true;
     }
 
@@ -238,6 +256,15 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
     public override void Initialize(SymbolPickerRequest parameter)
     {
         _request = parameter ?? new SymbolPickerRequest();
+
+        // The recent list is built synchronously, so whatever is current is selected at once.
+        if (SelectedSource.Source == SymbolSource.Recent)
+        {
+            string current = _request.CurrentPackIconKey ?? _request.CurrentSymbolId;
+            if (!string.IsNullOrEmpty(current))
+                Select(current);
+            return;
+        }
 
         if (IconPackKey.TryParse(_request.CurrentPackIconKey, out string packId, out _))
         {
@@ -259,6 +286,7 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
     {
         return
         [
+            new(SymbolSource.Recent, Loc.Tr("SymbolPicker_SourceRecent")),
             new(SymbolSource.Curated, Loc.Tr("SymbolPicker_SourceCurated")),
             new(SymbolSource.MdiAll, Loc.Tr("SymbolPicker_SourceMdiAll")),
             new(SymbolSource.MdiLight, Loc.Tr("SymbolPicker_SourceMdiLight")),
@@ -268,6 +296,8 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
                 p))
         ];
     }
+
+    private SymbolSourceOption CuratedSource() => Sources.First(static o => o.Source == SymbolSource.Curated);
 
     partial void OnSelectedSourceChanged(SymbolSourceOption value)
     {
@@ -279,12 +309,19 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
         CancelScan();
         PackStatusText = null;
         _packIndex = null;
+        _recent = [];
         // Stop decoding the previous pack; what is decoded stays until the picker closes.
         _thumbnails?.LoadAll([]);
 
         if (value.Pack != null)
         {
             LoadPack(value.Pack);
+            return;
+        }
+
+        if (value.Source == SymbolSource.Recent)
+        {
+            LoadRecent();
             return;
         }
 
@@ -300,6 +337,34 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
                 k, k == SymbolLibrary.OtherCategoryKey ? Loc.Tr("SymbolPicker_OtherCategory") : k))];
 
         // Setting the category runs the filter.
+        SelectedCategory = null;
+        SelectedCategory = Categories[0];
+    }
+
+    /// <summary>
+    /// Resolves the remembered keys. Symbols that no longer exist and icons whose pack or file is gone
+    /// are left out but stay in the list, so they come back once the pack is added again.
+    /// </summary>
+    private void LoadRecent()
+    {
+        foreach (string key in RecentSymbols.Keys)
+        {
+            if (IconPackKey.TryParse(key, out string packId, out string relativePath))
+            {
+                if (IconPackScanner.TryCreateEntry(_iconPacks.Find(packId), relativePath) is { } entry)
+                    _recent.Add((null, entry));
+            }
+            else if (SymbolLibrary.TryGet(key, out SymbolDefinition symbol))
+                _recent.Add((symbol, null));
+        }
+
+        IconPackEntry[] icons = [.. _recent.Where(static r => r.Icon != null).Select(static r => r.Icon)];
+        if (icons.Length > 0)
+            Thumbnails().LoadAll(icons);
+
+        PackStatusText = _recent.Count == 0 ? Loc.Tr("SymbolPicker_RecentEmpty") : null;
+
+        Categories = [AllCategory()];
         SelectedCategory = null;
         SelectedCategory = Categories[0];
     }
@@ -448,7 +513,7 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
 
         _iconPacks.Remove(pack.Id);
         Sources = BuildSources();
-        SelectedSource = Sources[0];
+        SelectedSource = CuratedSource();
     }
 
     partial void OnSelectedCategoryChanged(SymbolCategoryOption value)
@@ -498,7 +563,9 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
         string search = SearchText?.Trim() ?? string.Empty;
         string category = SelectedCategory?.Key ?? SymbolLibrary.AllCategoriesKey;
 
-        List<SymbolCell> filtered = SelectedSource?.Pack != null ? FilterPackIcons(search, category) : FilterSymbols(search, category);
+        List<SymbolCell> filtered = SelectedSource?.Pack != null ? FilterPackIcons(search, category)
+            : SelectedSource?.Source == SymbolSource.Recent ? FilterRecent(search)
+            : FilterSymbols(search, category);
 
         _cellsById.Clear();
         Rows.Clear();
@@ -533,6 +600,17 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
                 (category == SymbolLibrary.AllCategoriesKey || InCategory(s, category, curated)) &&
                 (search.Length == 0 || Matches(s, search)))
             .Select(static s => new SymbolCell(s))
+            .ToList();
+    }
+
+    private List<SymbolCell> FilterRecent(string search)
+    {
+        string[] words = search.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+        return _recent.Where(r => r.Symbol != null
+                ? search.Length == 0 || Matches(r.Symbol, search)
+                : words.All(w => r.Icon.SearchText.Contains(w, StringComparison.Ordinal)))
+            .Select(r => r.Symbol != null ? new SymbolCell(r.Symbol) : new SymbolCell(r.Icon, Thumbnails()))
             .ToList();
     }
 
@@ -587,6 +665,7 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
     {
         if (SelectedCell == null) return;
 
+        RecentSymbols.Record(SelectedCell.Key);
         _request.SelectedSymbol = SelectedCell.Symbol;
         _request.SelectedPackIcon = SelectedCell.Icon;
         Confirm(new DialogResult(true));
@@ -624,6 +703,7 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
         _cellsById.Clear();
         Rows.Clear();
         _packIndex = null;
+        _recent = [];
         SelectedCell = null;
 
         if (hadThumbnails)

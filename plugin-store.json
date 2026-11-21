@@ -64,17 +64,17 @@
       "minSdkVersion": "1.37.0",
       "commandPrefixes": [ "Audio." ],
       "release": {
-        "version": "1.19.0",
-        "tag": "v1.19.0",
-        "publishedAt": "2026-11-14T20:47:50Z",
+        "version": "1.20.0",
+        "tag": "v1.20.0",
+        "publishedAt": "2026-11-19T19:53:08Z",
         "sdkVersion": "1.37",
-        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Audio/releases/tag/v1.19.0",
+        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Audio/releases/tag/v1.20.0",
         "packages": [
           {
             "platform": "any",
-            "fileName": "audio-1.19.0-any.zip",
-            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Audio/releases/download/v1.19.0/audio-1.19.0-any.zip",
-            "sha256": "31443d370a8536c645973ce2700d61f08820a4f9d38562d937d969dee42ed168"
+            "fileName": "audio-1.20.0-any.zip",
+            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Audio/releases/download/v1.20.0/audio-1.20.0-any.zip",
+            "sha256": "a149b5e2d30ef55461ec9fd7681ee598a19c83171fa714fc9f92c9e2c82831ee"
           }
         ]
       }
@@ -246,6 +246,37 @@
             "fileName": "finalcutpro-1.0.0-macos.zip",
             "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.FinalCutPro/releases/download/v1.0.0/finalcutpro-1.0.0-macos.zip",
             "sha256": "419e84f43e07706773410f8ed63101807404d85720bd83ced52defec79a4bda1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gear",
+      "name": "Gear",
+      "description": "Detects Pulsar and Logitech gaming mice and shows battery, polling rate and DPI; switches polling rate and DPI.",
+      "author": "RadiatorTwo",
+      "repository": "RadiatorTwo/LoupixDeck.Plugin.Gear",
+      "icon": "https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck.Plugin.Gear/master/icon.png",
+      "platforms": [
+        "Windows",
+        "Linux"
+      ],
+      "minSdkVersion": "1.31.0",
+      "commandPrefixes": [
+        "Gear."
+      ],
+      "release": {
+        "version": "1.0.0",
+        "tag": "v1.0.0",
+        "publishedAt": "2026-11-15T18:14:51Z",
+        "sdkVersion": "1.31",
+        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Gear/releases/tag/v1.0.0",
+        "packages": [
+          {
+            "platform": "any",
+            "fileName": "gear-1.0.0-any.zip",
+            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Gear/releases/download/v1.0.0/gear-1.0.0-any.zip",
+            "sha256": "236a8995e0d2108530b8989599018e1148a5274260b5d88088029e3db7752b8a"
           }
         ]
       }
@@ -547,17 +578,17 @@
       "minSdkVersion": "1.36.0",
       "commandPrefixes": [ "System.Obs" ],
       "release": {
-        "version": "1.6.0",
-        "tag": "v1.6.0",
-        "publishedAt": "2026-11-05T20:36:51Z",
+        "version": "1.7.0",
+        "tag": "v1.7.0",
+        "publishedAt": "2026-11-20T23:19:57Z",
         "sdkVersion": "1.36.0",
-        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Obs/releases/tag/v1.6.0",
+        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Obs/releases/tag/v1.7.0",
         "packages": [
           {
             "platform": "any",
-            "fileName": "obs-1.6.0-any.zip",
-            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Obs/releases/download/v1.6.0/obs-1.6.0-any.zip",
-            "sha256": "c11a318cf17bee3b9d4c2545852a8c5025acfd4ff529ec3b35347fc20ae51b02"
+            "fileName": "obs-1.7.0-any.zip",
+            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Obs/releases/download/v1.7.0/obs-1.7.0-any.zip",
+            "sha256": "2d616271892fa05c58036d9b095edfb0ef865d464f731ea585673637e83f61de"
           }
         ]
       }
@@ -752,20 +783,20 @@
       "repository": "vividflash/LoupixDeck.Plugin.Twitch",
       "icon": "https://raw.githubusercontent.com/vividflash/LoupixDeck.Plugin.Twitch/main/icon.png",
       "platforms": [ "Windows" ],
-      "minSdkVersion": "1.28.0",
+      "minSdkVersion": "1.30.0",
       "commandPrefixes": [ "Twitch." ],
       "release": {
-        "version": "1.5.0",
-        "tag": "v1.5.0",
-        "publishedAt": "2026-10-09T11:31:50Z",
-        "sdkVersion": "1.28.0",
-        "releaseNotesUrl": "https://github.com/vividflash/LoupixDeck.Plugin.Twitch/releases/tag/v1.5.0",
+        "version": "1.6.0",
+        "tag": "v1.6.0",
+        "publishedAt": "2026-11-18T22:30:46Z",
+        "sdkVersion": "1.30.0",
+        "releaseNotesUrl": "https://github.com/vividflash/LoupixDeck.Plugin.Twitch/releases/tag/v1.6.0",
         "packages": [
           {
             "platform": "windows",
-            "fileName": "twitch-1.5.0-windows.zip",
-            "downloadUrl": "https://github.com/vividflash/LoupixDeck.Plugin.Twitch/releases/download/v1.5.0/twitch-1.5.0-windows.zip",
-            "sha256": "02d580f25b7c1a87e28a55f4d6069e05b8ce443282b84ee257aea58a285d1e4b"
+            "fileName": "twitch-1.6.0-windows.zip",
+            "downloadUrl": "https://github.com/vividflash/LoupixDeck.Plugin.Twitch/releases/download/v1.6.0/twitch-1.6.0-windows.zip",
+            "sha256": "86899e0b89130a1c48fdeb0624d96f0032969dd03134ad488faab81440e350a9"
           }
         ]
       }
@@ -808,21 +839,21 @@
       "repository": "vividflash/LoupixDeck.Plugin.Voicemeeter",
       "icon": "https://raw.githubusercontent.com/vividflash/LoupixDeck.Plugin.Voicemeeter/main/icon.png",
       "platforms": [ "Windows" ],
-      "minSdkVersion": "1.31.0",
+      "minSdkVersion": "1.36.0",
       "commandPrefixes": [ "Voicemeeter." ],
       "release": {
-        "version": "1.4.0",
-        "tag": "v1.4.0",
-        "publishedAt": "2026-10-18T15:55:33Z",
-        "sdkVersion": "1.31.0",
-        "releaseNotesUrl": "https://github.com/vividflash/LoupixDeck.Plugin.Voicemeeter/releases/tag/v1.4.0",
+        "version": "1.5.0",
+        "tag": "v1.5.0",
+        "publishedAt": "2026-11-18T22:30:37Z",
+        "sdkVersion": "1.36.0",
+        "releaseNotesUrl": "https://github.com/vividflash/LoupixDeck.Plugin.Voicemeeter/releases/tag/v1.5.0",
         "packages": [
           {
             "platform": "windows",
             "architectures": [ "x64" ],
-            "fileName": "voicemeeter-1.4.0-windows.zip",
-            "downloadUrl": "https://github.com/vividflash/LoupixDeck.Plugin.Voicemeeter/releases/download/v1.4.0/voicemeeter-1.4.0-windows.zip",
-            "sha256": "78b64a71800d3075a0710958ca321684173f4badbf21e215615e3d9334b70e98"
+            "fileName": "voicemeeter-1.5.0-windows.zip",
+            "downloadUrl": "https://github.com/vividflash/LoupixDeck.Plugin.Voicemeeter/releases/download/v1.5.0/voicemeeter-1.5.0-windows.zip",
+            "sha256": "c4b44be47d5a58b34caddef102206d174818199eff914da114035cb56571b41d"
           }
         ]
       }
@@ -838,17 +869,17 @@
       "minSdkVersion": "1.30.0",
       "commandPrefixes": [ "VSCode." ],
       "release": {
-        "version": "0.1.0",
-        "tag": "v0.1.0",
-        "publishedAt": "2026-10-12T11:42:31Z",
+        "version": "0.2.0",
+        "tag": "v0.2.0",
+        "publishedAt": "2026-11-16T13:59:27Z",
         "sdkVersion": "1.30.0",
-        "releaseNotesUrl": "https://github.com/web-engineer/LoupixDeck.Plugin.VSCode/releases/tag/v0.1.0",
+        "releaseNotesUrl": "https://github.com/web-engineer/LoupixDeck.Plugin.VSCode/releases/tag/v0.2.0",
         "packages": [
           {
             "platform": "any",
-            "fileName": "vscode-0.1.0-any.zip",
-            "downloadUrl": "https://github.com/web-engineer/LoupixDeck.Plugin.VSCode/releases/download/v0.1.0/vscode-0.1.0-any.zip",
-            "sha256": "b6d4e105f8256fb2242c1c839525d9d555feba5b26aa1d1a529e14c72d165430"
+            "fileName": "vscode-0.2.0-any.zip",
+            "downloadUrl": "https://github.com/web-engineer/LoupixDeck.Plugin.VSCode/releases/download/v0.2.0/vscode-0.2.0-any.zip",
+            "sha256": "2327a8b53b73545949a9d349c2ab8b0aec8961266afd2fa13b7b764e21bf6568"
           }
         ]
       }

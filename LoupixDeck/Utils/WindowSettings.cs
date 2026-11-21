@@ -14,6 +14,7 @@ public static class WindowSettings
 {
     private const string StartMinimizedKey = "StartMinimizedToTray";
     private const string CloseButtonKey = "CloseButtonBehavior";
+    private const string StartMaximizedKey = "StartMaximized";
 
     /// <summary>Start hidden, with only the tray icon.</summary>
     public static bool StartMinimizedToTray
@@ -25,6 +26,20 @@ public static class WindowSettings
             return UiSettingsStore.GetBool(StartMinimizedKey, false);
         }
         set => UiSettingsStore.Set(StartMinimizedKey, value);
+    }
+
+    /// <summary>
+    /// Start maximized with the apps and commands panel and the folder panel open (issue #620).
+    /// Excludes <see cref="StartMinimizedToTray"/>: turning it on turns that one off.
+    /// </summary>
+    public static bool StartMaximized
+    {
+        get => UiSettingsStore.GetBool(StartMaximizedKey, false);
+        set
+        {
+            UiSettingsStore.Set(StartMaximizedKey, value);
+            if (value) StartMinimizedToTray = false;
+        }
     }
 
     /// <summary>What the close (X) button does.</summary>

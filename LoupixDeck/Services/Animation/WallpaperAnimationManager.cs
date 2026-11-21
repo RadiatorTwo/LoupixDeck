@@ -187,6 +187,16 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
 
     private void OnTouchLayoutChanged() => Rebuild();
 
+    public void Refresh()
+    {
+        lock (_gate)
+        {
+            if (!_started || _disposed) return;
+        }
+
+        Rebuild();
+    }
+
     private void OnScreensaverStarted()
     {
         _screensaverActive = true;
@@ -239,7 +249,9 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
     {
         if (_disposed) return;
 
-        var slot = _pageManager.CurrentTouchButtonPage?.MainWallpaper;
+        // A companion following its master's backgrounds (issue #665) plays the master's clip.
+        var page = _config?.WallpaperMaster?.CurrentTouchButtonPage ?? _pageManager.CurrentTouchButtonPage;
+        var slot = page?.MainWallpaper;
         WatchSlot(slot);
 
         var wasCarryingStrips = CarriesStrips;

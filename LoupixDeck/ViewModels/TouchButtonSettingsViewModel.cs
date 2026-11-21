@@ -47,6 +47,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             RefreshStateBadges();
             SelectedState = ButtonData.ActiveState;
             RebuildLayerListItems();
+            OnPropertyChanged(nameof(ShowZoneDividers));
 
             SeedAnimatedLayerPreviews();
             UpdateEditorPreview();
@@ -67,6 +68,65 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         OnPropertyChanged(nameof(ResetOnRestart));
         OnPropertyChanged(nameof(ButtonNumber));
         OnPropertyChanged(nameof(ButtonLabel));
+
+        History?.Dispose();
+        History = ButtonData == null
+            ? null
+            : new ButtonEditHistory(() => ButtonSnapshot.CaptureContent(ButtonData), ApplyHistoryStep);
+        OnPropertyChanged(nameof(History));
+    }
+
+    /// <summary>Undo/redo of the edits made in this editor (issue #622).</summary>
+    public ButtonEditHistory History { get; private set; }
+
+    // True while a recorded step is put back, so the restored command is not reconciled as if the
+    // user had just assigned it.
+    private bool _applyingHistory;
+
+    /// <summary>
+    /// Puts recorded content back onto the button and refreshes the editor, staying on the state
+    /// and the layer that were selected when they still exist.
+    /// </summary>
+    private void ApplyHistoryStep(string content)
+    {
+        if (ButtonData == null) return;
+
+        Guid stateId = SelectedState?.Id ?? Guid.Empty;
+        Guid? layerId = SelectedLayer?.Id;
+
+        _applyingHistory = true;
+        try
+        {
+            ButtonSnapshot.Apply(content, ButtonData);
+        }
+        finally
+        {
+            _applyingHistory = false;
+        }
+
+        ButtonState state = ButtonData.States?.FirstOrDefault(s => s.Id == stateId) ?? ButtonData.ActiveState;
+        RefreshStateBadges();
+        // The states are new objects, so this always runs the full state refresh.
+        SelectedState = state;
+        RebuildLayerListItems();
+
+        OnPropertyChanged(nameof(ShowZoneDividers));
+        OnPropertyChanged(nameof(States));
+        OnPropertyChanged(nameof(BackgroundEnabled));
+        OnPropertyChanged(nameof(AreStatesLocked));
+        OnPropertyChanged(nameof(CanEditStates));
+        OnPropertyChanged(nameof(CanDeleteState));
+        OnPropertyChanged(nameof(ResetOnPageChange));
+        OnPropertyChanged(nameof(ResetOnRestart));
+
+        if (layerId != null)
+            SelectedLayer = ButtonData.Layers?.FirstOrDefault(l => l.Id == layerId);
+
+        if (!IsStripCanvas && !IsWheelCanvas)
+        {
+            _dynamicTextManager.Rescan();
+            _buttonAnimationManager.Rescan();
+        }
     }
 
     private readonly ICommandBuilder _commandBuilder;
@@ -76,6 +136,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     private readonly Services.Commands.ICommandStateMaterializer _stateMaterializer;
     private readonly IAssetService _assetService;
     private readonly IDialogService _dialogService;
+    private readonly Services.Commands.ICommandParameterOptions _parameterOptions;
     private readonly IButtonTemplateService _buttonTemplates;
     private readonly ILayerClipboardService _layerClipboard;
     private readonly ISideStripProviderRegistry _sideStripRegistry;
@@ -302,6 +363,12 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     private void ResetZoom() => ZoomFactor = 1.0;
     private void Fit() => FitToViewport();
 
+    // Zoom factor per wheel notch, as in the main window. Touchpads report fractions of a notch.
+    private const double WheelZoomFactor = 1.1;
+
+    /// <summary>Zooms by a Ctrl + mouse wheel turn of <paramref name="notches"/> (issue #645).</summary>
+    public void ZoomByWheel(double notches) => ZoomFactor *= Math.Pow(WheelZoomFactor, notches);
+
     // ───────── Side-strip (Razer) mode ─────────
 
     private RotaryButtonPage _stripPage;
@@ -391,6 +458,61 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// key, or a tap-zone strip (the dial beside each zone). A strip in the other modes draws no canvas.</summary>
     public bool CanAddIndicator => !IsStripCanvas || IsSegmentCommandMode;
 
+    /// <summary>Height of a zone divider bar as a <see cref="LayerBase.ScaleY"/> multiplier.</summary>
+    private const double ZoneDividerThickness = 0.17;
+
+    /// <summary>
+    /// Whether the tap-zone strip shows a bar between its zones (issue #630). Ticking adds one
+    /// symbol layer per boundary, which the user may then restyle like any other layer; unticking
+    /// removes them. There is only ever one set, so this is an option and not an add button.
+    /// </summary>
+    public bool ShowZoneDividers
+    {
+        get => ButtonData?.Layers?.Any(l => l is SymbolLayer { IsZoneDivider: true }) == true;
+        set
+        {
+            if (ButtonData?.Layers == null || !IsSegmentCommandMode || value == ShowZoneDividers) return;
+
+            if (value)
+                AddZoneDividers();
+            else
+                RemoveZoneDividers();
+
+            OnPropertyChanged();
+        }
+    }
+
+    private void AddZoneDividers()
+    {
+        string[] names = ["TouchButton_ZoneDividerTop", "TouchButton_ZoneDividerBottom"];
+        int segmentHeight = DeviceHeight / RotaryButtonPage.StripSegmentCount;
+        for (var boundary = 1; boundary < RotaryButtonPage.StripSegmentCount; boundary++)
+        {
+            SymbolLayer divider = new()
+            {
+                Name = GetUniqueLayerName(Loc.Tr(names[Math.Min(boundary - 1, names.Length - 1)])),
+                SymbolId = "minus",
+                Tint = Colors.Black,
+                IsZoneDivider = true,
+                Scale = 1.0,
+                ScaleY = ZoneDividerThickness,
+                // Positions are offsets from the strip's centre.
+                PositionY = (boundary * segmentHeight) - (DeviceHeight / 2)
+            };
+            AddLayer(divider);
+        }
+    }
+
+    private void RemoveZoneDividers()
+    {
+        List<LayerBase> dividers = ButtonData.Layers.Where(l => l is SymbolLayer { IsZoneDivider: true }).ToList();
+        foreach (LayerBase divider in dividers)
+            ButtonData.Layers.Remove(divider);
+
+        if (_selectedLayer != null && dividers.Contains(_selectedLayer))
+            SelectedLayer = null;
+    }
+
     private static readonly string[] SegmentTitleKeys = ["Slot_TopSegment", "Slot_MiddleSegment", "Slot_BottomSegment"];
 
     /// <summary>The editable command sequence strips: one (<see cref="TouchButton.Command"/>)
@@ -474,7 +596,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
                 CommandSlots.Add(new CommandSequenceSlot(
                     Loc.Tr(SegmentTitleKeys[index]), _commandBuilder, _commandRegistry, _commandLock, _dialogService,
                     () => _stripPage.GetStripSegmentCommand(index),
-                    v => _stripPage.SetStripSegmentCommand(index, string.IsNullOrWhiteSpace(v) ? null : v)));
+                    v => _stripPage.SetStripSegmentCommand(index, string.IsNullOrWhiteSpace(v) ? null : v), _parameterOptions));
                 CommandSlots[^1].Commands.CollectionChanged += (_, _) => RefreshParameterSegments();
             }
         }
@@ -483,7 +605,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             var slot = new CommandSequenceSlot(
                 Loc.Tr("Slot_CommandSequence"), _commandBuilder, _commandRegistry, _commandLock, _dialogService,
                 () => ButtonData.Command,
-                v => ButtonData.Command = string.IsNullOrWhiteSpace(v) ? null : v);
+                v => ButtonData.Command = string.IsNullOrWhiteSpace(v) ? null : v, _parameterOptions);
             slot.CommandInserted += OnMainCommandInserted;
             slot.Commands.CollectionChanged += (_, _) => RefreshParameterSegments();
             CommandSlots.Add(slot);
@@ -1551,9 +1673,11 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         IButtonTemplateService buttonTemplates,
         AppPickerViewModel appList,
         ILayerClipboardService layerClipboard,
-        IButtonStateService buttonStates = null)
+        IButtonStateService buttonStates = null,
+        Services.Commands.ICommandParameterOptions parameterOptions = null)
     {
         AppList = appList;
+        _parameterOptions = parameterOptions;
         _layerClipboard = layerClipboard;
         _buttonStates = buttonStates;
         _commandLock = commandLock;
@@ -1894,12 +2018,25 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
                 IconColorAnalysis.GetContentAspectRatio(icon) ?? 1.0);
             layer.PositionY = (int)Math.Round(((segment + 0.5) * zoneHeight) - (DeviceHeight / 2.0));
         }
-        else if (!IsStripCanvas)
+
+        LayerBase selected = layer;
+        if (segment < 0 && !IsStripCanvas)
         {
             LayerDefaults.ApplyToNewIcon(layer, DeviceWidth, DeviceHeight);
+
+            // The preferred layout for apps from Settings may add the app's name as a caption.
+            TextLayer caption = Services.AppLauncher.AppAssignment.ApplyPreferredLayout(ButtonData, layer, app.Name,
+                DeviceWidth, DeviceHeight, GetUniqueLayerName);
+            if (caption != null)
+            {
+                caption.DeviceBaseWidth = DeviceWidth;
+                caption.DeviceBaseHeight = DeviceHeight;
+                if (!ButtonData.Layers.Contains(layer))
+                    selected = caption;
+            }
         }
 
-        SelectedLayer = layer;
+        SelectedLayer = selected;
         UpdateEditorPreview();
     }
 
@@ -2195,9 +2332,14 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
     private void ButtonData_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
+        History?.NotifyChanged();
+
         // Switching the active state swaps the whole layer collection the button projects.
         if (e.PropertyName == nameof(TouchButton.Layers))
+        {
             RebuildLayerListItems();
+            OnPropertyChanged(nameof(ShowZoneDividers));
+        }
 
         if (e.PropertyName == nameof(TouchButton.Command))
         {
@@ -2226,7 +2368,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// </summary>
     private void ReconcileCommandStates()
     {
-        if (ButtonData == null || IsStripCanvas || IsWheelCanvas || _switchingState) return;
+        if (ButtonData == null || IsStripCanvas || IsWheelCanvas || _switchingState || _applyingHistory) return;
 
         Services.Commands.StateSyncResult result = _stateMaterializer.Reconcile(ButtonData);
         switch (result)
@@ -2400,6 +2542,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     private void ButtonData_ItemChanged(object sender, EventArgs e)
     {
         HasEdits = true;
+        History?.NotifyChanged();
 
         if (Interlocked.Exchange(ref _itemChangedRefreshPending, 1) == 1) return;
 
@@ -2417,6 +2560,8 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             OnPropertyChanged(nameof(SelectedFontChoice));
             // Moving a layer into another tap zone changes the dial it follows.
             OnPropertyChanged(nameof(SelectedLayerDialHint));
+            // A divider deleted from the list, or brought back by undo, flips the option.
+            OnPropertyChanged(nameof(ShowZoneDividers));
         });
     }
 
@@ -2502,6 +2647,9 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     public void Cleanup()
     {
         EndTextTyping();
+
+        History?.Dispose();
+        History = null;
 
         if (ButtonData != null)
         {

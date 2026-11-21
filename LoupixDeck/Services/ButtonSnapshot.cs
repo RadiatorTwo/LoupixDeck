@@ -46,6 +46,26 @@ public static class ButtonSnapshot
         return jo.ToString(Formatting.None);
     }
 
+    /// <summary>
+    /// Like <see cref="Capture"/>, but also leaves out which state is active. The editors' undo
+    /// history (issue #622) compares these, so selecting another state to edit is not an edit, and
+    /// applying one keeps the state that is showing.
+    /// </summary>
+    public static string CaptureContent(LoupedeckButton source)
+    {
+        if (source == null) return null;
+
+        var jo = JObject.FromObject(source, Serializer);
+        jo.Remove("Index");
+        jo.Remove("Id");
+        jo.Remove("ActiveStateId");
+        // A stateful button's own command mirrors its active state's; applying the snapshot
+        // re-mirrors it from the state that stays active.
+        if (source is StatefulButton)
+            jo.Remove(nameof(LoupedeckButton.Command));
+        return jo.ToString(Formatting.None);
+    }
+
     /// <summary>Apply a snapshot onto <paramref name="target"/> in place (keeps the target
     /// instance, its Index/Id and its ItemChanged subscription), then re-wire and refresh it.</summary>
     public static void Apply(string json, LoupedeckButton target)
@@ -131,4 +151,31 @@ public static class ButtonSnapshot
                 return button == null;
         }
     }
+
+    /// <summary>True when a touch page holds no user configuration, so a page paste can replace
+    /// it without asking (issue #644).</summary>
+    public static bool IsEmpty(TouchButtonPage page)
+        => page == null
+           || (page.TouchButtons.All(IsEmpty)
+               && !page.HasAnyWallpaper
+               && IsEmpty(page.TouchButtonWrap)
+               && page.WheelModes.Count <= 1
+               && page.WheelModes.All(IsEmpty));
+
+    /// <summary>True when a rotary page holds no user configuration, so a page paste can replace
+    /// it without asking (issue #644).</summary>
+    public static bool IsEmpty(RotaryButtonPage page)
+        => page == null
+           || (page.RotaryButtons.All(IsEmpty)
+               && page.StripMode == StripMode.Segmented
+               && (page.StripCanvas == null || IsEmpty(page.StripCanvas))
+               && (page.StripSegmentCommands ?? []).All(string.IsNullOrEmpty)
+               && IsEmpty(page.SimpleButtonWrap)
+               && IsEmpty(page.KnobLeftWrap)
+               && IsEmpty(page.KnobRightWrap)
+               && IsEmpty(page.KnobPressWrap));
+
+    private static bool IsEmpty(CommandWrap wrap)
+        => wrap == null
+           || (string.IsNullOrWhiteSpace(wrap.PreCommands) && string.IsNullOrWhiteSpace(wrap.PostCommands));
 }

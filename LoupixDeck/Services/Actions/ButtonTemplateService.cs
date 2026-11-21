@@ -78,6 +78,10 @@ public sealed class ButtonTemplateService(IDialogService dialogService, IAssetSe
                 return default;
 
             AddLayer(button.Layers, addedIcon, keyWidthPx, keyHeightPx);
+
+            // The template keeps the colours of the layers it lays out, so the icon it adds for itself
+            // gets the default ones here; size, position and outline follow from the template.
+            LayerDefaults.ApplyIconStyle(addedIcon);
         }
 
         ButtonTemplatePlan plan = ActionAssignment.PlanTemplate(button, template, keyWidthPx, keyHeightPx);
@@ -182,7 +186,9 @@ public sealed class ButtonTemplateService(IDialogService dialogService, IAssetSe
         string relative;
         try
         {
-            relative = assetService.Import(icon.FullPath, "icons");
+            // A key never shows a pack icon larger than this; storing the original would make every
+            // start decode, and keep in memory, a full-size picture per key (#667).
+            relative = assetService.ImportDownscaled(icon.FullPath, AssetService.IconMaxEdge, "icons");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

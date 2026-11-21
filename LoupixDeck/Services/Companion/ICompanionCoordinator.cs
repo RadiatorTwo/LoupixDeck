@@ -128,6 +128,12 @@ public interface ICompanionCoordinator
     /// <summary>True when the active, unpaused group the master leads has folder follow on.</summary>
     bool GetFolderFollow(string masterKey);
 
+    /// <summary>Sets whether the group's companions show the background their master shows.</summary>
+    void SetBackgroundFollow(Guid groupId, bool enabled);
+
+    /// <summary>True when the active, unpaused group the master leads has background follow on.</summary>
+    bool GetBackgroundFollow(string masterKey);
+
     /// <summary>Makes the device the group's master. Refused (false + reason) when the device
     /// already belongs to another group or is a companion of this one.</summary>
     bool TrySetMaster(Guid groupId, string deviceKey, out string error);

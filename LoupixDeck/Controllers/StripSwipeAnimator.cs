@@ -750,6 +750,12 @@ public partial class LoupedeckLiveSController
         var command = page.GetStripSegmentCommand(segment);
         if (!string.IsNullOrEmpty(command))
         {
+            // The strip has no per-button vibration setting, so a tap zone that runs a command
+            // plays the global pattern (Settings -> Feedback), like a touch button without an
+            // override (#628).
+            if (config.HapticEnabled && config.HapticSteps.Count > 0)
+                deviceService.Device?.Vibrate(config.HapticSteps[0].Effect);
+
             // Global knob index space (Left 0–2, Right 3–5) so command context / dynamic-text
             // resolution matches a dial press for this segment's position.
             var globalIndex = (side == RotarySide.Right ? RotaryButtonPage.StripSegmentCount : 0) + segment;

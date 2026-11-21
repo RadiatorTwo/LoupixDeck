@@ -34,6 +34,7 @@
         <StackPanel Grid.Row="0" Margin="16,16,16,8" Spacing="6">
             <SelectableTextBlock Classes="intro" Text="{Binding Intro}" />
             <SelectableTextBlock Classes="intro" Text="{Binding CharacterHint}" />
+            <SelectableTextBlock Classes="intro" Text="{Binding PrimaryModifierHint}" />
         </StackPanel>
 
         <!-- No Padding on the ScrollViewer: it is not part of the scrollable extent
