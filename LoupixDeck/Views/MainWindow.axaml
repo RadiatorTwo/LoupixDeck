@@ -593,6 +593,15 @@
                                                TextTrimming="CharacterEllipsis" MaxWidth="240" />
                                 </StackPanel>
                             </Button>
+                            <!-- Master of a paused group: a hint line like the companion's, so the selector keeps its width. -->
+                            <StackPanel Orientation="Horizontal" Spacing="4" Margin="8,1,4,0"
+                                        IsVisible="{Binding SelectedDevice.ShowsCompanionPausedHint, FallbackValue=False}">
+                                <!-- mdi-pause -->
+                                <TextBlock FontFamily="{DynamicResource MdiFont}" Text="&#xF03E4;" FontSize="11"
+                                           Foreground="{DynamicResource CompanionHintForeground}" VerticalAlignment="Center" />
+                                <TextBlock Text="{loc:Tr MainWindow_CompanionSyncPaused}" FontSize="11"
+                                           Foreground="{DynamicResource CompanionHintForeground}" VerticalAlignment="Center" />
+                            </StackPanel>
                         </StackPanel>
                     </Border>
 

@@ -637,7 +637,8 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     /// <summary>Badge text for the device switcher: "Master", "Companion" (marked while the group is
-    /// paused or stopped), or empty outside a group.</summary>
+    /// stopped), or empty outside a group. A pause is shown under the selector instead, so toggling it
+    /// does not resize the selector.</summary>
     public string CompanionRoleText
     {
         get
@@ -648,15 +649,18 @@ public partial class MainWindowViewModel : ViewModelBase
                 return Loc.Tr("Companion_RoleStoppedFmt", stoppedRole);
             }
 
-            string role = _companions.GetRole(ScopeKey) switch
+            return _companions.GetRole(ScopeKey) switch
             {
                 Models.Companion.CompanionRole.Master => Loc.Tr("Companion_RoleMaster"),
                 Models.Companion.CompanionRole.Companion => Loc.Tr("Companion_RoleCompanion"),
                 _ => string.Empty
             };
-            return role.Length > 0 && _companions.IsPaused(ScopeKey) ? Loc.Tr("Companion_RolePausedFmt", role) : role;
         }
     }
+
+    /// <summary>True on the master of a paused group. A paused companion says so in its
+    /// "follows" hint already.</summary>
+    public bool ShowsCompanionPausedHint => _companions.IsMaster(ScopeKey) && _companions.IsPaused(ScopeKey);
 
     public bool HasCompanionRole => CompanionRoleText.Length > 0;
 
@@ -688,6 +692,7 @@ public partial class MainWindowViewModel : ViewModelBase
             OnPropertyChanged(nameof(IsInCompanionGroup));
             OnPropertyChanged(nameof(IsCompanionSyncPaused));
             OnPropertyChanged(nameof(CompanionSyncToggleTip));
+            OnPropertyChanged(nameof(ShowsCompanionPausedHint));
         });
 
     private void OnThemeVariantChanged(object sender, EventArgs e)

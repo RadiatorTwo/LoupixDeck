@@ -62,7 +62,6 @@
   "Companion_PausedFromMasterFmt": "Paused · {0}",
   "Companion_RoleCompanion": "Companion",
   "Companion_RoleMaster": "Master",
-  "Companion_RolePausedFmt": "{0} (paused)",
   "CompanionMenu_LeftRotaryPageFmt": "Left rotary page {0}",
   "CompanionMenu_OfflineDeviceFmt": "{0} (offline)",
   "CompanionMenu_RightRotaryPageFmt": "Right rotary page {0}",
@@ -1607,6 +1606,7 @@
   "Companions_Start": "Start",
   "Companions_StartTip": "Companions follow the master again with the mirrored profiles they had",
   "Companions_StoppedHint": "Stopped: every device shows its own profiles until the group is started again, also after a restart.",
+  "MainWindow_CompanionSyncPaused": "Sync paused",
   "MainWindow_PauseCompanionSync": "Pause companion sync",
   "MainWindow_ResumeCompanionSync": "Resume companion sync"
 }

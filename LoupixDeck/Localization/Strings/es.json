@@ -62,7 +62,6 @@
   "Companion_PausedFromMasterFmt": "En pausa · {0}",
   "Companion_RoleCompanion": "Acompañante",
   "Companion_RoleMaster": "Maestro",
-  "Companion_RolePausedFmt": "{0} (en pausa)",
   "CompanionMenu_LeftRotaryPageFmt": "Página de dial izquierda {0}",
   "CompanionMenu_OfflineDeviceFmt": "{0} (sin conexión)",
   "CompanionMenu_RightRotaryPageFmt": "Página de dial derecha {0}",
@@ -1607,6 +1606,7 @@
   "Companions_Start": "Iniciar",
   "Companions_StartTip": "Los acompañantes vuelven a seguir al maestro con los perfiles reflejados que tenían",
   "Companions_StoppedHint": "Detenido: cada dispositivo muestra sus propios perfiles hasta que el grupo se inicie de nuevo, también tras reiniciar.",
+  "MainWindow_CompanionSyncPaused": "Sincronización en pausa",
   "MainWindow_PauseCompanionSync": "Pausar la sincronización de acompañantes",
   "MainWindow_ResumeCompanionSync": "Reanudar la sincronización de acompañantes"
 }

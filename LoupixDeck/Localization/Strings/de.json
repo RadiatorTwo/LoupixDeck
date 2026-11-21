@@ -62,7 +62,6 @@
   "Companion_PausedFromMasterFmt": "Pausiert · {0}",
   "Companion_RoleCompanion": "Companion",
   "Companion_RoleMaster": "Master",
-  "Companion_RolePausedFmt": "{0} (pausiert)",
   "CompanionMenu_LeftRotaryPageFmt": "Linke Drehregler-Seite {0}",
   "CompanionMenu_OfflineDeviceFmt": "{0} (offline)",
   "CompanionMenu_RightRotaryPageFmt": "Rechte Drehregler-Seite {0}",
@@ -1607,6 +1606,7 @@
   "Companions_Start": "Starten",
   "Companions_StartTip": "Die Companions folgen wieder dem Master, mit den gespiegelten Profilen, die sie hatten",
   "Companions_StoppedHint": "Gestoppt: Jedes Gerät zeigt seine eigenen Profile, bis die Gruppe wieder gestartet wird, auch nach einem Neustart.",
+  "MainWindow_CompanionSyncPaused": "Sync pausiert",
   "MainWindow_PauseCompanionSync": "Companion-Sync pausieren",
   "MainWindow_ResumeCompanionSync": "Companion-Sync fortsetzen"
 }
