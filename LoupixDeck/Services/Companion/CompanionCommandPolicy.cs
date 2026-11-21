@@ -33,10 +33,24 @@ public static class CompanionCommandPolicy
         !string.IsNullOrEmpty(commandName) &&
         commandName.StartsWith(CompanionCommandPrefix, StringComparison.OrdinalIgnoreCase);
 
+    // Stop commands keep working on the master of a stopped group, so it can start the group again.
+    private static readonly HashSet<string> StopCommands = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Companion.StopGroup",
+        "Companion.StartGroup",
+        "Companion.ToggleStop"
+    };
+
+    /// <summary>True when <paramref name="commandName"/> stops or starts a companion group.</summary>
+    public static bool IsStopCommand(string commandName) =>
+        !string.IsNullOrEmpty(commandName) && StopCommands.Contains(commandName);
+
     /// <summary>True when the device with <paramref name="deviceKey"/> must not run
     /// <paramref name="commandName"/>: a context switch on a companion that follows its master, or a
-    /// companion command on a device that is not an active master.</summary>
+    /// companion command on a device that is not an active master (a stop command also runs on the
+    /// master of a stopped group).</summary>
     public static bool IsBlocked(ICompanionCoordinator coordinator, string deviceKey, string commandName) =>
         (IsContextSwitch(commandName) && coordinator.IsFollowingMaster(deviceKey)) ||
-        (IsCompanionCommand(commandName) && !coordinator.IsMaster(deviceKey));
+        (IsCompanionCommand(commandName) && !coordinator.IsMaster(deviceKey) &&
+         !(IsStopCommand(commandName) && coordinator.LeadsGroup(deviceKey)));
 }

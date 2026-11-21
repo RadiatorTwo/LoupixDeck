@@ -7,7 +7,7 @@ namespace LoupixDeck.Commands;
 
 // Commands a master runs on its whole companion group (issue #232). Like the paging commands they are
 // hidden: CompanionMenuContributor offers them on an active master, and CompanionCommandPolicy refuses
-// every Companion.* command on any other device.
+// every Companion.* command on any other device. The stop commands also run on a stopped group's master.
 
 [Command("Companion.PauseGroup", "Pause Companion Group", "Companions",
     Hidden = true,
@@ -41,6 +41,42 @@ public sealed class ToggleCompanionGroupPauseCommand(ICompanionCoordinator coord
     public Task Execute(string[] parameters)
     {
         coordinator.SetPaused(device.ScopeKey, !coordinator.IsPaused(device.ScopeKey));
+        return Task.CompletedTask;
+    }
+}
+
+[Command("Companion.StopGroup", "Stop Companion Group", "Companions",
+    Hidden = true,
+    Description = "Companions show their own profiles again until the group is started, also after a restart")]
+public sealed class StopCompanionGroupCommand(ICompanionCoordinator coordinator, ResolvedDevice device) : IExecutableCommand
+{
+    public Task Execute(string[] parameters)
+    {
+        CompanionGroupCommandArgs.SetStopped(coordinator, device, true);
+        return Task.CompletedTask;
+    }
+}
+
+[Command("Companion.StartGroup", "Start Companion Group", "Companions",
+    Hidden = true,
+    Description = "Companions follow the master again with the mirrored profiles they had")]
+public sealed class StartCompanionGroupCommand(ICompanionCoordinator coordinator, ResolvedDevice device) : IExecutableCommand
+{
+    public Task Execute(string[] parameters)
+    {
+        CompanionGroupCommandArgs.SetStopped(coordinator, device, false);
+        return Task.CompletedTask;
+    }
+}
+
+[Command("Companion.ToggleStop", "Toggle Companion Group Stop", "Companions",
+    Hidden = true,
+    Description = "Stop the companion group, or start it when stopped")]
+public sealed class ToggleCompanionGroupStopCommand(ICompanionCoordinator coordinator, ResolvedDevice device) : IExecutableCommand
+{
+    public Task Execute(string[] parameters)
+    {
+        CompanionGroupCommandArgs.SetStopped(coordinator, device, !coordinator.IsStopped(device.ScopeKey));
         return Task.CompletedTask;
     }
 }
@@ -114,5 +150,12 @@ internal static class CompanionGroupCommandArgs
     {
         if (!coordinator.IsMaster(device.ScopeKey) || coordinator.FindGroup(device.ScopeKey) is not { } group) return;
         coordinator.SetPageFollow(group.Id, mode);
+    }
+
+    /// <summary>Stops or starts the group the device leads, running or stopped; no-op on any other device.</summary>
+    public static void SetStopped(ICompanionCoordinator coordinator, ResolvedDevice device, bool stopped)
+    {
+        if (!coordinator.LeadsGroup(device.ScopeKey) || coordinator.FindGroup(device.ScopeKey) is not { } group) return;
+        coordinator.SetStopped(group.Id, stopped);
     }
 }

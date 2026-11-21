@@ -1600,5 +1600,13 @@
   "Settings_BrowseCommunityProfilesHint": "Von anderen Nutzern geteilte Profile, Arbeitsbereiche und Seiten durchsuchen und importieren",
   "StarterPicker_BrowseCommunity": "Community-Profile…",
   "History_UndoTip": "Rückgängig (Ctrl+Z)",
-  "History_RedoTip": "Wiederholen (Ctrl+Shift+Z)"
+  "History_RedoTip": "Wiederholen (Ctrl+Shift+Z)",
+  "Companion_RoleStoppedFmt": "{0} (gestoppt)",
+  "Companions_Stop": "Stoppen",
+  "Companions_StopTip": "Die Companions zeigen wieder ihre eigenen Profile, bis du die Gruppe startest. Anders als eine Pause gilt das auch nach einem Neustart.",
+  "Companions_Start": "Starten",
+  "Companions_StartTip": "Die Companions folgen wieder dem Master, mit den gespiegelten Profilen, die sie hatten",
+  "Companions_StoppedHint": "Gestoppt: Jedes Gerät zeigt seine eigenen Profile, bis die Gruppe wieder gestartet wird, auch nach einem Neustart.",
+  "MainWindow_PauseCompanionSync": "Companion-Sync pausieren",
+  "MainWindow_ResumeCompanionSync": "Companion-Sync fortsetzen"
 }

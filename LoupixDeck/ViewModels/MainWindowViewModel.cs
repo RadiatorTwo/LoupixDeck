@@ -637,11 +637,17 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     /// <summary>Badge text for the device switcher: "Master", "Companion" (marked while the group is
-    /// paused), or empty outside a group.</summary>
+    /// paused or stopped), or empty outside a group.</summary>
     public string CompanionRoleText
     {
         get
         {
+            if (_companions.IsStopped(ScopeKey))
+            {
+                string stoppedRole = Loc.Tr(_companions.LeadsGroup(ScopeKey) ? "Companion_RoleMaster" : "Companion_RoleCompanion");
+                return Loc.Tr("Companion_RoleStoppedFmt", stoppedRole);
+            }
+
             string role = _companions.GetRole(ScopeKey) switch
             {
                 Models.Companion.CompanionRole.Master => Loc.Tr("Companion_RoleMaster"),
@@ -654,11 +660,34 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public bool HasCompanionRole => CompanionRoleText.Length > 0;
 
+    /// <summary>True while the device belongs to a running companion group, whose sync the main window
+    /// can pause and resume (issue #675).</summary>
+    public bool IsInCompanionGroup => _companions.GetRole(ScopeKey) != Models.Companion.CompanionRole.None;
+
+    /// <summary>True while the device's companion group is paused.</summary>
+    public bool IsCompanionSyncPaused => _companions.IsPaused(ScopeKey);
+
+    public string CompanionSyncToggleTip =>
+        Loc.Tr(IsCompanionSyncPaused ? "MainWindow_ResumeCompanionSync" : "MainWindow_PauseCompanionSync");
+
+    /// <summary>Pauses the device's companion group, or resumes it when paused. Works from the master
+    /// and from any of its companions.</summary>
+    [RelayCommand]
+    private void ToggleCompanionSyncPause()
+    {
+        string masterKey = _companions.IsMaster(ScopeKey) ? ScopeKey : _companions.GetMasterKey(ScopeKey);
+        if (masterKey != null)
+            _companions.SetPaused(masterKey, !_companions.IsPaused(masterKey));
+    }
+
     private void OnCompanionGroupsChanged() =>
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
             OnPropertyChanged(nameof(CompanionRoleText));
             OnPropertyChanged(nameof(HasCompanionRole));
+            OnPropertyChanged(nameof(IsInCompanionGroup));
+            OnPropertyChanged(nameof(IsCompanionSyncPaused));
+            OnPropertyChanged(nameof(CompanionSyncToggleTip));
         });
 
     private void OnThemeVariantChanged(object sender, EventArgs e)

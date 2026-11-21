@@ -809,13 +809,18 @@
                                             <TextBlock Classes="hint" FontSize="12" IsVisible="{Binding IsIncomplete}"
                                                        TextWrapping="Wrap" Text="{loc:Tr Companions_Incomplete}" />
 
-                                            <!-- Pause: runtime only -->
-                                            <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding !IsIncomplete}">
+                                            <!-- Pause: runtime only. Stop: saved, survives a restart. -->
+                                            <Grid ColumnDefinitions="*,Auto,Auto" IsVisible="{Binding !IsIncomplete}">
                                                 <TextBlock Grid.Column="0" Classes="hint" FontSize="12" TextWrapping="Wrap"
                                                            VerticalAlignment="Center"
                                                            Foreground="{DynamicResource CompanionHintForeground}"
                                                            IsVisible="{Binding IsPaused}"
                                                            Text="{loc:Tr Companions_PausedHint}" />
+                                                <TextBlock Grid.Column="0" Classes="hint" FontSize="12" TextWrapping="Wrap"
+                                                           VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource CompanionHintForeground}"
+                                                           IsVisible="{Binding IsStopped}"
+                                                           Text="{loc:Tr Companions_StoppedHint}" />
                                                 <Button Grid.Column="1" Margin="8,0,0,0" IsVisible="{Binding CanPause}"
                                                         Content="{loc:Tr Companions_Pause}"
                                                         ToolTip.Tip="{loc:Tr Companions_PauseTip}"
@@ -823,6 +828,14 @@
                                                 <Button Grid.Column="1" Margin="8,0,0,0" IsVisible="{Binding IsPaused}"
                                                         Content="{loc:Tr Companions_Resume}"
                                                         Command="{Binding ResumeCommand}" />
+                                                <Button Grid.Column="2" Margin="8,0,0,0" IsVisible="{Binding CanStop}"
+                                                        Content="{loc:Tr Companions_Stop}"
+                                                        ToolTip.Tip="{loc:Tr Companions_StopTip}"
+                                                        Command="{Binding StopCommand}" />
+                                                <Button Grid.Column="2" Margin="8,0,0,0" IsVisible="{Binding IsStopped}"
+                                                        Content="{loc:Tr Companions_Start}"
+                                                        ToolTip.Tip="{loc:Tr Companions_StartTip}"
+                                                        Command="{Binding StartCommand}" />
                                             </Grid>
 
                                             <!-- Master -->

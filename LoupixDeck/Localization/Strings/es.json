@@ -1600,5 +1600,13 @@
   "Settings_BrowseCommunityProfilesHint": "Explorar e importar perfiles, espacios de trabajo y páginas compartidos por otros usuarios",
   "StarterPicker_BrowseCommunity": "Perfiles de la comunidad…",
   "History_UndoTip": "Deshacer (Ctrl+Z)",
-  "History_RedoTip": "Rehacer (Ctrl+Shift+Z)"
+  "History_RedoTip": "Rehacer (Ctrl+Shift+Z)",
+  "Companion_RoleStoppedFmt": "{0} (detenido)",
+  "Companions_Stop": "Detener",
+  "Companions_StopTip": "Los acompañantes vuelven a mostrar sus propios perfiles hasta que inicies el grupo. A diferencia de una pausa, esto se mantiene tras reiniciar.",
+  "Companions_Start": "Iniciar",
+  "Companions_StartTip": "Los acompañantes vuelven a seguir al maestro con los perfiles reflejados que tenían",
+  "Companions_StoppedHint": "Detenido: cada dispositivo muestra sus propios perfiles hasta que el grupo se inicie de nuevo, también tras reiniciar.",
+  "MainWindow_PauseCompanionSync": "Pausar la sincronización de acompañantes",
+  "MainWindow_ResumeCompanionSync": "Reanudar la sincronización de acompañantes"
 }

@@ -28,6 +28,10 @@ public sealed class CommandLockService(ICompanionCoordinator coordinator, Resolv
         if (!CompanionCommandPolicy.IsCompanionCommand(name))
             return null;
 
+        // Stopping and starting act on the whole group, so they name no companion.
+        if (CompanionCommandPolicy.IsStopCommand(name))
+            return coordinator.LeadsGroup(device.ScopeKey) ? null : Loc.Tr("Command_CompanionCommandNeedsMaster");
+
         if (!coordinator.IsMaster(device.ScopeKey))
             return Loc.Tr("Command_CompanionCommandNeedsMaster");
 

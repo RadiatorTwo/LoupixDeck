@@ -1600,5 +1600,13 @@
   "Settings_BrowseCommunityProfilesHint": "Browse and import profiles, workspaces and pages shared by other users",
   "StarterPicker_BrowseCommunity": "Community profiles…",
   "History_UndoTip": "Undo (Ctrl+Z)",
-  "History_RedoTip": "Redo (Ctrl+Shift+Z)"
+  "History_RedoTip": "Redo (Ctrl+Shift+Z)",
+  "Companion_RoleStoppedFmt": "{0} (stopped)",
+  "Companions_Stop": "Stop",
+  "Companions_StopTip": "Companions show their own profiles again until you start the group. Unlike a pause, this lasts across restarts.",
+  "Companions_Start": "Start",
+  "Companions_StartTip": "Companions follow the master again with the mirrored profiles they had",
+  "Companions_StoppedHint": "Stopped: every device shows its own profiles until the group is started again, also after a restart.",
+  "MainWindow_PauseCompanionSync": "Pause companion sync",
+  "MainWindow_ResumeCompanionSync": "Resume companion sync"
 }

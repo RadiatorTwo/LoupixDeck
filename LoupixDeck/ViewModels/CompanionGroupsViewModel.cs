@@ -220,13 +220,25 @@ public sealed partial class CompanionGroupRow : ObservableObject
     /// or the app restarts.</summary>
     public bool IsPaused => !IsIncomplete && _owner.Coordinator.IsPaused(Group.MasterDeviceKey);
 
-    public bool CanPause => !IsIncomplete && !IsPaused;
+    public bool CanPause => !IsIncomplete && !IsPaused && !IsStopped;
+
+    /// <summary>True while the group is stopped (issue #675): its devices show their own profiles
+    /// until it is started again, also across restarts.</summary>
+    public bool IsStopped => !IsIncomplete && Group.Stopped;
+
+    public bool CanStop => !IsIncomplete && !IsStopped;
 
     [RelayCommand]
     private void Pause() => _owner.Coordinator.SetPaused(Group.MasterDeviceKey, true);
 
     [RelayCommand]
     private void Resume() => _owner.Coordinator.SetPaused(Group.MasterDeviceKey, false);
+
+    [RelayCommand]
+    private void Stop() => _owner.Coordinator.SetStopped(Group.Id, true);
+
+    [RelayCommand]
+    private void Start() => _owner.Coordinator.SetStopped(Group.Id, false);
 
     [RelayCommand(CanExecute = nameof(CanAddCompanion))]
     private void AddCompanion()

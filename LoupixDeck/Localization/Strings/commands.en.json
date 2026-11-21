@@ -147,5 +147,11 @@
   "Return another device to the home workspace of its active profile": "Return another device to the home workspace of its active profile",
   "Activate a profile on another device and open its home workspace": "Activate a profile on another device and open its home workspace",
   "Switch another device to a workspace, activating its profile first when needed": "Switch another device to a workspace, activating its profile first when needed",
-  "Open a touch page on another device, switching to its profile and workspace first when needed": "Open a touch page on another device, switching to its profile and workspace first when needed"
+  "Open a touch page on another device, switching to its profile and workspace first when needed": "Open a touch page on another device, switching to its profile and workspace first when needed",
+  "Stop Companion Group": "Stop Companion Group",
+  "Start Companion Group": "Start Companion Group",
+  "Toggle Companion Group Stop": "Toggle Companion Group Stop",
+  "Companions show their own profiles again until the group is started, also after a restart": "Companions show their own profiles again until the group is started, also after a restart",
+  "Companions follow the master again with the mirrored profiles they had": "Companions follow the master again with the mirrored profiles they had",
+  "Stop the companion group, or start it when stopped": "Stop the companion group, or start it when stopped"
 }
