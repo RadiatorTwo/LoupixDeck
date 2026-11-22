@@ -29,7 +29,7 @@
                        HorizontalAlignment="Left" Text="{loc:Tr PluginStore_Intro}" />
 
             <!-- The list is not what the server publishes right now: the offline copy, or one
-                 too old to carry version information. -->
+            too old to carry version information. -->
             <Border Classes="notice" IsVisible="{Binding HasStaleNotice}">
                 <TextBlock Text="{Binding StaleNoticeText}" />
             </Border>
@@ -52,8 +52,8 @@
         </StackPanel>
 
         <!-- ===== Tiles =====
-             Two equal columns; the right inset is a content margin, never ScrollViewer padding,
-             so the last row stays reachable and the scrollbar gets a real gutter. -->
+        Two equal columns; the right inset is a content margin, never ScrollViewer padding,
+        so the last row stays reachable and the scrollbar gets a real gutter. -->
         <ScrollViewer Grid.Row="1">
             <ItemsControl ItemsSource="{Binding Items}" Margin="24,16,10,24">
                 <ItemsControl.ItemsPanel>
@@ -115,9 +115,9 @@
                                 </StackPanel>
 
                                 <!-- Action row: a link on the left, the one action on the right. -->
-                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" Margin="0,6,0,0"
+                                <Grid ColumnDefinitions="2*,3*" ColumnSpacing="8" Margin="0,6,0,0"
                                       IsVisible="{Binding IsIdle}">
-                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                                    <WrapPanel Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Top" ItemSpacing="8" LineSpacing="8">
                                         <Button Classes="ghost"
                                                 Content="{loc:Tr PluginStore_ReleaseNotes}"
                                                 IsVisible="{Binding HasReleaseNotes}"
@@ -128,8 +128,8 @@
                                                 IsVisible="{Binding HasProjectUrl}"
                                                 Command="{Binding $parent[ItemsControl].((vmp:PluginStoreViewModel)DataContext).OpenProjectPageCommand}"
                                                 CommandParameter="{Binding}" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+                                    </WrapPanel>
+                                    <WrapPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Top" ItemSpacing="8" LineSpacing="8" ItemsAlignment="End">
                                         <Button Classes="ghost destructive" Content="{loc:Tr Settings_Remove}"
                                                 IsVisible="{Binding CanRemove}"
                                                 Command="{Binding $parent[ItemsControl].((vmp:PluginStoreViewModel)DataContext).RemoveCommand}"
@@ -157,7 +157,7 @@
                                                 IsVisible="{Binding CanUpdate}"
                                                 Command="{Binding $parent[ItemsControl].((vmp:PluginStoreViewModel)DataContext).InstallCommand}"
                                                 CommandParameter="{Binding}" />
-                                    </StackPanel>
+                                    </WrapPanel>
                                 </Grid>
                             </StackPanel>
                         </Border>
