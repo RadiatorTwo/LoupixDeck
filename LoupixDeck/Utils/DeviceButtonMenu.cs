@@ -27,6 +27,17 @@ public static class DeviceButtonMenu
     {
         if (vm == null) return;
 
+        // A dial label has a menu of its own; it is a Button carrying the key below it, so it is
+        // recognised by its class before the walk below would find that key.
+        if ((e.Source as Visual)?.GetSelfAndVisualAncestors().OfType<Button>()
+                .FirstOrDefault(b => b.Classes.Contains("DialLabel")) is { Tag: string tag } labelButton &&
+            int.TryParse(tag, out int labelDial))
+        {
+            ShowDialLabelMenu(labelButton, labelDial, vm);
+            e.Handled = true;
+            return;
+        }
+
         // Walk up from the clicked element to the nearest interactive device button (one whose
         // CommandParameter is a LoupedeckButton). Anything else (chrome, pagers, empty body)
         // clears the selection and shows no menu.
@@ -76,6 +87,27 @@ public static class DeviceButtonMenu
         menu.ShowAt(button, showAtPointer: true);
         e.Handled = true;
     }
+
+    /// <summary>Edit, copy, cut, paste and clear of the label of dial <paramref name="dial"/>.</summary>
+    private static void ShowDialLabelMenu(Button anchor, int dial, MainWindowViewModel vm)
+    {
+        bool hasLabel = vm.HasDialLabel(dial);
+        MenuFlyout menu = new();
+        menu.Items.Add(new MenuItem
+        {
+            Header = Loc.Tr("DialLabel_Edit"), Command = vm.EditDialLabelCommand, CommandParameter = dial
+        });
+        menu.Items.Add(new Separator());
+        menu.Items.Add(MakeDialLabelItem("ButtonMenu_Copy", vm.CopyDialLabelCommand, dial, hasLabel));
+        menu.Items.Add(MakeDialLabelItem("ButtonMenu_Cut", vm.CutDialLabelCommand, dial, hasLabel));
+        menu.Items.Add(MakeDialLabelItem("ButtonMenu_Paste", vm.PasteDialLabelCommand, dial, vm.CanPasteDialLabel(dial)));
+        menu.Items.Add(new Separator());
+        menu.Items.Add(MakeDialLabelItem("ButtonMenu_Clear", vm.ClearDialLabelCommand, dial, hasLabel));
+        menu.ShowAt(anchor, showAtPointer: true);
+    }
+
+    private static MenuItem MakeDialLabelItem(string headerKey, ICommand command, int dial, bool enabled)
+        => new() { Header = Loc.Tr(headerKey), Command = command, CommandParameter = dial, IsEnabled = enabled };
 
     /// <summary>
     /// The "Layout template" submenu: the four templates the button editor offers for the clicked key,
