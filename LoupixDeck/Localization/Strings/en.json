@@ -1608,5 +1608,15 @@
   "Companions_StoppedHint": "Stopped: every device shows its own profiles until the group is started again, also after a restart.",
   "MainWindow_CompanionSyncPaused": "Sync paused",
   "MainWindow_PauseCompanionSync": "Pause companion sync",
-  "MainWindow_ResumeCompanionSync": "Resume companion sync"
+  "MainWindow_ResumeCompanionSync": "Resume companion sync",
+  "DialLabel_Tooltip": "Dial label: shows what the dial next to it does. Double-click to edit.",
+  "DialLabel_EditorTitleFmt": "Dial {0} label",
+  "DialLabel_PreventObstructionTitle": "Dial labels",
+  "DialLabel_PreventObstructionMessage": "Prevent Dial Labels to obstruct Touch Buttons?\n\nYes lays out the icons and texts of the touch buttons under the labels on the part beside the label while the labels are shown. The buttons themselves are not changed, and this can be switched off again in the settings.",
+  "Settings_DialLabels": "Enable dial labels (Live S only)",
+  "Settings_DialLabelsHint": "Shows a label for each dial over the left edge of the touch button next to it. The labels belong to the dial page, so they change with it. Double-click a label in the device view to edit it.",
+  "Settings_DialLabelsKeepClear": "Keep touch buttons clear of the dial labels",
+  "Settings_DialLabelsKeepClearHint": "Lays out the content of the touch buttons under the labels on the part beside the label, as on a narrower button. The buttons themselves are not changed; switching this off shows them as before.",
+  "CommandOption_Dial": "Dial {0}",
+  "DialLabel_Edit": "Edit label"
 }

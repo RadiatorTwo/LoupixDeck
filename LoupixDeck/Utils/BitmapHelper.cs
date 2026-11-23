@@ -65,7 +65,8 @@ public static class BitmapHelper
             canvas.Scale((float)innerWidth / width, (float)innerHeight / height);
 
             DrawTouchButtonContent(canvas, touchButton, wallpaperToUse, opacityToUse, wallpaperSource, width, height,
-                ShowsFolderBadges(config), touchButton.ValueContext);
+                ShowsFolderBadges(config), touchButton.ValueContext,
+                DialLabelGeometry.KeyInsetFor(config, touchButton, width));
             DrawUnavailableOverlay(canvas, touchButton, width, height);
             DrawRunningIndicator(canvas, touchButton, width, height);
         }
@@ -1426,7 +1427,8 @@ public static class BitmapHelper
             using var canvas = new SKCanvas(bitmap);
 
             DrawTouchButtonContent(canvas, touchButton, wallpaperToUse, opacityToUse, wallpaperSource, width, height,
-                ShowsFolderBadges(config), value is { } v ? new DialRenderContext(null, v) : null);
+                ShowsFolderBadges(config), value is { } v ? new DialRenderContext(null, v) : null,
+                DialLabelGeometry.KeyInsetFor(config, touchButton, width));
             DrawUnavailableOverlay(canvas, touchButton, width, height);
             DrawRunningIndicator(canvas, touchButton, width, height);
         }
@@ -1527,6 +1529,7 @@ public static class BitmapHelper
 
         var (wallpaperToUse, opacityToUse) = ResolveWallpaper(config);
         bool folderBadge = ShowsFolderBadges(config);
+        KeyInset inset = DialLabelGeometry.KeyInsetFor(config, touchButton, width);
         LoupixDeck.PluginSdk.AdjustmentValue? value = touchButton.DisplayValue;
         DialRenderContext? dial = value is { } v ? new DialRenderContext(null, v) : null;
 
@@ -1541,7 +1544,7 @@ public static class BitmapHelper
             if (cache.Under == null || cache.BuiltGeneration != generation ||
                 !ReferenceEquals(cache.Split, animated) ||
                 !ReferenceEquals(cache.Wallpaper, wallpaperToUse) || cache.WallpaperOpacity != opacityToUse ||
-                cache.WallpaperSource != wallpaperSource || cache.FolderBadge != folderBadge ||
+                cache.WallpaperSource != wallpaperSource || cache.FolderBadge != folderBadge || cache.Inset != inset ||
                 !Equals(cache.Value, value) || cache.Width != width || cache.Height != height)
             {
                 cache.Under?.Dispose();
@@ -1552,14 +1555,14 @@ public static class BitmapHelper
                 {
                     DrawTouchButtonBackground(under, touchButton, wallpaperToUse, opacityToUse,
                         wallpaperSource, width, height);
-                    DrawLayers(under, layers.Take(split), width, height, dial);
+                    DrawLayers(under, layers.Take(split), width, height, dial, inset);
                 }
 
                 cache.Over = new SKBitmap(width, height);
                 using (var over = new SKCanvas(cache.Over))
                 {
                     over.Clear(SKColors.Transparent);
-                    DrawLayers(over, layers.Skip(split + 1), width, height, dial);
+                    DrawLayers(over, layers.Skip(split + 1), width, height, dial, inset);
                     if (folderBadge) DrawFolderBadgeIfLinked(over, touchButton, width, height);
                 }
 
@@ -1569,6 +1572,7 @@ public static class BitmapHelper
                 cache.WallpaperOpacity = opacityToUse;
                 cache.WallpaperSource = wallpaperSource;
                 cache.FolderBadge = folderBadge;
+                cache.Inset = inset;
                 cache.Value = value;
                 cache.Width = width;
                 cache.Height = height;
@@ -1578,7 +1582,7 @@ public static class BitmapHelper
             bitmap = new SKBitmap(width, height);
             using var canvas = new SKCanvas(bitmap);
             canvas.DrawBitmap(cache.Under, keyRect, SKSamplingOptions.Default);
-            DrawLayers(canvas, [animated], width, height, dial);
+            DrawLayers(canvas, [animated], width, height, dial, inset);
             canvas.DrawBitmap(cache.Over, keyRect, SKSamplingOptions.Default);
             DrawUnavailableOverlay(canvas, touchButton, width, height);
             DrawRunningIndicator(canvas, touchButton, width, height);
@@ -1671,7 +1675,8 @@ public static class BitmapHelper
             return RenderPreviewBitmap(width, height, scale, canvas =>
             {
                 DrawTouchButtonContent(canvas, touchButton, wallpaperToUse, opacityToUse, wallpaperSource, width, height,
-                    ShowsFolderBadges(config), touchButton.ValueContext);
+                    ShowsFolderBadges(config), touchButton.ValueContext,
+                    DialLabelGeometry.KeyInsetFor(config, touchButton, width));
                 DrawUnavailableOverlay(canvas, touchButton, width, height);
                 DrawRunningIndicator(canvas, touchButton, width, height);
             });
@@ -1688,7 +1693,8 @@ public static class BitmapHelper
         int width,
         int height,
         bool showFolderBadge,
-        DialRenderContext? valueContext)
+        DialRenderContext? valueContext,
+        KeyInset inset = default)
     {
         if (touchButton.IsFolderNavTile)
         {
@@ -1700,7 +1706,7 @@ public static class BitmapHelper
             DrawTouchButtonBackground(canvas, touchButton, wallpaper, wallpaperOpacity,
                 wallpaperSource, width, height);
 
-            DrawLayers(canvas, touchButton.Layers, width, height, valueContext);
+            DrawLayers(canvas, touchButton.Layers, width, height, valueContext, inset);
             if (showFolderBadge) DrawFolderBadgeIfLinked(canvas, touchButton, width, height);
         }
     }
@@ -1927,7 +1933,7 @@ public static class BitmapHelper
     /// like on its own.
     /// </summary>
     public static SKBitmap RenderTouchButtonForeground(TouchButton touchButton, int width, int height,
-        bool showFolderBadge = true)
+        bool showFolderBadge = true, KeyInset inset = default)
     {
         ArgumentNullException.ThrowIfNull(touchButton);
 
@@ -1942,12 +1948,53 @@ public static class BitmapHelper
             }
             else
             {
-                DrawLayers(canvas, touchButton.Layers, width, height, touchButton.ValueContext);
+                DrawLayers(canvas, touchButton.Layers, width, height, touchButton.ValueContext, inset);
                 if (showFolderBadge) DrawFolderBadgeIfLinked(canvas, touchButton, width, height);
             }
             return bitmap;
         }
     }
+
+    /// <summary>
+    /// Renders a Live S dial label (<see cref="RotaryButton.DialLabel"/>) on a transparent
+    /// <paramref name="width"/>×<paramref name="height"/> bitmap: its background colour when enabled,
+    /// whose alpha lets the key below show through, then its layers. Publishes the result to the
+    /// label's <see cref="TouchButton.RenderedImage"/>, which the device view binds and the key
+    /// overlay draws.
+    /// </summary>
+    public static SKBitmap RenderDialLabel(TouchButton label, int width, int height)
+    {
+        ArgumentNullException.ThrowIfNull(label);
+
+        SKBitmap bitmap;
+        lock (SkiaRenderGate.Sync)
+        {
+            bitmap = new SKBitmap(width, height);
+            using var canvas = new SKCanvas(bitmap);
+            canvas.Clear(label.BackgroundEnabled ? label.BackColor.ToSKColor() : SKColors.Transparent);
+            DrawLayers(canvas, label.Layers, width, height, label.ValueContext);
+        }
+
+        bitmap.SetImmutable();
+        label.RenderedImage = bitmap;
+        return bitmap;
+    }
+
+    /// <summary>
+    /// Draws a dial label over the left edge of a key whose top-left corner is at
+    /// (<paramref name="x"/>, <paramref name="y"/>), with a soft shadow that lifts it off the key.
+    /// Must be called under <see cref="SkiaRenderGate"/>.Sync.
+    /// </summary>
+    public static void DrawDialLabelOverlay(SKCanvas canvas, SKBitmap label, int x, int y)
+    {
+        using var paint = new SKPaint();
+        paint.ImageFilter = DialLabelShadow;
+        canvas.DrawBitmap(label, x, y, SKSamplingOptions.Default, paint);
+    }
+
+    // One filter for every label draw: the video wallpaper draws the labels on every frame.
+    private static readonly SKImageFilter DialLabelShadow =
+        SKImageFilter.CreateDropShadow(2, 0, 2, 2, new SKColor(0, 0, 0, 170));
 
     /// <summary>Largest editor-frame extent (canvas px). The frame's longer side maps
     /// to this; the shorter side scales proportionally. A square 90×90 button yields a
@@ -2033,7 +2080,8 @@ public static class BitmapHelper
         TouchButton wheelShared = null,
         int wheelHover = -1,
         bool wheelDividers = true,
-        Func<int, DialRenderContext> stripZoneDial = null)
+        Func<int, DialRenderContext> stripZoneDial = null,
+        Func<SKBitmap> underlay = null)
     {
         ArgumentNullException.ThrowIfNull(canvas);
         ArgumentNullException.ThrowIfNull(touchButton);
@@ -2089,6 +2137,32 @@ public static class BitmapHelper
             // without changing what it shows.
             if (!editingShared)
                 ShadeOutsideSegment(canvas, frame, wheelSplit, wheelSegment);
+        }
+        else if (underlay != null)
+        {
+            // A Live S dial label: the key it sits on shows through wherever the label is
+            // transparent, as on the device.
+            lock (SkiaRenderGate.Sync)
+            {
+                if (underlay() is { } below)
+                {
+                    var source = new SKRect(0, 0, Math.Min(deviceWidth, below.Width), Math.Min(deviceHeight, below.Height));
+                    canvas.DrawBitmap(below, source, frameRect, SKSamplingOptions.Default, paint: null);
+                }
+                else
+                {
+                    using var black = new SKPaint { Color = SKColors.Black };
+                    canvas.DrawRect(frameRect, black);
+                }
+            }
+
+            if (touchButton.BackgroundEnabled)
+            {
+                using var background = new SKPaint { Color = touchButton.BackColor.ToSKColor() };
+                canvas.DrawRect(frameRect, background);
+            }
+
+            DrawEditorSurface(canvas, touchButton, frame, dial, area: null, faded: false, fillBackground: false);
         }
         else
         {
@@ -2357,9 +2431,20 @@ public static class BitmapHelper
     /// </summary>
     private static void DrawLayers(SKCanvas canvas,
         IEnumerable<LayerBase> layers,
-        int width, int height, DialRenderContext? dial = null)
+        int width, int height, DialRenderContext? dial = null, KeyInset inset = default)
     {
         if (layers == null) return;
+
+        // A key under a dial label lays its layers out beside the label, as on a narrower key.
+        int saved = canvas.Save();
+        int maxTextWidth = 0;
+        if (inset.Left > 0)
+        {
+            canvas.Translate(inset.Left, 0);
+            width = Math.Max(1, width - inset.Left);
+            canvas.ClipRect(new SKRect(0, 0, width, height));
+            maxTextWidth = width;
+        }
 
         foreach (var layer in layers)
         {
@@ -2371,7 +2456,7 @@ public static class BitmapHelper
                     DrawImageLayer(canvas, image, width, height);
                     break;
                 case TextLayer text:
-                    DrawTextLayer(canvas, text, width, height, dial);
+                    DrawTextLayer(canvas, text, width, height, dial, maxTextWidth);
                     break;
                 case SymbolLayer symbol:
                     DrawSymbolLayer(canvas, symbol, width, height);
@@ -2384,6 +2469,8 @@ public static class BitmapHelper
                     break;
             }
         }
+
+        canvas.RestoreToCount(saved);
     }
 
     private static void DrawImageLayer(SKCanvas canvas, ImageLayer layer, int width, int height)
@@ -2545,7 +2632,7 @@ public static class BitmapHelper
     };
 
     private static void DrawTextLayer(SKCanvas canvas, TextLayer layer, int width, int height,
-        DialRenderContext? dial = null)
+        DialRenderContext? dial = null, int maxBoxWidth = 0)
     {
         var text = ResolveText(layer, dial);
         if (string.IsNullOrEmpty(text)) return;
@@ -2553,6 +2640,14 @@ public static class BitmapHelper
         var boxW = layer.ResolveBoxWidth(width);
         var boxH = layer.ResolveBoxHeight(height);
         var (boxLeft, boxTop) = TextBoxOrigin(layer, width, height);
+
+        // A narrower box keeps its centre, so centred text stays where it was.
+        if (maxBoxWidth > 0 && boxW > maxBoxWidth)
+        {
+            if (layer.Centered)
+                boxLeft += (boxW - maxBoxWidth) / 2f;
+            boxW = maxBoxWidth;
+        }
 
         var saved = canvas.Save();
         canvas.Translate(boxLeft, boxTop);

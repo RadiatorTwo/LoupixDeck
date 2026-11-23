@@ -102,6 +102,8 @@ public static class ButtonSnapshot
                         rotary.SplitCanvas = null;
                     if (!snapshot.ContainsKey("ShowSplitDividers"))
                         rotary.ShowSplitDividers = true;
+                    if (!snapshot.ContainsKey("DialLabel"))
+                        rotary.DialLabel = null;
                     rotary.RewireAfterLoad();
                     break;
             }
@@ -145,7 +147,8 @@ public static class ButtonSnapshot
                        && !rotary.IsSplit
                        && rotary.Segments is not { Count: > 0 }
                        && rotary.SplitCanvas == null
-                       && rotary.ShowSplitDividers;
+                       && rotary.ShowSplitDividers
+                       && rotary.DialLabel == null;
 
             default:
                 return button == null;

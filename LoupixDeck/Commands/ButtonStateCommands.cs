@@ -111,6 +111,61 @@ public sealed class ResetTouchButtonStatesCommand(IDeviceController controller) 
     }
 }
 
+[Command("System.SetDialLabelState", "Set Dial Label State", "Button States",
+    parameterTemplate: "({Page},{Dial},{State})",
+    parameterNames: ["Page", "Dial", "State"],
+    parameterTypes: [typeof(int), typeof(DialNumber), typeof(string)],
+    RequiresDialLabels = true,
+    Description = "Switch a dial label to one of its states, by dial page number, dial and state name or number")]
+public sealed class SetDialLabelStateCommand(IDeviceController controller) : IExecutableCommand
+{
+    public Task Execute(string[] parameters)
+    {
+        if (parameters is not { Length: 3 } ||
+            !int.TryParse(parameters[0], out int page) ||
+            !ButtonStateTargets.TryParseName(parameters[1], out DialNumber dial))
+        {
+            Console.WriteLine("Usage: System.SetDialLabelState(dialPageNumber,Dial1|Dial2|All,stateName)");
+            return Task.CompletedTask;
+        }
+
+        foreach ((int number, TouchButton label) in ButtonStateTargets.DialLabels(controller, page, dial, "[SetDialLabelState]"))
+            ButtonStateTargets.SetState(label, parameters[2], $"[SetDialLabelState] dial page {page}, dial {number}");
+        return Task.CompletedTask;
+    }
+}
+
+[Command("System.ResetDialLabelStates", "Reset Dial Label States", "Button States",
+    parameterTemplate: "({Page},{Dial})",
+    parameterNames: ["Page", "Dial"],
+    parameterTypes: [typeof(int), typeof(DialNumber)],
+    RequiresDialLabels = true,
+    Description = "Put a dial label of a dial page, or all of them, back to its default state")]
+public sealed class ResetDialLabelStatesCommand(IDeviceController controller) : IExecutableCommand
+{
+    public Task Execute(string[] parameters)
+    {
+        if (parameters is not { Length: > 0 } || !int.TryParse(parameters[0], out int page))
+        {
+            Console.WriteLine("Usage: System.ResetDialLabelStates(dialPageNumber,Dial1|Dial2|All)");
+            return Task.CompletedTask;
+        }
+
+        // No choice made reads as All, as for the other resets.
+        string choice = parameters.Length > 1 ? parameters[1] : null;
+        DialNumber dial = DialNumber.All;
+        if (!string.IsNullOrWhiteSpace(choice) && !ButtonStateTargets.TryParseName(choice, out dial))
+        {
+            Console.WriteLine("Usage: System.ResetDialLabelStates(dialPageNumber,Dial1|Dial2|All)");
+            return Task.CompletedTask;
+        }
+
+        foreach ((_, TouchButton label) in ButtonStateTargets.DialLabels(controller, page, dial, "[ResetDialLabelStates]"))
+            ButtonStateTargets.Reset(label);
+        return Task.CompletedTask;
+    }
+}
+
 /// <summary>Shared lookup and state switching for the button state commands.</summary>
 internal static class ButtonStateTargets
 {
@@ -151,6 +206,38 @@ internal static class ButtonStateTargets
         if (button == null)
             Console.WriteLine($"{logPrefix} page {page} has no {number}");
         return button == null ? [] : [button];
+    }
+
+    /// <summary>
+    /// The dial labels <paramref name="dial"/> stands for on the 1-based dial page <paramref name="page"/>
+    /// of the active workspace, with their 1-based dial number. A dial without a label is skipped; a
+    /// missing page or dial is logged.
+    /// </summary>
+    public static IEnumerable<(int Dial, TouchButton Label)> DialLabels(IDeviceController controller, int page,
+        DialNumber dial, string logPrefix)
+    {
+        System.Collections.ObjectModel.ObservableCollection<RotaryButtonPage> pages = controller.Config.RotaryButtonPages;
+        if (pages == null || page < 1 || page > pages.Count)
+        {
+            Console.WriteLine($"{logPrefix} dial page {page} out of range (1-{pages?.Count ?? 0})");
+            return [];
+        }
+
+        System.Collections.ObjectModel.ObservableCollection<RotaryButton> dials = pages[page - 1].RotaryButtons;
+        if (dials == null)
+            return [];
+
+        List<(int, TouchButton)> labels = [];
+        for (int i = 0; i < dials.Count; i++)
+        {
+            if (dial != DialNumber.All && (int)dial != i + 1) continue;
+            if (dials[i]?.DialLabel is { } label)
+                labels.Add((i + 1, label));
+        }
+
+        if (labels.Count == 0 && dial != DialNumber.All)
+            Console.WriteLine($"{logPrefix} dial page {page} has no label on {dial}");
+        return labels;
     }
 
     /// <summary>

@@ -59,6 +59,7 @@ public static class ButtonContentReset
         button.Segments = [];
         button.SplitCanvas = null;
         button.ShowSplitDividers = true;
+        button.DialLabel = null;
         button.Refresh();
     }
 

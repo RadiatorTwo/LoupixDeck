@@ -1735,7 +1735,42 @@ public class LoupedeckDevice
                 $"Key {index} needs a {rect.Width}x{rect.Height} bitmap, got " +
                 $"{(bitmap == null ? "null" : $"{bitmap.Width}x{bitmap.Height}")}.", nameof(bitmap));
 
-        await DrawCanvas("center", rect.Width, rect.Height, bitmap, rect.Left, rect.Top, autoRefresh);
+        SKBitmap composed = ComposeKeyOverlay(index, bitmap);
+        try
+        {
+            await DrawCanvas("center", rect.Width, rect.Height, composed ?? bitmap, rect.Left, rect.Top, autoRefresh);
+        }
+        finally
+        {
+            composed?.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Optional bitmap drawn over the left edge of a grid key, on top of whatever the key shows (the
+    /// Live S dial labels). Called with the key index under <see cref="SkiaRenderGate"/>.Sync, so it
+    /// may hand out a bitmap that is only valid while the gate is held; returns null for a key
+    /// without one. Applied to every key write and to the composed grid region.
+    /// </summary>
+    public Func<int, SKBitmap> KeyOverlay { get; set; }
+
+    /// <summary>A copy of <paramref name="key"/> with the key's overlay drawn on it, or null when the
+    /// key has none. The caller owns anything returned.</summary>
+    private SKBitmap ComposeKeyOverlay(int index, SKBitmap key)
+    {
+        if (KeyOverlay is not { } overlayAt) return null;
+
+        lock (SkiaRenderGate.Sync)
+        {
+            SKBitmap overlay = overlayAt(index);
+            if (overlay == null) return null;
+
+            var composed = new SKBitmap(key.Width, key.Height);
+            using var canvas = new SKCanvas(composed);
+            canvas.DrawBitmap(key, 0, 0, SKSamplingOptions.Default, paint: null);
+            BitmapHelper.DrawDialLabelOverlay(canvas, overlay, 0, 0);
+            return composed;
+        }
     }
 
     /// <summary>
@@ -2130,7 +2165,48 @@ public class LoupedeckDevice
     {
         ArgumentNullException.ThrowIfNull(gridBitmap);
         var xBase = VisibleX is { Length: > 0 } ? VisibleX[0] : 0;
-        await DrawCanvasRegion("center", gridBitmap.Width, gridBitmap.Height, gridBitmap, xBase, 0, refresh);
+
+        // The key overlays go on here rather than into the composed grids, so they stay in place
+        // while a touch-page slide moves the keys below them.
+        using SKBitmap composed = ComposeGridOverlays(gridBitmap);
+        SKBitmap bitmap = composed ?? gridBitmap;
+        await DrawCanvasRegion("center", bitmap.Width, bitmap.Height, bitmap, xBase, 0, refresh);
+    }
+
+    /// <summary>A copy of the grid region with every key's overlay drawn on it, or null when no key
+    /// has one. The caller owns anything returned.</summary>
+    private SKBitmap ComposeGridOverlays(SKBitmap grid)
+    {
+        if (KeyOverlay is not { } overlayAt) return null;
+
+        lock (SkiaRenderGate.Sync)
+        {
+            SKBitmap composed = null;
+            SKCanvas canvas = null;
+            try
+            {
+                for (int i = 0; i < Columns * Rows; i++)
+                {
+                    if (overlayAt(i) is not { } overlay) continue;
+
+                    if (composed == null)
+                    {
+                        composed = new SKBitmap(grid.Width, grid.Height);
+                        canvas = new SKCanvas(composed);
+                        canvas.DrawBitmap(grid, 0, 0, SKSamplingOptions.Default, paint: null);
+                    }
+
+                    SKRectI rect = GetKeyRectInGridRegion(i);
+                    BitmapHelper.DrawDialLabelOverlay(canvas, overlay, rect.Left, rect.Top);
+                }
+            }
+            finally
+            {
+                canvas?.Dispose();
+            }
+
+            return composed;
+        }
     }
 
     /// <summary>

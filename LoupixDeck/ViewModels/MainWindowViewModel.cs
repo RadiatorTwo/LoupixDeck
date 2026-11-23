@@ -94,6 +94,15 @@ public partial class MainWindowViewModel : ViewModelBase
     /// that side is in FreeDraw mode.</summary>
     public IAsyncRelayCommand EditStripCanvasCommand { get; }
 
+    /// <summary>Opens the layer editor on a Live S dial label; the parameter is the dial index.</summary>
+    public IAsyncRelayCommand<int> EditDialLabelCommand { get; }
+
+    /// <summary>Copy, cut, paste and clear of a Live S dial label; the parameter is the dial index.</summary>
+    public IRelayCommand<int> CopyDialLabelCommand { get; }
+    public IRelayCommand<int> CutDialLabelCommand { get; }
+    public IRelayCommand<int> PasteDialLabelCommand { get; }
+    public IRelayCommand<int> ClearDialLabelCommand { get; }
+
     /// <summary>Opens the layer editor on the current touch page's active CT wheel mode, so its
     /// screen can be styled like a touch button. No-op on devices without a wheel.</summary>
     public IAsyncRelayCommand EditWheelCanvasCommand { get; }
@@ -458,6 +467,15 @@ public partial class MainWindowViewModel : ViewModelBase
         PreviousRightRotaryPageCommand = new RelayCommand(() => PageRotaryForSide(RotarySide.Right, next: false));
 
         EditStripCanvasCommand = new AsyncRelayCommand<RotarySide>(EditStripCanvas_Click);
+        EditDialLabelCommand = new AsyncRelayCommand<int>(EditDialLabel_Click);
+        CopyDialLabelCommand = new RelayCommand<int>(CopyDialLabel);
+        CutDialLabelCommand = new RelayCommand<int>(dial =>
+        {
+            CopyDialLabel(dial);
+            ClearDialLabel(dial);
+        });
+        PasteDialLabelCommand = new RelayCommand<int>(PasteDialLabel);
+        ClearDialLabelCommand = new RelayCommand<int>(ClearDialLabel);
         EditWheelCanvasCommand = new AsyncRelayCommand(EditWheelCanvas_Click);
 
         AddTouchPageCommand = new RelayCommand(AddTouchPageButton_Click);
@@ -875,11 +893,106 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         if (button == null || button.IsFolderNavTile || IsMirroredFolderKey(button)) return;
 
-        await _dialogService.ShowDialogAsync<TouchButtonSettingsViewModel, DialogResult>(vm => vm.Initialize(button));
+        // A key under a Live S dial label is edited on the part beside the label, as it is drawn.
+        int surfaceWidth = LayerSurfaceWidth(button);
+        await _dialogService.ShowDialogAsync<TouchButtonSettingsViewModel, DialogResult>(vm =>
+        {
+            if (surfaceWidth != _geometry.KeySize)
+                vm.SetCanvasSize(surfaceWidth, _geometry.KeySize);
+            vm.Initialize(button);
+        });
 
         LoupedeckController.SaveConfig();
         _dynamicTextManager.Rescan();
         _buttonAnimationManager.Rescan();
+    }
+
+    /// <summary>The dial of the current rotary page whose label is <paramref name="dial"/>, or null.</summary>
+    private RotaryButton DialOfLabel(int dial) =>
+        LoupedeckController.SupportsDialLabels
+            ? LoupedeckController.Config.CurrentRotaryButtonPage?.RotaryButtons.ElementAtOrDefault(dial)
+            : null;
+
+    /// <summary>True when dial <paramref name="dial"/> has a label to copy, cut or clear.</summary>
+    public bool HasDialLabel(int dial) => DialOfLabel(dial)?.DialLabel != null;
+
+    /// <summary>True when the clipboard holds a dial label.</summary>
+    public bool CanPasteDialLabel(int dial) => DialOfLabel(dial) != null && _clipboard.CanPasteInto(ButtonKind.DialLabel);
+
+    private void CopyDialLabel(int dial)
+    {
+        if (DialOfLabel(dial)?.DialLabel is { } label)
+            _clipboard.Copy(label, ButtonKind.DialLabel);
+    }
+
+    private void PasteDialLabel(int dial)
+    {
+        RotaryButton rotary = DialOfLabel(dial);
+        if (rotary == null || !_clipboard.CanPasteInto(ButtonKind.DialLabel)) return;
+
+        // Pasting onto a dial without a label gives it one.
+        rotary.DialLabel ??= new TouchButton(RotaryButton.DialLabelCanvasIndex);
+        _clipboard.PasteInto(rotary.DialLabel);
+        LoupedeckController.SaveConfig();
+        LoupedeckController.RepaintDialLabelKeys();
+    }
+
+    private void ClearDialLabel(int dial)
+    {
+        RotaryButton rotary = DialOfLabel(dial);
+        if (rotary?.DialLabel == null) return;
+
+        rotary.DialLabel = null;
+        LoupedeckController.SaveConfig();
+        LoupedeckController.RepaintDialLabelKeys();
+    }
+
+    /// <summary>Width of the surface <paramref name="key"/>'s layers are laid out on: the key, or the
+    /// part beside a dial label that keeps the key clear.</summary>
+    private int LayerSurfaceWidth(TouchButton key) =>
+        DialLabelGeometry.LayerSurfaceWidth(LoupedeckController.Config, key, _geometry.KeySize);
+
+    /// <summary>
+    /// Opens the layer editor on the label of dial <paramref name="dial"/> on the current rotary page
+    /// (Live S). A label is created for the editor and dropped again when it is closed without an
+    /// edit, so opening and closing leaves the config as it was.
+    /// </summary>
+    private async Task EditDialLabel_Click(int dial)
+    {
+        if (!LoupedeckController.SupportsDialLabels) return;
+
+        RotaryButton rotary = LoupedeckController.Config.CurrentRotaryButtonPage?.RotaryButtons
+            .ElementAtOrDefault(dial);
+        if (rotary == null) return;
+
+        int keySize = _geometry.KeySize;
+        bool created = false;
+        if (rotary.DialLabel == null)
+        {
+            var label = new TouchButton(RotaryButton.DialLabelCanvasIndex);
+            label.BackgroundEnabled = true;
+            label.BackColor = Avalonia.Media.Colors.Black;
+            rotary.DialLabel = label;
+            created = true;
+        }
+
+        // Renders the label and wires its edits, so the device follows the editor live.
+        LoupedeckController.RepaintDialLabelKeys();
+
+        TouchButtonSettingsViewModel editor = null;
+        await _dialogService.ShowDialogAsync<TouchButtonSettingsViewModel, DialogResult>(vm =>
+        {
+            editor = vm;
+            vm.SetCanvasSize(DialLabelGeometry.Width(keySize), keySize);
+            vm.ConfigureDialLabel(dial, LoupedeckController.KeyUnderDialLabel(dial));
+            vm.Initialize(rotary.DialLabel);
+        });
+
+        if (created && editor is { HasEdits: false })
+            rotary.DialLabel = null;
+
+        LoupedeckController.SaveConfig();
+        LoupedeckController.RepaintDialLabelKeys();
     }
 
     private LoupedeckButton _selectedButton;
@@ -1400,7 +1513,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         TouchButton button = (TouchButton)_selectedButton;
         Services.Actions.ButtonTemplateOutcome outcome =
-            await _buttonTemplates.ApplyAsync(button, template, _geometry.KeySize, _geometry.KeySize);
+            await _buttonTemplates.ApplyAsync(button, template, LayerSurfaceWidth(button), _geometry.KeySize);
         if (!outcome.Applied) return;
 
         AfterTemplateApplied();
@@ -1427,6 +1540,19 @@ public partial class MainWindowViewModel : ViewModelBase
         Services.Actions.TemplateApplyResult? result =
             await _buttonTemplates.ApplyToPageAsync(page, template, _geometry.KeySize, _geometry.KeySize, skip);
         if (result is not { ButtonsChanged: > 0 }) return;
+
+        // The keys under the dial labels are laid out again for the narrower surface they are drawn on.
+        foreach (TouchButton key in page.TouchButtons)
+        {
+            if (key == null || skip.Contains(key)) continue;
+
+            int surfaceWidth = LayerSurfaceWidth(key);
+            if (surfaceWidth == _geometry.KeySize) continue;
+
+            HashSet<TouchButton> others = page.TouchButtons.Where(b => !ReferenceEquals(b, key)).ToHashSet();
+            Services.Actions.ActionAssignment.ApplyTemplateToPages([page], template, surfaceWidth, _geometry.KeySize,
+                others, _commandRegistry.DrawsOnKey);
+        }
 
         AfterTemplateApplied();
     }

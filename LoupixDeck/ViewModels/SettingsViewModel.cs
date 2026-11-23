@@ -391,6 +391,50 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
 
     public string DeviceName => _deviceService?.Device?.Type ?? "Device";
 
+    // ───────── Dial labels (#676) ─────────
+
+    /// <summary>True on a Live S, the only device with dial labels.</summary>
+    public bool SupportsDialLabels => _deviceService?.Device is LoupedeckDevice.Device.LoupedeckLiveSDevice;
+
+    /// <summary>
+    /// The dial label switch. Switching it on for the first time asks whether the keys under the
+    /// labels should be kept clear of them (<see cref="LoupedeckConfig.DialLabelsKeepKeysClear"/>).
+    /// </summary>
+    public bool DialLabelsEnabled
+    {
+        get => Config?.DialLabelsEnabled ?? false;
+        set
+        {
+            if (Config == null || Config.DialLabelsEnabled == value) return;
+            Config.DialLabelsEnabled = value;
+            OnPropertyChanged();
+
+            if (value && !Config.DialLabelsLayoutPrompted)
+                _ = AskDialLabelLayoutAsync();
+        }
+    }
+
+    private async Task AskDialLabelLayoutAsync()
+    {
+        DialogResult result;
+        try
+        {
+            result = await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
+                vm.Configure(
+                    Loc.Tr("DialLabel_PreventObstructionMessage"),
+                    title: Loc.Tr("DialLabel_PreventObstructionTitle")));
+        }
+        catch (Exception ex)
+        {
+            // Not marked as asked, so the next switch-on asks again.
+            Console.WriteLine($"[DialLabels] Asking about the key layout failed: {ex.Message}");
+            return;
+        }
+
+        Config.DialLabelsLayoutPrompted = true;
+        Config.DialLabelsKeepKeysClear = result is { IsConfirmed: true };
+    }
+
     [ObservableProperty]
     public partial string DeviceVersion { get; private set; } = "—";
     [ObservableProperty]

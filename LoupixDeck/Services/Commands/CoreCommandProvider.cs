@@ -96,6 +96,7 @@ public class CoreCommandProvider : ICommandProvider
                 SupportedTargets = ResolveTargets(name, info.Group),
                 HiddenFromMenu = info.Hidden,
                 RequiresSideStrips = info.RequiresSideStrips,
+                RequiresDialLabels = info.RequiresDialLabels,
                 IsDisplayCommand = isDisplay,
                 UpdateInterval = interval,
                 Execute = (parameters, _, _, _) => _sysCommandService.ExecuteCommand(capturedName, parameters),

@@ -28,6 +28,7 @@ public sealed class AnimatedKeyCache : IDisposable
     internal double WallpaperOpacity;
     internal SKRectI? WallpaperSource;
     internal bool FolderBadge;
+    internal LoupixDeck.Models.KeyInset Inset;
     internal LoupixDeck.PluginSdk.AdjustmentValue? Value;
     internal int Width;
     internal int Height;

@@ -31,7 +31,10 @@ public enum ButtonKind
     SideRotaryPage,
 
     /// <summary>The three wallpaper slots of a touch page, without its keys (issue #663).</summary>
-    PageBackground
+    PageBackground,
+
+    /// <summary>A Live S dial label (<see cref="RotaryButton.DialLabel"/>), issue #676.</summary>
+    DialLabel
 }
 
 /// <summary>

@@ -96,7 +96,8 @@ public sealed class WallpaperAnimationSource : IAnimationSource, IDisposable
         _writer = new FullDisplayFrameWriter(device, _debug, "[Wallpaper]");
 
         var keySize = device.KeyCalibration.KeySize;
-        _foregrounds = new TouchButtonForegroundCache(keySize, keySize, () => BitmapHelper.ShowsFolderBadges(config));
+        _foregrounds = new TouchButtonForegroundCache(keySize, keySize, () => BitmapHelper.ShowsFolderBadges(config),
+            button => DialLabelGeometry.KeyInsetFor(config, button, keySize));
 
         var keyCount = Math.Max(0, device.Columns * device.Rows);
         _keyRects = new SKRectI[keyCount];
@@ -371,6 +372,16 @@ public sealed class WallpaperAnimationSource : IAnimationSource, IDisposable
 
             canvas.DrawBitmap(foreground, new SKRect(0, 0, foreground.Width, foreground.Height),
                 destination, SKSamplingOptions.Default, paint: null);
+        }
+
+        // The Live S dial labels sit on top of their keys, as on the static path.
+        if (_device.KeyOverlay is { } overlayAt)
+        {
+            for (var index = 0; index < _keyRects.Length; index++)
+            {
+                if (overlayAt(index) is { } overlay)
+                    BitmapHelper.DrawDialLabelOverlay(canvas, overlay, _keyRects[index].Left, _keyRects[index].Top);
+            }
         }
     }
 

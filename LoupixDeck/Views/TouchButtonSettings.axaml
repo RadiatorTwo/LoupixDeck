@@ -395,7 +395,7 @@
                         <StackPanel Grid.Row="4" IsEnabled="{Binding CanEditCanvas}">
                             <TextBlock Classes="panel-title" Text="{loc:Tr TouchButton_Layers}" />
                             <Button Classes="toolbar" Content="{loc:Tr TouchButton_LayoutTemplate}" Margin="0,0,0,8"
-                                    HorizontalAlignment="Stretch" IsVisible="{Binding !IsStripCanvas}">
+                                    HorizontalAlignment="Stretch" IsVisible="{Binding ShowLayoutTemplate}">
                                 <Button.Flyout>
                                     <MenuFlyout Placement="BottomEdgeAlignedLeft">
                                         <MenuItem Header="{loc:Tr TouchButton_Template_IconTextBottom}"
@@ -424,6 +424,7 @@
                                         Command="{Binding AddImageLayerCommand}" />
                                 <Button Classes="toolbar" Content="{loc:Tr TouchButton_Animation}" Margin="0,0,4,0"
                                         HorizontalAlignment="Stretch"
+                                        IsVisible="{Binding CanAddAnimation}"
                                         Command="{Binding AddAnimatedImageLayerCommand}" />
                                 <Button Classes="toolbar" Content="{loc:Tr TouchButton_Symbol}" Margin="0,0,0,0"
                                         HorizontalAlignment="Stretch"
@@ -820,8 +821,11 @@
                             <Border Classes="editor-panel" IsEnabled="{Binding CanEditCanvas}">
                                 <StackPanel>
                                     <TextBlock Classes="panel-title"
-                                               IsVisible="{Binding !IsWheelCanvas}"
+                                               IsVisible="{Binding ShowButtonNumberTitle}"
                                                Text="{loc:TrFormat TouchButton_ButtonNumberFmt, ButtonNumber}" />
+                                    <TextBlock Classes="panel-title"
+                                               IsVisible="{Binding IsDialLabelCanvas}"
+                                               Text="{Binding ButtonLabel}" />
                                     <TextBlock Classes="panel-title"
                                                IsVisible="{Binding IsWheelCanvas}"
                                                Text="{loc:Tr TouchButton_CentreWheelTitle}" />

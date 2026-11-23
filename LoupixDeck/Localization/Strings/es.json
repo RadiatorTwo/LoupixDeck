@@ -1608,5 +1608,15 @@
   "Companions_StoppedHint": "Detenido: cada dispositivo muestra sus propios perfiles hasta que el grupo se inicie de nuevo, también tras reiniciar.",
   "MainWindow_CompanionSyncPaused": "Sincronización en pausa",
   "MainWindow_PauseCompanionSync": "Pausar la sincronización de acompañantes",
-  "MainWindow_ResumeCompanionSync": "Reanudar la sincronización de acompañantes"
+  "MainWindow_ResumeCompanionSync": "Reanudar la sincronización de acompañantes",
+  "DialLabel_Tooltip": "Etiqueta del dial: muestra lo que hace el dial de al lado. Doble clic para editar.",
+  "DialLabel_EditorTitleFmt": "Etiqueta del dial {0}",
+  "DialLabel_PreventObstructionTitle": "Etiquetas de dial",
+  "DialLabel_PreventObstructionMessage": "¿Evitar que las etiquetas de dial tapen los botones táctiles?\n\nSí coloca los iconos y textos de los botones táctiles bajo las etiquetas en la parte junto a la etiqueta mientras se muestran las etiquetas. Los botones no se modifican, y se puede desactivar de nuevo en los ajustes.",
+  "Settings_DialLabels": "Activar etiquetas de dial (solo Live S)",
+  "Settings_DialLabelsHint": "Muestra una etiqueta para cada dial sobre el borde izquierdo del botón táctil de al lado. Las etiquetas pertenecen a la página de diales y cambian con ella. Haz doble clic en una etiqueta en la vista del dispositivo para editarla.",
+  "Settings_DialLabelsKeepClear": "Mantener libres los botones táctiles bajo las etiquetas de dial",
+  "Settings_DialLabelsKeepClearHint": "Coloca el contenido de los botones táctiles bajo las etiquetas en la parte junto a la etiqueta, como en un botón más estrecho. Los botones no se modifican; al desactivarlo se ven como antes.",
+  "CommandOption_Dial": "Dial {0}",
+  "DialLabel_Edit": "Editar etiqueta"
 }
