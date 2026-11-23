@@ -1133,8 +1133,10 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         {
             if (ReferenceEquals(_selectedLayer, value)) return;
             _selectedLayer = value;
+            // A single selection reaches the list through its SelectedItem binding; writing the
+            // list's selection from here as well would run inside the list's own update.
             if (!_selectingLayers && (value == null || !_selectedLayers.Contains(value)))
-                SetLayerSelectionSet(value == null ? [] : [value]);
+                SetLayerSelectionSet(value == null ? [] : [value], notifyList: false);
             OnPropertyChanged(nameof(SelectedLayer));
             OnPropertyChanged(nameof(SelectedImageLayer));
             OnPropertyChanged(nameof(SelectedTextLayer));

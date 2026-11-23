@@ -865,6 +865,11 @@ public partial class TouchButtonSettings : Window
         if (DataContext is not TouchButtonSettingsViewModel vm) return;
 
         IReadOnlyList<LayerBase> layers = vm.SelectedLayers;
+        List<LayerBase> shown = LayerList.SelectedItems?.OfType<LayerBase>().ToList() ?? [];
+        if (shown.Count == layers.Count && layers.All(shown.Contains) &&
+            ReferenceEquals(LayerList.SelectedItem, vm.SelectedLayer))
+            return;
+
         _syncingLayerList = true;
         try
         {
