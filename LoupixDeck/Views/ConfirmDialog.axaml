@@ -95,6 +95,10 @@
                         IsDefault="True"
                         Command="{Binding ConfirmCommand}" />
                 <Button Classes="dialogBtn cancel"
+                        Content="{Binding AlternativeText}"
+                        IsVisible="{Binding ShowAlternative}"
+                        Command="{Binding AlternativeCommand}" />
+                <Button Classes="dialogBtn cancel"
                         Content="{Binding CancelText}"
                         IsVisible="{Binding ShowCancel}"
                         Command="{Binding CancelCommand}" />

@@ -58,6 +58,28 @@ public interface IPanelAssignmentService
     /// </summary>
     Task<bool> AssignToStripSegmentAsync(PanelItemViewModel item, RotaryButtonPage page, int segment,
         string parameterValue = null);
+
+    /// <summary>
+    /// True when <paramref name="item"/> can be added to the end of <paramref name="target"/>'s
+    /// command sequence: a single command (an application, a catalogue command or a folder) the
+    /// target supports. A rotary group or a preset fills a whole dial and cannot be appended.
+    /// </summary>
+    bool CanAppend(PanelItemViewModel item, LoupedeckButton target);
+
+    /// <summary>
+    /// Adds <paramref name="item"/>'s command to the end of <paramref name="target"/>'s command
+    /// sequence (issue #680). Layers, states and labels stay as they are. On a dial the sequence
+    /// is the press action. <paramref name="parameterValue"/> is the value an item reported by
+    /// <see cref="NeedsParameter"/> needs, and null otherwise. Returns false when nothing was written.
+    /// </summary>
+    Task<bool> AppendAsync(PanelItemViewModel item, LoupedeckButton target, string parameterValue = null);
+
+    /// <summary>
+    /// Like <see cref="AppendAsync"/>, for tap zone <paramref name="segment"/> of
+    /// <paramref name="page"/>'s FreeDraw strip. The strip canvas is left alone.
+    /// </summary>
+    bool AppendToStripSegment(PanelItemViewModel item, RotaryButtonPage page, int segment,
+        string parameterValue = null);
 }
 
 /// <inheritdoc cref="IPanelAssignmentService"/>
@@ -256,6 +278,74 @@ public sealed class PanelAssignmentService(
         canvas.RewireLayerHandlers();
         return true;
     }
+
+    // ── Appending to a sequence ────────────────────────────────────────────
+
+    public bool CanAppend(PanelItemViewModel item, LoupedeckButton target) =>
+        CanAssign(item, target) && IsSingleCommand(item);
+
+    public Task<bool> AppendAsync(PanelItemViewModel item, LoupedeckButton target, string parameterValue = null)
+    {
+        if (!CanAppend(item, target) || !TryBuildCommand(item, parameterValue, out string command))
+            return Task.FromResult(false);
+
+        target.Command = AppendToChain(target.Command, command);
+        return Task.FromResult(true);
+    }
+
+    public bool AppendToStripSegment(PanelItemViewModel item, RotaryButtonPage page, int segment,
+        string parameterValue = null)
+    {
+        if (page == null || segment < 0 || segment >= RotaryButtonPage.StripSegmentCount
+            || !CanAssignToStripSegment(item) || !TryBuildCommand(item, parameterValue, out string command))
+            return false;
+
+        page.SetStripSegmentCommand(segment, AppendToChain(page.GetStripSegmentCommand(segment), command));
+        return true;
+    }
+
+    private static bool IsSingleCommand(PanelItemViewModel item) => item switch
+    {
+        AppPanelItemViewModel => true,
+        ViewModels.FolderPanel.FolderNodeViewModel => true,
+        ActionPanelItemViewModel { Entry.IsCommandGroup: false } => true,
+        _ => false
+    };
+
+    /// <summary>
+    /// Builds the command string <paramref name="item"/> stands for, without touching any button.
+    /// A prompting command needs <paramref name="parameterValue"/>; any other item must come
+    /// without one.
+    /// </summary>
+    private bool TryBuildCommand(PanelItemViewModel item, string parameterValue, out string command)
+    {
+        command = null;
+        if (NeedsParameter(item, out _) != (parameterValue != null))
+            return false;
+
+        switch (item)
+        {
+            case AppPanelItemViewModel app:
+                command = AppAssignment.BuildLaunchCommand(app.App);
+                break;
+
+            case ViewModels.FolderPanel.FolderNodeViewModel folder:
+                command = Folders.FolderCommand.Build(folder.Folder.Id);
+                break;
+
+            case ActionPanelItemViewModel { Entry.IsCommandGroup: false } action:
+                if (parameterValue != null)
+                    PanelParameterPrompts.TryBuild(action.Entry.Command, parameterValue, out command, out _);
+                else
+                    command = commandBuilder.CreateCommandFromMenuEntry(action.Entry);
+                break;
+        }
+
+        return !string.IsNullOrEmpty(command);
+    }
+
+    private static string AppendToChain(string chain, string command) =>
+        string.IsNullOrWhiteSpace(chain) ? command : $"{chain.TrimEnd()} && {command}";
 
     // ── Catalogue commands ─────────────────────────────────────────────────
 

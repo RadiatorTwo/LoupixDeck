@@ -1622,30 +1622,38 @@ public partial class MainWindowViewModel : ViewModelBase
 
     /// <summary>
     /// Puts a panel row on <paramref name="target"/>, whether it got there by a drag or by a click
-    /// with the button already selected. A target that already holds a configuration is confirmed
-    /// first, like a paste — the row replaces everything on the button, so there is nothing to merge.
+    /// with the button already selected. A target that already holds a configuration is asked
+    /// first, like a paste: the row either replaces everything on the button, or (issue #680) its
+    /// command is added to the end of the button's sequence and the artwork stays as it is.
     /// </summary>
     public async Task AssignPanelItemAsync(ViewModels.ActionPanel.PanelItemViewModel item, LoupedeckButton target)
     {
         if (!CanAssignPanelItem(item, target))
             return;
 
-        if (!_clipboard.IsEmpty(target) && !await ConfirmOverwrite())
-            return;
+        PanelDropChoice choice = PanelDropChoice.Overwrite;
+        if (!_clipboard.IsEmpty(target))
+        {
+            choice = await AskPanelDropChoice("Confirm_OverwriteButtonMessage",
+                "Confirm_OverwriteOrAppendButtonMessage", _panelAssignment.CanAppend(item, target));
+            if (choice == PanelDropChoice.Cancel)
+                return;
+        }
 
-        bool assigned;
+        string value = null;
         if (_panelAssignment.NeedsParameter(item, out Services.Actions.PanelParameterPrompt prompt))
         {
-            string value = await AskPanelParameterAsync(item, prompt);
+            value = await AskPanelParameterAsync(item, prompt);
             if (value == null)
                 return;
+        }
 
-            assigned = await _panelAssignment.AssignAsync(item, target, value);
-        }
-        else
+        bool assigned = choice switch
         {
-            assigned = await _panelAssignment.AssignAsync(item, target);
-        }
+            PanelDropChoice.Append => await _panelAssignment.AppendAsync(item, target, value),
+            _ when value != null => await _panelAssignment.AssignAsync(item, target, value),
+            _ => await _panelAssignment.AssignAsync(item, target)
+        };
 
         if (!assigned)
             return;
@@ -1720,8 +1728,9 @@ public partial class MainWindowViewModel : ViewModelBase
 
     /// <summary>
     /// Puts a panel row into tap zone <paramref name="segment"/> (0 top .. 2 bottom) of a FreeDraw
-    /// side display. Only that zone's command is replaced, confirmed first when it has one; the
-    /// row's icon is added to the strip, so each zone can carry its own application.
+    /// side display. Only that zone's command is replaced, asked first when it has one; the row's
+    /// icon is added to the strip, so each zone can carry its own application. Adding to the zone's
+    /// sequence instead (issue #680) appends the command and leaves the strip artwork alone.
     /// </summary>
     public async Task AssignPanelItemToSegmentAsync(ViewModels.ActionPanel.PanelItemViewModel item,
         LoupedeckButton target, int segment)
@@ -1733,8 +1742,14 @@ public partial class MainWindowViewModel : ViewModelBase
         if (EnsureStripCanvas(side, out RotaryButtonPage page) == null)
             return;
 
-        if (!string.IsNullOrEmpty(page.GetStripSegmentCommand(segment)) && !await ConfirmOverwriteSegment())
-            return;
+        PanelDropChoice choice = PanelDropChoice.Overwrite;
+        if (!string.IsNullOrEmpty(page.GetStripSegmentCommand(segment)))
+        {
+            choice = await AskPanelDropChoice("Confirm_OverwriteSegmentMessage",
+                "Confirm_OverwriteOrAppendSegmentMessage", canAppend: true);
+            if (choice == PanelDropChoice.Cancel)
+                return;
+        }
 
         string value = null;
         if (_panelAssignment.NeedsParameter(item, out Services.Actions.PanelParameterPrompt prompt))
@@ -1744,25 +1759,55 @@ public partial class MainWindowViewModel : ViewModelBase
                 return;
         }
 
-        // Wired first, so the new layers repaint the strip through the canvas's ItemChanged.
-        LoupedeckController.RegisterStripCanvas(page);
-        if (!await _panelAssignment.AssignToStripSegmentAsync(item, page, segment, value))
-            return;
+        if (choice == PanelDropChoice.Append)
+        {
+            if (!_panelAssignment.AppendToStripSegment(item, page, segment, value))
+                return;
+        }
+        else
+        {
+            // Wired first, so the new layers repaint the strip through the canvas's ItemChanged.
+            LoupedeckController.RegisterStripCanvas(page);
+            if (!await _panelAssignment.AssignToStripSegmentAsync(item, page, segment, value))
+                return;
+        }
 
         LoupedeckController.SaveConfig();
         await LoupedeckController.RefreshSideStrip(side);
         SelectButton(target);
     }
 
-    private async Task<bool> ConfirmOverwriteSegment()
+    private enum PanelDropChoice
     {
+        Cancel,
+        Overwrite,
+        Append
+    }
+
+    /// <summary>
+    /// Asks what a panel drop onto an occupied target should do. With <paramref name="canAppend"/>
+    /// the dialog also offers adding the command to the target's sequence; without it, it is the
+    /// plain overwrite confirmation.
+    /// </summary>
+    private async Task<PanelDropChoice> AskPanelDropChoice(string overwriteKey, string appendKey,
+        bool canAppend)
+    {
+        ConfirmDialogViewModel dialog = null;
         DialogResult result = await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
+        {
+            dialog = vm;
             vm.Configure(
-                Loc.Tr("Confirm_OverwriteSegmentMessage"),
-                title: Loc.Tr("Confirm_OverwriteButtonTitle"),
+                Loc.Tr(canAppend ? appendKey : overwriteKey),
+                title: Loc.Tr(canAppend ? "Confirm_OverwriteOrAppendTitle" : "Confirm_OverwriteButtonTitle"),
                 confirmText: Loc.Tr("Confirm_Overwrite"),
-                cancelText: Loc.Tr("Confirm_Cancel")));
-        return result.IsConfirmed;
+                cancelText: Loc.Tr("Confirm_Cancel"),
+                alternativeText: canAppend ? Loc.Tr("Confirm_AppendToSequence") : null);
+        });
+
+        if (result?.IsConfirmed != true)
+            return PanelDropChoice.Cancel;
+
+        return dialog?.AlternativeChosen == true ? PanelDropChoice.Append : PanelDropChoice.Overwrite;
     }
 
     // ─────────────────────────── Dial context menu ───────────────────────────
