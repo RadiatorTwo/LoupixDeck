@@ -1133,6 +1133,10 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         {
             if (ReferenceEquals(_selectedLayer, value)) return;
             _selectedLayer = value;
+            // A single selection reaches the list through its SelectedItem binding; writing the
+            // list's selection from here as well would run inside the list's own update.
+            if (!_selectingLayers && (value == null || !_selectedLayers.Contains(value)))
+                SetLayerSelectionSet(value == null ? [] : [value], notifyList: false);
             OnPropertyChanged(nameof(SelectedLayer));
             OnPropertyChanged(nameof(SelectedImageLayer));
             OnPropertyChanged(nameof(SelectedTextLayer));
@@ -1151,10 +1155,103 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     }
 
     /// <summary>
+    /// All selected layers (issue #679): <see cref="SelectedLayer"/>, whose properties the panel
+    /// shows, plus those added with Ctrl or Shift. Copy, cut, paste, delete, ▲ / ▼ and moving on
+    /// the canvas act on all of them.
+    /// </summary>
+    private List<LayerBase> _selectedLayers = [];
+
+    /// <summary>Set while <see cref="SelectLayers"/> assigns the primary layer, so it keeps the set.</summary>
+    private bool _selectingLayers;
+
+    /// <summary>The selected layers in list order, topmost first; empty when none is selected.</summary>
+    public IReadOnlyList<LayerBase> SelectedLayers
+    {
+        get
+        {
+            if (_selectedLayer == null) return [];
+            if (!_selectedLayers.Contains(_selectedLayer)) return [_selectedLayer];
+
+            IList<LayerBase> list = LayerListItems;
+            return list == null
+                ? _selectedLayers
+                : _selectedLayers.Where(list.Contains).OrderBy(list.IndexOf).ToList();
+        }
+    }
+
+    /// <summary>The selected layers that are real layers, i.e. without the wheel's segments row.</summary>
+    private List<LayerBase> SelectedRealLayers => SelectedLayers.Where(l => l is not WheelSegmentsMarker).ToList();
+
+    /// <summary>True while more than one layer is selected.</summary>
+    public bool HasMultipleSelectedLayers => SelectedLayers.Count > 1;
+
+    /// <summary>Raised when the selection set changes, so the layer list can show it.</summary>
+    public event EventHandler LayerSelectionChanged;
+
+    /// <summary>
+    /// Selects <paramref name="layers"/> together, <paramref name="primary"/> (or the first of them)
+    /// as the one whose properties the panel shows.
+    /// </summary>
+    public void SelectLayers(IEnumerable<LayerBase> layers, LayerBase primary = null)
+    {
+        List<LayerBase> set = layers?.Where(l => l != null).Distinct().ToList() ?? [];
+        if (primary == null || !set.Contains(primary))
+            primary = set.FirstOrDefault();
+
+        _selectingLayers = true;
+        try
+        {
+            SelectedLayer = primary;
+        }
+        finally
+        {
+            _selectingLayers = false;
+        }
+
+        SetLayerSelectionSet(set);
+    }
+
+    /// <summary>
+    /// Takes over the layer list's own selection after a Ctrl or Shift click. The list keeps
+    /// <see cref="SelectedLayer"/> through its binding, so only the set is read here. Which of the
+    /// two arrives first varies, so a primary outside the set reads as a single selection
+    /// (see <see cref="SelectedLayers"/>) and a primary inside it keeps the set.
+    /// </summary>
+    public void SyncLayerSelectionFromList(IEnumerable<LayerBase> layers) =>
+        SetLayerSelectionSet(layers?.Where(l => l != null).ToList() ?? [], notifyList: false);
+
+    /// <summary>Adds the layer to the selection or takes it out again (Ctrl+click on the canvas).</summary>
+    public void ToggleLayerSelection(LayerBase layer)
+    {
+        if (layer == null) return;
+
+        List<LayerBase> set = SelectedLayers.ToList();
+        if (set.Remove(layer))
+            SelectLayers(set, ReferenceEquals(layer, _selectedLayer) ? set.FirstOrDefault() : _selectedLayer);
+        else
+            SelectLayers([.. set, layer], layer);
+    }
+
+    private void SetLayerSelectionSet(List<LayerBase> set, bool notifyList = true)
+    {
+        _selectedLayers = set;
+        OnPropertyChanged(nameof(SelectedLayers));
+        OnPropertyChanged(nameof(HasMultipleSelectedLayers));
+        OnPropertyChanged(nameof(CanDeleteSelectedLayer));
+        OnPropertyChanged(nameof(CanCopySelectedLayer));
+        OnPropertyChanged(nameof(ScaleHandlesVisible));
+        OnPropertyChanged(nameof(CanUseLayerAsDefault));
+        UpdateSelectionBounds();
+        if (notifyList)
+            LayerSelectionChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
     /// True for a text, symbol or image layer on a key. The defaults are laid out for a key, so a
     /// layer on a side strip does not offer them.
     /// </summary>
-    public bool CanUseLayerAsDefault => !IsStripCanvas && _selectedLayer is TextLayer or SymbolLayer or ImageLayer;
+    public bool CanUseLayerAsDefault =>
+        !IsStripCanvas && !HasMultipleSelectedLayers && _selectedLayer is TextLayer or SymbolLayer or ImageLayer;
 
     /// <summary>Takes the selected layer's size, position and style as the defaults for new layers (Settings).</summary>
     public IRelayCommand UseLayerAsDefaultCommand => field ??= Relay.Create(() =>
@@ -1261,8 +1358,14 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// (<see cref="LayerBase.IsCommandOwned"/>) cannot be deleted manually — they are
     /// removed by unbinding the button's command — so the delete button is disabled for them.
     /// </summary>
-    public bool CanDeleteSelectedLayer =>
-        _selectedLayer is not null and not WheelSegmentsMarker && !_selectedLayer.IsCommandOwned;
+    public bool CanDeleteSelectedLayer
+    {
+        get
+        {
+            List<LayerBase> layers = SelectedRealLayers;
+            return layers.Count > 0 && layers.All(l => !l.IsCommandOwned);
+        }
+    }
 
     /// <summary>Commands of the sequence(s) that declare parameters — one card each in the
     /// Parameters tab, the same rows as the chip flyout.</summary>
@@ -1386,7 +1489,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// Resize handles are shown for every layer kind. Text layers use them to
     /// stretch the rendered text via Scale/ScaleY (independent of TextSize).
     /// </summary>
-    public bool ScaleHandlesVisible => SelectionVisible;
+    public bool ScaleHandlesVisible => SelectionVisible && !HasMultipleSelectedLayers;
     public double SelectionLeft => _selectionBounds.X;
     public double SelectionTop => _selectionBounds.Y;
     public double SelectionWidth => _selectionBounds.Width;
@@ -2095,12 +2198,15 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         // A layer owned by the command that is still bound belongs to that command: it is removed
         // by unbinding it (the dynamic-text manager's orphan sweep), not by hand. One left behind
         // by a command that is gone has no owner left, so the user may delete it.
-        if (_selectedLayer == null || IsOwnedByBoundCommand(_selectedLayer)) return;
-        var idx = ButtonData.Layers.IndexOf(_selectedLayer);
+        List<LayerBase> doomed = SelectedRealLayers.Where(l => !IsOwnedByBoundCommand(l)).ToList();
+        if (ButtonData?.Layers == null || doomed.Count == 0) return;
+
+        int idx = doomed.Select(l => ButtonData.Layers.IndexOf(l)).Where(i => i >= 0).DefaultIfEmpty(-1).Min();
         if (idx < 0) return;
-        ButtonData.Layers.Remove(_selectedLayer);
-        // Prefer the item that moved into the freed slot (the one below); fall back
-        // to the new last item (the one above) when the removed layer was last.
+        foreach (LayerBase layer in doomed)
+            ButtonData.Layers.Remove(layer);
+        // Prefer the item that moved into the freed slot of the lowest removed layer (the one
+        // below it); fall back to the new last item (the one above) when that slot is gone.
         var next = (idx < ButtonData.Layers.Count) ? ButtonData.Layers[idx]
             : (ButtonData.Layers.Count > 0 ? ButtonData.Layers[^1] : null);
         ReselectAfterMove(next);
@@ -2118,60 +2224,69 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             RemoveSelectedLayer();
     }
 
-    /// <summary>True when a real layer is selected on an editable canvas (issue #583).</summary>
-    public bool CanCopySelectedLayer =>
-        CanEditCanvas && _selectedLayer is not null and not WheelSegmentsMarker;
+    /// <summary>True when at least one real layer is selected on an editable canvas (issues #583, #679).</summary>
+    public bool CanCopySelectedLayer => CanEditCanvas && SelectedRealLayers.Count > 0;
 
     /// <summary>
-    /// True when the copied layer fits this surface: the same kinds the add buttons offer here. A live
-    /// image only exists on the wheel, an indicator only where there is a value to indicate.
+    /// True when at least one copied layer fits this surface: the same kinds the add buttons offer
+    /// here. A live image only exists on the wheel, an indicator only where there is a value to indicate.
     /// </summary>
-    public bool CanPasteLayer
-    {
-        get
-        {
-            if (ButtonData == null || !CanEditCanvas) return false;
+    public bool CanPasteLayer =>
+        ButtonData != null && CanEditCanvas && _layerClipboard.CurrentKinds.Any(FitsThisSurface);
 
-            return _layerClipboard.CurrentKind switch
-            {
-                null => false,
-                PluginLayer.Kind => IsWheelCanvas,
-                DialIndicatorLayer.Kind => CanAddIndicator,
-                _ => true
-            };
-        }
-    }
+    private bool FitsThisSurface(string kind) => kind switch
+    {
+        null => false,
+        PluginLayer.Kind => IsWheelCanvas,
+        DialIndicatorLayer.Kind => CanAddIndicator,
+        _ => true
+    };
+
+    /// <summary>The selected real layers in paint order (bottom first), as a paste adds them back.</summary>
+    private List<LayerBase> SelectedLayersInPaintOrder() =>
+        SelectedRealLayers.OrderBy(l => ButtonData.Layers.IndexOf(l)).ToList();
 
     private void CopySelectedLayer()
     {
         if (CanCopySelectedLayer)
-            _layerClipboard.Copy(_selectedLayer);
+            _layerClipboard.Copy(SelectedLayersInPaintOrder());
     }
 
     private void CutSelectedLayer()
     {
         if (!CanCopySelectedLayer || !CanDeleteSelectedLayer) return;
-        _layerClipboard.Copy(_selectedLayer);
+        _layerClipboard.Copy(SelectedLayersInPaintOrder());
         RemoveSelectedLayer();
     }
 
-    /// <summary>Adds the copied layer as a new one, on top like a freshly added layer, and selects it.</summary>
+    /// <summary>
+    /// Adds the copied layers as new ones, on top like freshly added layers and in their copied
+    /// order, and selects them. Kinds this surface does not offer are left out.
+    /// </summary>
     private void PasteLayer()
     {
         if (!CanPasteLayer) return;
 
-        LayerBase layer = _layerClipboard.CreateCopy();
-        if (layer == null) return;
+        List<LayerBase> pasted = [];
+        foreach (LayerBase layer in _layerClipboard.CreateCopies())
+        {
+            if (!FitsThisSurface(layer.LayerKind)) continue;
 
-        layer.Name = GetUniqueLayerName(string.IsNullOrWhiteSpace(layer.Name) ? layer.LayerKind : layer.Name);
+            layer.Name = GetUniqueLayerName(string.IsNullOrWhiteSpace(layer.Name) ? layer.LayerKind : layer.Name);
 
-        // The image is runtime-only, so it is loaded again like a reopened button does.
-        if (layer is ImageLayer { IsAnimated: false } image && !string.IsNullOrEmpty(image.AssetRelativePath))
-            image.CachedImage = _assetService.Load(image.AssetRelativePath);
+            // The image is runtime-only, so it is loaded again like a reopened button does.
+            if (layer is ImageLayer { IsAnimated: false } image && !string.IsNullOrEmpty(image.AssetRelativePath))
+                image.CachedImage = _assetService.Load(image.AssetRelativePath);
 
-        AddLayer(layer);
+            AddLayer(layer);
+            pasted.Add(layer);
+        }
+
+        if (pasted.Count == 0) return;
+
         SeedAnimatedLayerPreviews();
-        SelectedLayer = layer;
+        // The topmost pasted layer shows its properties, as a single paste did.
+        SelectLayers(pasted, pasted[^1]);
         UpdateEditorPreview();
     }
 
@@ -2267,38 +2382,50 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         ReselectAfterMove(layer);
     }
 
-    /// <summary>Moves the selected layer one step up the list, i.e. one step closer to the top of the stack.</summary>
-    private void MoveSelectedLayerUp()
+    /// <summary>Moves the selected layers one step up the list, i.e. one step closer to the top of the stack.</summary>
+    private void MoveSelectedLayerUp() => MoveSelectedLayers(up: true);
+
+    /// <summary>Moves the selected layers one step down the list, i.e. further behind the others.</summary>
+    private void MoveSelectedLayerDown() => MoveSelectedLayers(up: false);
+
+    /// <summary>
+    /// Moves every selected row one step in the list (issue #679). The rows are taken from the end
+    /// they move towards; one that is already there, or stuck behind a selected row that is,
+    /// stays, so a block keeps its gaps and never swaps rows within itself.
+    /// </summary>
+    private void MoveSelectedLayers(bool up)
     {
-        if (_selectedLayer == null) return;
-        if (IsEditingSharedSurface)
+        IList<LayerBase> list = LayerListItems;
+        LayerBase primary = _selectedLayer;
+        List<LayerBase> selected = SelectedLayers.ToList();
+        if (list == null || ButtonData?.Layers == null || selected.Count == 0) return;
+
+        List<LayerBase> order = selected.OrderBy(list.IndexOf).ToList();
+        if (!up) order.Reverse();
+
+        HashSet<LayerBase> stuck = [];
+        foreach (LayerBase layer in order)
         {
-            MoveSharedLayer(_selectedLayer, up: true);
-            return;
+            int at = list.IndexOf(layer);
+            int neighbor = up ? at - 1 : at + 1;
+            if (at < 0 || neighbor < 0 || neighbor >= list.Count || stuck.Contains(list[neighbor]))
+            {
+                stuck.Add(layer);
+                continue;
+            }
+
+            if (IsEditingSharedSurface)
+            {
+                MoveSharedLayer(layer, up);
+                continue;
+            }
+
+            // The list is topmost first, the canvas bottom first: up in the list is up the stack.
+            int idx = ButtonData.Layers.IndexOf(layer);
+            ButtonData.Layers.Move(idx, up ? idx + 1 : idx - 1);
         }
 
-        var layer = _selectedLayer;
-        var idx = ButtonData.Layers.IndexOf(layer);
-        if (idx < 0 || idx >= ButtonData.Layers.Count - 1) return;
-        ButtonData.Layers.Move(idx, idx + 1);
-        ReselectAfterMove(layer);
-    }
-
-    /// <summary>Moves the selected layer one step down the list, i.e. further behind the others.</summary>
-    private void MoveSelectedLayerDown()
-    {
-        if (_selectedLayer == null) return;
-        if (IsEditingSharedSurface)
-        {
-            MoveSharedLayer(_selectedLayer, up: false);
-            return;
-        }
-
-        var layer = _selectedLayer;
-        var idx = ButtonData.Layers.IndexOf(layer);
-        if (idx <= 0) return;
-        ButtonData.Layers.Move(idx, idx - 1);
-        ReselectAfterMove(layer);
+        ReselectAfterMove(selected, primary);
     }
 
     /// <summary>
@@ -2307,14 +2434,18 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// clears its selection in the process, so a synchronous re-assign gets
     /// overwritten — posting it ensures it lands after the ListBox has caught up.
     /// </summary>
-    private void ReselectAfterMove(LayerBase layer)
+    private void ReselectAfterMove(LayerBase layer) =>
+        ReselectAfterMove(layer == null ? [] : [layer], layer);
+
+    /// <inheritdoc cref="ReselectAfterMove(LayerBase)"/>
+    private void ReselectAfterMove(IReadOnlyList<LayerBase> layers, LayerBase primary)
     {
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
             // Force the property to re-raise even if the value matches, so the
             // ListBox is told to re-select after it cleared its own selection.
             SelectedLayer = null;
-            SelectedLayer = layer;
+            SelectLayers(layers, primary);
         });
     }
 
@@ -2670,8 +2801,30 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         UpdateSelectionBounds();
     }
 
+    /// <summary>
+    /// On-canvas outlines of the selected layers other than <see cref="SelectedLayer"/>, so a
+    /// multiple selection shows on the preview too (issue #679).
+    /// </summary>
+    public IReadOnlyList<Avalonia.Rect> ExtraSelectionBounds
+    {
+        get;
+        private set
+        {
+            if (field.SequenceEqual(value)) return;
+            field = value;
+            OnPropertyChanged(nameof(ExtraSelectionBounds));
+        }
+    } = [];
+
     private void UpdateSelectionBounds()
     {
+        ExtraSelectionBounds = SelectedRealLayers
+            .Where(l => !ReferenceEquals(l, _selectedLayer))
+            .Select(l => BitmapHelper.GetLayerEditorBounds(l, EditorCanvasWidth, EditorCanvasHeight, DeviceWidth, DeviceHeight))
+            .Where(r => r is { Width: > 0, Height: > 0 })
+            .Select(r => new Avalonia.Rect(r.Value.Left, r.Value.Top, r.Value.Width, r.Value.Height))
+            .ToList();
+
         if (_selectedLayer == null)
         {
             SelectionBounds = default;

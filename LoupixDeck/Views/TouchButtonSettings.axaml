@@ -448,6 +448,7 @@
                              minimum, so the list keeps its own scrolling. -->
                         <controls:FillRemainingDecorator Grid.Row="5" Name="LayerListHost" MinHeight="120">
                             <ListBox Name="LayerList"
+                                     SelectionMode="Multiple"
                                      IsEnabled="{Binding CanEditCanvas}"
                                      ContextRequested="LayerList_ContextRequested"
                                      ItemsSource="{Binding LayerListItems}"
@@ -746,6 +747,32 @@
                                                Height="{Binding SelectionHeight}"
                                                Canvas.Left="{Binding SelectionLeft}"
                                                Canvas.Top="{Binding SelectionTop}" />
+                                    <!-- The other layers of a multiple selection (issue #679). -->
+                                    <ItemsControl ItemsSource="{Binding ExtraSelectionBounds}"
+                                                  Width="{Binding EditorCanvasWidth}"
+                                                  Height="{Binding EditorCanvasHeight}"
+                                                  IsHitTestVisible="False">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <Canvas />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.Styles>
+                                            <Style Selector="ContentPresenter" x:DataType="Rect">
+                                                <Setter Property="Canvas.Left" Value="{Binding X}" />
+                                                <Setter Property="Canvas.Top" Value="{Binding Y}" />
+                                            </Style>
+                                        </ItemsControl.Styles>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="Rect">
+                                                <Rectangle Stroke="#995B9BD5"
+                                                           StrokeThickness="1"
+                                                           StrokeDashArray="4,3"
+                                                           Width="{Binding Width}"
+                                                           Height="{Binding Height}" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
                                     <Rectangle Tag="NW" Classes="handle"
                                                IsVisible="{Binding ScaleHandlesVisible}"
                                                Canvas.Left="{Binding HandleNwLeft}" Canvas.Top="{Binding HandleNwTop}" />
