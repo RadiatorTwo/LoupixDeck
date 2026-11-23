@@ -30,6 +30,10 @@ public partial class LoupedeckLiveSController
         device.KeyOverlay = DialLabelOverlayAt;
         config.PropertyChanged -= OnDialLabelConfigChanged;
         config.PropertyChanged += OnDialLabelConfigChanged;
+
+        // The first page was drawn before the overlay existed.
+        if (config.DialLabelsEnabled)
+            Dispatcher.UIThread.Post(RepaintDialLabelKeys);
     }
 
     private void OnDialLabelConfigChanged(object sender, PropertyChangedEventArgs e)
