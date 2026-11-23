@@ -1612,7 +1612,9 @@
   "DialLabel_Tooltip": "Dial label: shows what the dial next to it does. Double-click to edit.",
   "DialLabel_EditorTitleFmt": "Dial {0} label",
   "DialLabel_PreventObstructionTitle": "Dial labels",
-  "DialLabel_PreventObstructionMessage": "Prevent Dial Labels to obstruct Touch Buttons?\n\nYes moves the icons and texts of the touch buttons next to the dials to the right and narrows their texts, so the labels do not cover them.",
+  "DialLabel_PreventObstructionMessage": "Prevent Dial Labels to obstruct Touch Buttons?\n\nYes draws the icons and texts of the touch buttons under the labels moved to the right and with narrower texts while the labels are shown. The buttons themselves are not changed, and this can be switched off again in the settings.",
   "Settings_DialLabels": "Enable dial labels (Live S only)",
-  "Settings_DialLabelsHint": "Shows a label for each dial over the left edge of the touch button next to it. The labels belong to the dial page, so they change with it. Double-click a label in the device view to edit it."
+  "Settings_DialLabelsHint": "Shows a label for each dial over the left edge of the touch button next to it. The labels belong to the dial page, so they change with it. Double-click a label in the device view to edit it.",
+  "Settings_DialLabelsKeepClear": "Keep touch buttons clear of the dial labels",
+  "Settings_DialLabelsKeepClearHint": "Draws the content of the touch buttons under the labels moved to the right and with narrower texts. The buttons themselves are not changed; switching this off shows them as before."
 }

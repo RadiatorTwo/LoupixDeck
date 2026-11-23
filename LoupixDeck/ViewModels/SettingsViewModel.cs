@@ -34,7 +34,6 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     public bool IsVibrationSupported { get; }
 
     private readonly IDeviceService _deviceService;
-    private readonly Services.Actions.IButtonTemplateService _buttonTemplates;
     private readonly IPageManager _pageManager;
     private readonly IDialogService _dialogService;
     private readonly IButtonClipboardService _clipboard;
@@ -226,11 +225,9 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         LinuxDiagnosticsViewModel diagnostics,
         IDisplayStateService displayState,
         ISessionLockService sessionLock,
-        IButtonClipboardService clipboard,
-        Services.Actions.IButtonTemplateService buttonTemplates)
+        IButtonClipboardService clipboard)
     {
         _clipboard = clipboard;
-        _buttonTemplates = buttonTemplates;
         IsDisplayStateSupported = displayState.IsSupported;
         IsSessionLockSupported = sessionLock.IsSupported;
         IsDesktopScreenSaverSupported = displayState.IsScreenSaverSupported;
@@ -400,9 +397,8 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     public bool SupportsDialLabels => _deviceService?.Device is LoupedeckDevice.Device.LoupedeckLiveSDevice;
 
     /// <summary>
-    /// The dial label switch. Turning it on for the first time asks whether the keys next to the
-    /// dials should keep clear of the labels; the answer is remembered, so switching the labels off
-    /// and on again never moves the keys a second time.
+    /// The dial label switch. Switching it on for the first time asks whether the keys under the
+    /// labels should be kept clear of them (<see cref="LoupedeckConfig.DialLabelsKeepKeysClear"/>).
     /// </summary>
     public bool DialLabelsEnabled
     {
@@ -418,42 +414,25 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         }
     }
 
-    /// <summary>
-    /// Asks once whether the keys next to the dials should keep clear of the labels, and on yes moves
-    /// the content of those keys on every touch page and folder of every profile and workspace.
-    /// </summary>
     private async Task AskDialLabelLayoutAsync()
     {
-        bool prevent;
+        DialogResult result;
         try
         {
-            prevent = await _buttonTemplates.AskPreventDialLabelObstructionAsync();
+            result = await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
+                vm.Configure(
+                    Loc.Tr("DialLabel_PreventObstructionMessage"),
+                    title: Loc.Tr("DialLabel_PreventObstructionTitle")));
         }
         catch (Exception ex)
         {
-            // Not marked as asked, so the next time the labels are switched on asks again.
+            // Not marked as asked, so the next switch-on asks again.
             Console.WriteLine($"[DialLabels] Asking about the key layout failed: {ex.Message}");
             return;
         }
 
         Config.DialLabelsLayoutPrompted = true;
-        if (!prevent) return;
-
-        LoupedeckDevice.Device.LoupedeckDevice device = _deviceService?.Device;
-        if (device == null) return;
-
-        HashSet<int> slots = Enumerable.Range(0, device.RotaryCount)
-            .Select(device.GetTouchSlotForRotary)
-            .Where(slot => slot >= 0)
-            .ToHashSet();
-
-        foreach (Workspace workspace in (Config.Profiles ?? []).SelectMany(profile => profile?.Workspaces ?? []))
-        foreach (TouchButtonPage page in workspace?.EnumerateTouchLayouts() ?? [])
-        foreach (TouchButton key in page.TouchButtons ?? [])
-        {
-            if (key != null && slots.Contains(key.Index) && !key.IsFolderNavTile)
-                Services.Actions.DialLabelLayout.AdjustAllStates(key, device.KeySize);
-        }
+        Config.DialLabelsKeepKeysClear = result is { IsConfirmed: true };
     }
 
     [ObservableProperty]

@@ -31,6 +31,10 @@ public partial class LoupedeckLiveSController
         if (deviceService.Device is not LoupedeckLiveSDevice device) return;
 
         device.KeyOverlay = DialLabelOverlayAt;
+        config.DialLabelSlots = Enumerable.Range(0, device.RotaryCount)
+            .Select(device.GetTouchSlotForRotary)
+            .Where(slot => slot >= 0)
+            .ToArray();
         config.PropertyChanged -= OnDialLabelConfigChanged;
         config.PropertyChanged += OnDialLabelConfigChanged;
 
@@ -43,6 +47,7 @@ public partial class LoupedeckLiveSController
     private void ShutdownDialLabels()
     {
         config.PropertyChanged -= OnDialLabelConfigChanged;
+        config.DialLabelSlots = [];
         UnwireDialLabels();
         if (deviceService.Device is { } device)
             device.KeyOverlay = null;
@@ -61,7 +66,8 @@ public partial class LoupedeckLiveSController
 
     private void OnDialLabelConfigChanged(object sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(LoupedeckConfig.DialLabelsEnabled) or nameof(LoupedeckConfig.CurrentRotaryButtonPage))
+        if (e.PropertyName is nameof(LoupedeckConfig.DialLabelsEnabled) or nameof(LoupedeckConfig.DialLabelsKeepKeysClear)
+            or nameof(LoupedeckConfig.CurrentRotaryButtonPage))
             Dispatcher.UIThread.Post(RepaintDialLabelKeys);
     }
 
@@ -192,20 +198,5 @@ public partial class LoupedeckLiveSController
     {
         int slot = DialLabelSlot(dial);
         return slot < 0 ? null : config.CurrentTouchButtonPage?.TouchButtons?.FirstOrDefault(b => b?.Index == slot);
-    }
-
-    /// <summary>True when dial labels are on and a label sits on grid key <paramref name="key"/>.</summary>
-    public bool IsUnderDialLabel(TouchButton key)
-    {
-        if (key == null || !config.DialLabelsEnabled || deviceService.Device is not LoupedeckLiveSDevice device)
-            return false;
-
-        for (int dial = 0; dial < device.RotaryCount; dial++)
-        {
-            if (device.GetTouchSlotForRotary(dial) == key.Index)
-                return true;
-        }
-
-        return false;
     }
 }

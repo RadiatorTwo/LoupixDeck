@@ -96,7 +96,8 @@ public sealed class WallpaperAnimationSource : IAnimationSource, IDisposable
         _writer = new FullDisplayFrameWriter(device, _debug, "[Wallpaper]");
 
         var keySize = device.KeyCalibration.KeySize;
-        _foregrounds = new TouchButtonForegroundCache(keySize, keySize, () => BitmapHelper.ShowsFolderBadges(config));
+        _foregrounds = new TouchButtonForegroundCache(keySize, keySize, () => BitmapHelper.ShowsFolderBadges(config),
+            button => DialLabelGeometry.KeyInsetFor(config, button, keySize));
 
         var keyCount = Math.Max(0, device.Columns * device.Rows);
         _keyRects = new SKRectI[keyCount];

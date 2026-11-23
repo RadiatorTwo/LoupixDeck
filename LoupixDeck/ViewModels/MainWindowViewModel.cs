@@ -879,13 +879,7 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         if (button == null || button.IsFolderNavTile || IsMirroredFolderKey(button)) return;
 
-        bool underDialLabel = LoupedeckController.IsUnderDialLabel(button);
-        await _dialogService.ShowDialogAsync<TouchButtonSettingsViewModel, DialogResult>(vm =>
-        {
-            if (underDialLabel)
-                vm.MarkNextToDialLabel();
-            vm.Initialize(button);
-        });
+        await _dialogService.ShowDialogAsync<TouchButtonSettingsViewModel, DialogResult>(vm => vm.Initialize(button));
 
         LoupedeckController.SaveConfig();
         _dynamicTextManager.Rescan();
@@ -1456,10 +1450,6 @@ public partial class MainWindowViewModel : ViewModelBase
             await _buttonTemplates.ApplyAsync(button, template, _geometry.KeySize, _geometry.KeySize);
         if (!outcome.Applied) return;
 
-        if (LoupedeckController.IsUnderDialLabel(button) &&
-            await _buttonTemplates.AskPreventDialLabelObstructionAsync())
-            Services.Actions.DialLabelLayout.Adjust(button.Layers, _geometry.KeySize);
-
         AfterTemplateApplied();
     }
 
@@ -1484,17 +1474,6 @@ public partial class MainWindowViewModel : ViewModelBase
         Services.Actions.TemplateApplyResult? result =
             await _buttonTemplates.ApplyToPageAsync(page, template, _geometry.KeySize, _geometry.KeySize, skip);
         if (result is not { ButtonsChanged: > 0 }) return;
-
-        // One question for the keys under the dial labels; the other keys never ask.
-        List<TouchButton> underLabels = page.TouchButtons
-            .Where(b => b != null && !skip.Contains(b) && LoupedeckController.IsUnderDialLabel(b) &&
-                        b.Layers?.Any(l => l is { Visible: true }) == true)
-            .ToList();
-        if (underLabels.Count > 0 && await _buttonTemplates.AskPreventDialLabelObstructionAsync())
-        {
-            foreach (TouchButton key in underLabels)
-                Services.Actions.DialLabelLayout.AdjustAllStates(key, _geometry.KeySize);
-        }
 
         AfterTemplateApplied();
     }

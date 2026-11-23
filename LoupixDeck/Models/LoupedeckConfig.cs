@@ -555,9 +555,21 @@ public partial class LoupedeckConfig : ObservableObject
     [ObservableProperty]
     public partial bool DialLabelsEnabled { get; set; }
 
-    // Set once the user has answered whether existing keys next to the dials should be moved
-    // out from under the labels, so enabling the labels again later does not shift them twice.
+    // Keeps the content of the keys under the dial labels clear of them while the labels are
+    // shown: their layers are drawn moved right and with narrower text boxes. Applied only when
+    // drawing, so the layers themselves never change and switching it off restores the keys.
+    [ObservableProperty]
+    public partial bool DialLabelsKeepKeysClear { get; set; }
+
+    // Set once the user has answered the "keep keys clear" question the first switch-on asks.
     public bool DialLabelsLayoutPrompted { get; set; }
+
+    /// <summary>
+    /// Grid keys the dial labels sit on, set by the device controller (the Live S); empty on every
+    /// other device. Runtime only.
+    /// </summary>
+    [JsonIgnore]
+    public IReadOnlyCollection<int> DialLabelSlots { get; set; } = [];
 
     /// <summary>
     /// Ids of plugins the user has enabled. The v2→v3 migration seeds this from

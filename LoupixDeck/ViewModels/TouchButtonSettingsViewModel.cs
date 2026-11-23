@@ -468,7 +468,6 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
     private int _dialLabelIndex = -1;
     private TouchButton _dialLabelKey;
-    private bool _nextToDialLabel;
 
     /// <summary>True while editing a Live S dial label (<see cref="RotaryButton.DialLabel"/>).</summary>
     public bool IsDialLabelCanvas => _dialLabelIndex >= 0;
@@ -494,12 +493,6 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         OnPropertyChanged(nameof(ShowButtonNumberTitle));
         OnPropertyChanged(nameof(ButtonLabel));
     }
-
-    /// <summary>
-    /// Marks the edited key as one a Live S dial label sits on, so applying a layout template asks
-    /// whether to keep its content clear of the label.
-    /// </summary>
-    public void MarkNextToDialLabel() => _nextToDialLabel = true;
 
     /// <summary>The "Button N" panel title: grid keys only.</summary>
     public bool ShowButtonNumberTitle => !IsWheelCanvas && !IsDialLabelCanvas;
@@ -1936,9 +1929,6 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             DeviceHeight);
         if (!outcome.Applied)
             return;
-
-        if (_nextToDialLabel && await _buttonTemplates.AskPreventDialLabelObstructionAsync())
-            DialLabelLayout.Adjust(ButtonData.Layers, DeviceHeight);
 
         // A caption the template created has not been stamped with the surface size yet.
         ApplyDeviceBaseToLayers();

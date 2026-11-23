@@ -1309,6 +1309,11 @@
                                       IsVisible="{Binding SupportsDialLabels}"
                                       IsChecked="{Binding DialLabelsEnabled, Mode=TwoWay}"
                                       ToolTip.Tip="{loc:Tr Settings_DialLabelsHint}" />
+                            <CheckBox Content="{loc:Tr Settings_DialLabelsKeepClear}" Margin="24,0,0,0"
+                                      IsVisible="{Binding SupportsDialLabels}"
+                                      IsEnabled="{Binding Config.DialLabelsEnabled}"
+                                      IsChecked="{Binding Config.DialLabelsKeepKeysClear, Mode=TwoWay}"
+                                      ToolTip.Tip="{loc:Tr Settings_DialLabelsKeepClearHint}" />
                         </StackPanel>
                     </Border>
                 </StackPanel>

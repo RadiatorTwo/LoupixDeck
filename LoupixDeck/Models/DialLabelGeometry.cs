@@ -34,6 +34,20 @@ public static class DialLabelGeometry
 
     public static int TextSize(int keySize) => Scale(TextSizePx, keySize);
 
+    /// <summary>
+    /// How the layers of <paramref name="key"/> are drawn on a key of <paramref name="keySize"/> pixels:
+    /// moved clear of its dial label while the labels are shown with
+    /// <see cref="LoupedeckConfig.DialLabelsKeepKeysClear"/>, otherwise as they are.
+    /// </summary>
+    public static KeyInset KeyInsetFor(LoupedeckConfig config, TouchButton key, int keySize)
+    {
+        if (config is not { DialLabelsEnabled: true, DialLabelsKeepKeysClear: true } || key == null ||
+            key.IsFolderNavTile || config.DialLabelSlots?.Contains(key.Index) != true)
+            return default;
+
+        return new KeyInset(ObstructionShift(keySize), ObstructionTextMaxWidth(keySize));
+    }
+
     private static int Scale(int px, int keySize) =>
         Math.Max(1, (int)Math.Round(px * (keySize > 0 ? keySize : ReferenceKeySizePx) / (double)ReferenceKeySizePx));
 }

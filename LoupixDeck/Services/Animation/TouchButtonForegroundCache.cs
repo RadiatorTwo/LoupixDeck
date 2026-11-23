@@ -28,12 +28,17 @@ public sealed class TouchButtonForegroundCache : IDisposable
     private bool _disposed;
 
     /// <param name="showFolderBadges">Read on every render, so a toggle takes effect with the next invalidation.</param>
-    public TouchButtonForegroundCache(int width, int height, Func<bool> showFolderBadges = null)
+    /// <param name="insetFor">How a key's layers are drawn (the Live S dial labels); null draws them as they are.</param>
+    public TouchButtonForegroundCache(int width, int height, Func<bool> showFolderBadges = null,
+        Func<TouchButton, KeyInset> insetFor = null)
     {
         _width = width;
         _height = height;
         _showFolderBadges = showFolderBadges;
+        _insetFor = insetFor;
     }
+
+    private readonly Func<TouchButton, KeyInset> _insetFor;
 
     /// <summary>
     /// The key's pre-rendered layers, rendering them on first use. Returns null for a key with
@@ -51,7 +56,8 @@ public sealed class TouchButtonForegroundCache : IDisposable
 
             // Nothing to draw: cache the absence too, so an empty key does not re-render forever.
             var foreground = button.Layers is { Count: > 0 }
-                ? BitmapHelper.RenderTouchButtonForeground(button, _width, _height, _showFolderBadges?.Invoke() ?? true)
+                ? BitmapHelper.RenderTouchButtonForeground(button, _width, _height, _showFolderBadges?.Invoke() ?? true,
+                    _insetFor?.Invoke(button) ?? default)
                 : null;
 
             // Blitted onto every video frame; immutable spares Skia a copy per blit.
