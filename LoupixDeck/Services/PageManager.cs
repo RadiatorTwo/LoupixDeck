@@ -159,6 +159,14 @@ public interface IPageManager
     Task FolderBackTile();
 
     /// <summary>
+    /// The first free key of folder <paramref name="folderId"/> of the active workspace, searching
+    /// its pages in order and skipping the keys the Back and Next tiles cover (issue #682). Creates
+    /// the folder's first page when it has none yet. Null when the folder is unknown, a companion's
+    /// mirror (edited on the master only), or full.
+    /// </summary>
+    TouchButton FindFreeFolderKey(Guid folderId);
+
+    /// <summary>
     /// Inserts an empty page after the current page of the open folder and shows it. A key on the
     /// current page's next-page position moves to the new page's first key, so the next-page tile
     /// that now takes its place hides nothing.
@@ -801,6 +809,36 @@ public class PageManager : IPageManager
 
     public Task PreviousFolderPage() =>
         _config.ActiveWorkspace?.OpenFolder is { } folder ? GotoFolderPage(folder.CurrentPageIndex - 1) : Task.CompletedTask;
+
+    public TouchButton FindFreeFolderKey(Guid folderId)
+    {
+        CustomFolder folder = _config.ActiveWorkspace?.EnumerateFolders().FirstOrDefault(f => f.Id == folderId);
+        if (folder == null || folder.IsMirror) return null;
+
+        folder.Layout ??= NewFolderPage();
+
+        FolderNavigation.FolderGrid grid = _pluginMenus.Grid;
+        int keyCount = _deviceService.TouchButtonCount;
+        List<TouchButtonPage> pages = [.. folder.Pages()];
+
+        for (int p = 0; p < pages.Count; p++)
+        {
+            TouchButtonPage page = pages[p];
+            int nextIndex = p < pages.Count - 1 ? grid.NextSlotIndex : -1;
+
+            // A page made on a device with fewer keys is padded, as showing it would.
+            for (int i = page.TouchButtons.Count; i < keyCount; i++)
+                page.TouchButtons.Add(new TouchButton(i));
+
+            TouchButton free = page.TouchButtons
+                .Where(b => b != null && grid.IsGridSlot(b.Index) && b.Index != grid.BackSlotIndex && b.Index != nextIndex)
+                .OrderBy(b => b.Index)
+                .FirstOrDefault(b => ButtonSnapshot.IsEmpty(b));
+            if (free != null) return free;
+        }
+
+        return null;
+    }
 
     public Task FolderBackTile()
     {

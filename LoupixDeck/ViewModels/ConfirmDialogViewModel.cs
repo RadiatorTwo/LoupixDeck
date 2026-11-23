@@ -31,37 +31,35 @@ public sealed class ConfirmDialogViewModel : DialogViewModelBase<DialogResult>
         CloseWindow?.Invoke();
     });
 
-    /// <summary>
-    /// The optional third choice, between confirm and cancel. It confirms the dialog and sets
-    /// <see cref="AlternativeChosen"/>, so a caller that offers it reads that flag after the dialog
-    /// closes; every other caller never sees it.
-    /// </summary>
-    public IRelayCommand AlternativeCommand => field ??= Relay.Create(() =>
-    {
-        AlternativeChosen = true;
-        Confirm(new DialogResult(true));
-        CloseWindow?.Invoke();
-    });
-
     /// <summary>Raised when the dialog should close (after the result is set).</summary>
     public event Action CloseWindow;
 
     /// <summary>False for a plain notice: only the confirm button is shown.</summary>
     public bool ShowCancel { get; private set; } = true;
 
-    /// <summary>Caption of the third button; null hides it.</summary>
-    public string AlternativeText { get; private set; }
+    /// <summary>
+    /// Extra choices shown between confirm and cancel, in order. Each one confirms the dialog and
+    /// sets <see cref="ChosenAlternative"/>, so a caller that offers them reads that index after the
+    /// dialog closes; every other caller never sees them.
+    /// </summary>
+    public IReadOnlyList<DialogChoice> Alternatives { get; private set; } = [];
 
-    public bool ShowAlternative => !string.IsNullOrEmpty(AlternativeText);
+    /// <summary>Index into <see cref="Alternatives"/> of the choice that closed the dialog, or -1.</summary>
+    public int ChosenAlternative { get; private set; } = -1;
 
-    /// <summary>True when the dialog was closed through the third button.</summary>
-    public bool AlternativeChosen { get; private set; }
+    /// <summary>Wider with more than one extra choice, so the action bar stays on one line.</summary>
+    public double DialogWidth => Alternatives.Count > 1 ? 640 : 440;
 
     public void Configure(string message, string title = null,
         string confirmText = null, string cancelText = null, bool showCancel = true,
-        string alternativeText = null)
+        IReadOnlyList<string> alternatives = null)
     {
-        AlternativeText = alternativeText;
+        Alternatives = (alternatives ?? []).Select((text, index) => new DialogChoice(text, Relay.Create(() =>
+        {
+            ChosenAlternative = index;
+            Confirm(new DialogResult(true));
+            CloseWindow?.Invoke();
+        }))).ToList();
         Message = message ?? string.Empty;
         DialogTitle = title ?? Loc.Tr("Confirm_Title");
         ConfirmText = confirmText ?? Loc.Tr("Confirm_Yes");
@@ -69,3 +67,6 @@ public sealed class ConfirmDialogViewModel : DialogViewModelBase<DialogResult>
         ShowCancel = showCancel;
     }
 }
+
+/// <summary>One extra button of a <see cref="ConfirmDialogViewModel"/>.</summary>
+public sealed record DialogChoice(string Text, IRelayCommand Command);
