@@ -4,64 +4,72 @@ using Newtonsoft.Json;
 namespace LoupixDeck.Services;
 
 /// <summary>
-/// In-app clipboard for copy/paste of single layers in the button editor (issue #583). Holds a
-/// JSON <b>snapshot</b> of the copied layer, so it survives closing the editor and later edits of
-/// the source, and a paste lands on any button, state, wheel or side display. Registered as a root
+/// In-app clipboard for copy/paste of layers in the button editor (issues #583, #679). Holds a
+/// JSON <b>snapshot</b> of the copied layers, so it survives closing the editor and later edits of
+/// the sources, and a paste lands on any button, state, wheel or side display. Registered as a root
 /// singleton and forwarded into every device provider, so it works across buttons and devices.
 /// </summary>
 public interface ILayerClipboardService
 {
-    /// <summary>The kind of the copied layer (<see cref="LayerBase.LayerKind"/>), or null when empty.</summary>
-    string CurrentKind { get; }
+    /// <summary>The kinds of the copied layers (<see cref="LayerBase.LayerKind"/>) in paint order; empty when nothing is copied.</summary>
+    IReadOnlyList<string> CurrentKinds { get; }
 
-    /// <summary>Take a deep snapshot of <paramref name="layer"/>.</summary>
-    void Copy(LayerBase layer);
+    /// <summary>Take a deep snapshot of <paramref name="layers"/>, kept in the given order.</summary>
+    void Copy(IReadOnlyList<LayerBase> layers);
 
     /// <summary>
-    /// A new, independent layer built from the snapshot, or null when nothing is copied. It gets a
-    /// fresh id and is a plain user layer: the owner of a command-owned source does not travel.
+    /// New, independent layers built from the snapshot in the copied order, or an empty list when
+    /// nothing is copied. Each gets a fresh id and is a plain user layer: the owner of a
+    /// command-owned source does not travel.
     /// </summary>
-    LayerBase CreateCopy();
+    IReadOnlyList<LayerBase> CreateCopies();
 }
 
 public sealed class LayerClipboardService : ILayerClipboardService
 {
     private string _json;
 
-    public string CurrentKind { get; private set; }
+    public IReadOnlyList<string> CurrentKinds { get; private set; } = [];
 
-    public void Copy(LayerBase layer)
+    public void Copy(IReadOnlyList<LayerBase> layers)
     {
-        if (layer == null) return;
-        _json = JsonConvert.SerializeObject(layer, typeof(LayerBase), ButtonSnapshot.Settings);
-        CurrentKind = layer.LayerKind;
+        List<LayerBase> copied = layers?.Where(l => l != null).ToList() ?? [];
+        if (copied.Count == 0) return;
+
+        _json = JsonConvert.SerializeObject(copied, typeof(List<LayerBase>), ButtonSnapshot.Settings);
+        CurrentKinds = copied.Select(l => l.LayerKind).ToList();
     }
 
-    public LayerBase CreateCopy()
+    public IReadOnlyList<LayerBase> CreateCopies()
     {
-        if (_json == null) return null;
+        if (_json == null) return [];
 
-        LayerBase layer;
+        List<LayerBase> layers;
         try
         {
-            layer = JsonConvert.DeserializeObject<LayerBase>(_json, ButtonSnapshot.Settings);
+            layers = JsonConvert.DeserializeObject<List<LayerBase>>(_json, ButtonSnapshot.Settings);
         }
         catch (JsonException ex)
         {
             Console.WriteLine($"[LayerClipboard] Paste failed: {ex.Message}");
-            return null;
+            return [];
         }
 
-        if (layer == null) return null;
+        if (layers == null) return [];
 
-        layer.Id = Guid.NewGuid();
-        layer.OwnerKey = null;
-        layer.CommandName = null;
-        layer.OwnerCreated = false;
-        layer.BehindSegments = false;
-        // A pasted copy is the user's own layer, not one the zone-divider option removes again.
-        if (layer is SymbolLayer symbol)
-            symbol.IsZoneDivider = false;
-        return layer;
+        layers.RemoveAll(l => l == null);
+        foreach (LayerBase layer in layers)
+        {
+            layer.Id = Guid.NewGuid();
+            layer.OwnerKey = null;
+            layer.CommandName = null;
+            layer.OwnerCreated = false;
+            layer.BehindSegments = false;
+            // A pasted copy is the user's own layer, not one the zone-divider option removes again.
+            if (layer is SymbolLayer symbol)
+                symbol.IsZoneDivider = false;
+        }
+
+        return layers;
     }
 }

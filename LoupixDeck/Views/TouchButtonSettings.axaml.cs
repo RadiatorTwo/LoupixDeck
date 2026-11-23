@@ -18,6 +18,15 @@ public partial class TouchButtonSettings : Window
     private enum DragMode { None, Move, Handle }
 
     private DragMode _dragMode = DragMode.None;
+
+    /// <summary>The layers a move drag moves, with their positions when it started (issue #679).</summary>
+    private readonly List<(LayerBase Layer, int StartX, int StartY)> _moveStarts = [];
+
+    /// <summary>
+    /// The layer of a multiple selection that was pressed; it becomes the only selected layer
+    /// when the press ends without dragging, as in a file manager.
+    /// </summary>
+    private LayerBase _collapseOnRelease;
     private Point _dragStartCanvas;
 
     // Move-drag state
@@ -172,8 +181,12 @@ public partial class TouchButtonSettings : Window
                 vm.StateReleaseRequested += OnStateReleaseRequested;
                 vm.TextEditRequested -= OnTextEditRequested;
                 vm.TextEditRequested += OnTextEditRequested;
+                vm.LayerSelectionChanged -= OnLayerSelectionChanged;
+                vm.LayerSelectionChanged += OnLayerSelectionChanged;
             }
         };
+
+        LayerList.SelectionChanged += LayerList_SelectionChanged;
 
         Closing += (_, _) =>
         {
@@ -803,22 +816,78 @@ public partial class TouchButtonSettings : Window
             !ReferenceEquals(focused, this))
             return;
 
+        // The primary layer sets the step; the others of a multiple selection move with it.
+        int dx;
+        int dy;
         if (vm.SnapToGrid && TryGetMoveBase(vm, layer, out double baseLeft, out double baseTop))
         {
             const int step = TouchButtonSettingsViewModel.GridStepDevice;
-            if (dirX != 0)
-                layer.PositionX = SnapStep(baseLeft, layer.PositionX, dirX, step);
-            if (dirY != 0)
-                layer.PositionY = SnapStep(baseTop, layer.PositionY, dirY, step);
+            dx = dirX != 0 ? SnapStep(baseLeft, layer.PositionX, dirX, step) - layer.PositionX : 0;
+            dy = dirY != 0 ? SnapStep(baseTop, layer.PositionY, dirY, step) - layer.PositionY : 0;
         }
         else
         {
             int step = (e.KeyModifiers & KeyModifiers.Shift) != 0 ? 10 : 1;
-            layer.PositionX += dirX * step;
-            layer.PositionY += dirY * step;
+            dx = dirX * step;
+            dy = dirY * step;
+        }
+
+        foreach (LayerBase moved in MovableSelection(vm))
+        {
+            moved.PositionX += dx;
+            moved.PositionY += dy;
         }
 
         e.Handled = true;
+    }
+
+    /// <summary>The selected layers that move on the canvas: all but the wheel's segments row.</summary>
+    private static List<LayerBase> MovableSelection(TouchButtonSettingsViewModel vm) =>
+        vm.SelectedLayers.Where(l => l is not WheelSegmentsMarker).ToList();
+
+    /// <summary>Set while the view itself writes the layer list's selection, so it is not read back.</summary>
+    private bool _syncingLayerList;
+
+    /// <summary>A Ctrl or Shift click in the layer list changed the selection: tell the view model.</summary>
+    private void LayerList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_syncingLayerList || DataContext is not TouchButtonSettingsViewModel vm) return;
+        vm.SyncLayerSelectionFromList(LayerList.SelectedItems?.OfType<LayerBase>() ?? []);
+    }
+
+    /// <summary>
+    /// The view model selected several layers at once (paste, ▲ / ▼, a Ctrl click on the
+    /// preview): show the same set in the list. The primary layer is selected first, so the
+    /// list's own selected item, bound to it, stays on it.
+    /// </summary>
+    private void OnLayerSelectionChanged(object sender, EventArgs e)
+    {
+        if (DataContext is not TouchButtonSettingsViewModel vm) return;
+
+        IReadOnlyList<LayerBase> layers = vm.SelectedLayers;
+        _syncingLayerList = true;
+        try
+        {
+            Avalonia.Controls.Selection.ISelectionModel selection = LayerList.Selection;
+            selection.BeginBatchUpdate();
+            try
+            {
+                selection.Clear();
+                foreach (LayerBase layer in layers.OrderBy(l => ReferenceEquals(l, vm.SelectedLayer) ? 0 : 1))
+                {
+                    int index = vm.LayerListItems?.IndexOf(layer) ?? -1;
+                    if (index >= 0) selection.Select(index);
+                }
+            }
+            finally
+            {
+                selection.EndBatchUpdate();
+            }
+        }
+        finally
+        {
+            _syncingLayerList = false;
+        }
     }
 
     /// <summary>
@@ -840,7 +909,8 @@ public partial class TouchButtonSettings : Window
 
         // Off a layer the menu only offers to paste one.
         LayerBase layer = (e.Source as Visual)?.FindAncestorOfType<ListBoxItem>(includeSelf: true)?.DataContext as LayerBase;
-        if (layer != null)
+        // A row of a multiple selection keeps the selection, so the menu acts on all of it.
+        if (layer != null && !vm.SelectedLayers.Contains(layer))
             vm.SelectedLayer = layer;
 
         e.Handled = ShowLayerMenu(vm, (Control)sender, onLayer: layer != null);
@@ -948,7 +1018,7 @@ public partial class TouchButtonSettings : Window
                             IsInside(pos, vm.SelectionLeft, vm.SelectionTop, vm.SelectionWidth, vm.SelectionHeight)
                 ? vm.SelectedLayer
                 : HitTestLayer(vm, pos);
-            if (hit != null)
+            if (hit != null && !vm.SelectedLayers.Contains(hit))
                 vm.SelectedLayer = hit;
 
             e.Handled = ShowLayerMenu(vm, EditorRoot, onLayer: hit != null);
@@ -971,9 +1041,32 @@ public partial class TouchButtonSettings : Window
             ? vm.SelectedLayer
             : HitTestLayer(vm, pos);
 
+        // Ctrl+click adds the layer to the selection or takes it out (issue #679).
+        if (e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        {
+            LayerBase toggled = HitTestLayer(vm, pos);
+            if (toggled != null)
+            {
+                vm.ToggleLayerSelection(toggled);
+                PreviewScroll.Focus(NavigationMethod.Pointer);
+            }
+
+            e.Handled = true;
+            return;
+        }
+
         if (picked != null)
         {
-            if (!ReferenceEquals(picked, vm.SelectedLayer))
+            // A layer of a multiple selection keeps the selection, so the drag moves all of it;
+            // a click on it without dragging selects it alone on release.
+            _collapseOnRelease = null;
+            if (vm.HasMultipleSelectedLayers && vm.SelectedLayers.Contains(picked))
+            {
+                if (!ReferenceEquals(picked, vm.SelectedLayer))
+                    vm.SelectLayers(vm.SelectedLayers, picked);
+                _collapseOnRelease = picked;
+            }
+            else if (!ReferenceEquals(picked, vm.SelectedLayer))
                 vm.SelectedLayer = picked;
 
             // Take the focus off any slider or field, so arrow keys nudge the layer next.
@@ -1033,8 +1126,16 @@ public partial class TouchButtonSettings : Window
                         newPosY = (int)Math.Round(snappedTop - _moveBaseTopDev);
                     }
 
-                    vm.SelectedLayer.PositionX = newPosX;
-                    vm.SelectedLayer.PositionY = newPosY;
+                    int deltaX = newPosX - _startPosX;
+                    int deltaY = newPosY - _startPosY;
+                    if (deltaX != 0 || deltaY != 0)
+                        _collapseOnRelease = null;
+
+                    foreach ((LayerBase moved, int startX, int startY) in _moveStarts)
+                    {
+                        moved.PositionX = startX + deltaX;
+                        moved.PositionY = startY + deltaY;
+                    }
                     break;
                 }
             case DragMode.Handle:
@@ -1085,7 +1186,13 @@ public partial class TouchButtonSettings : Window
         {
             vm.ButtonData.IgnoreRefresh = false;
             vm.ButtonData.Refresh();
+
+            if (_collapseOnRelease != null)
+                vm.SelectedLayer = _collapseOnRelease;
         }
+
+        _collapseOnRelease = null;
+        _moveStarts.Clear();
 
         e.Handled = true;
     }
@@ -1096,6 +1203,11 @@ public partial class TouchButtonSettings : Window
         _dragStartCanvas = pos;
         _startPosX = layer.PositionX;
         _startPosY = layer.PositionY;
+
+        // Every selected layer moves by the dragged layer's offset; the snap follows the dragged one.
+        _moveStarts.Clear();
+        foreach (LayerBase moved in MovableSelection(vm).Append(layer).Distinct())
+            _moveStarts.Add((moved, moved.PositionX, moved.PositionY));
 
         _moveHasBase = TryGetMoveBase(vm, layer, out _moveBaseLeftDev, out _moveBaseTopDev);
 
