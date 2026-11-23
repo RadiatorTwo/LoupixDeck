@@ -372,6 +372,16 @@ public sealed class WallpaperAnimationSource : IAnimationSource, IDisposable
             canvas.DrawBitmap(foreground, new SKRect(0, 0, foreground.Width, foreground.Height),
                 destination, SKSamplingOptions.Default, paint: null);
         }
+
+        // The Live S dial labels sit on top of their keys, as on the static path.
+        if (_device.KeyOverlay is { } overlayAt)
+        {
+            for (var index = 0; index < _keyRects.Length; index++)
+            {
+                if (overlayAt(index) is { } overlay)
+                    BitmapHelper.DrawDialLabelOverlay(canvas, overlay, _keyRects[index].Left, _keyRects[index].Top);
+            }
+        }
     }
 
     /// <summary>

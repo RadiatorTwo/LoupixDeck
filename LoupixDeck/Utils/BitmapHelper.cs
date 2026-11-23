@@ -1949,6 +1949,43 @@ public static class BitmapHelper
         }
     }
 
+    /// <summary>
+    /// Renders a Live S dial label (<see cref="RotaryButton.DialLabel"/>) on a transparent
+    /// <paramref name="width"/>×<paramref name="height"/> bitmap: its background colour when enabled,
+    /// whose alpha lets the key below show through, then its layers. Publishes the result to the
+    /// label's <see cref="TouchButton.RenderedImage"/>, which the device view binds and the key
+    /// overlay draws.
+    /// </summary>
+    public static SKBitmap RenderDialLabel(TouchButton label, int width, int height)
+    {
+        ArgumentNullException.ThrowIfNull(label);
+
+        SKBitmap bitmap;
+        lock (SkiaRenderGate.Sync)
+        {
+            bitmap = new SKBitmap(width, height);
+            using var canvas = new SKCanvas(bitmap);
+            canvas.Clear(label.BackgroundEnabled ? label.BackColor.ToSKColor() : SKColors.Transparent);
+            DrawLayers(canvas, label.Layers, width, height, label.ValueContext);
+        }
+
+        bitmap.SetImmutable();
+        label.RenderedImage = bitmap;
+        return bitmap;
+    }
+
+    /// <summary>
+    /// Draws a dial label over the left edge of a key whose top-left corner is at
+    /// (<paramref name="x"/>, <paramref name="y"/>), with a soft shadow that lifts it off the key.
+    /// Must be called under <see cref="SkiaRenderGate"/>.Sync.
+    /// </summary>
+    public static void DrawDialLabelOverlay(SKCanvas canvas, SKBitmap label, int x, int y)
+    {
+        using var paint = new SKPaint();
+        paint.ImageFilter = SKImageFilter.CreateDropShadow(2, 0, 2, 2, new SKColor(0, 0, 0, 170));
+        canvas.DrawBitmap(label, x, y, SKSamplingOptions.Default, paint);
+    }
+
     /// <summary>Largest editor-frame extent (canvas px). The frame's longer side maps
     /// to this; the shorter side scales proportionally. A square 90×90 button yields a
     /// 300×300 frame (scale 3.333), matching the original fixed layout.</summary>
@@ -3940,6 +3977,8 @@ public static class BitmapHelper
                 // clips an outer key that hangs over the edge, exactly as the panel does.
                 SKRectI rect = device.GetKeyRectInGridRegion(i);
                 canvas.DrawBitmap(slot, rect.Left, rect.Top, SKSamplingOptions.Default, paint: null);
+                if (device.KeyOverlay?.Invoke(i) is { } overlay)
+                    DrawDialLabelOverlay(canvas, overlay, rect.Left, rect.Top);
             }
             canvas.Flush();
         }

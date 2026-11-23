@@ -1260,6 +1260,7 @@ public partial class LoupedeckLiveSController(
         await TryDeviceIo("drawing the side strips", () => RedrawSideStrips());
 
         InitButtonEvents();
+        InitDialLabels();
 
         // Save the initial configuration.
         SaveConfig();
