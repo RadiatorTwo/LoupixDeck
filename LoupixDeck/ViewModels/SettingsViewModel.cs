@@ -424,8 +424,20 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     /// </summary>
     private async Task AskDialLabelLayoutAsync()
     {
+        bool prevent;
+        try
+        {
+            prevent = await _buttonTemplates.AskPreventDialLabelObstructionAsync();
+        }
+        catch (Exception ex)
+        {
+            // Not marked as asked, so the next time the labels are switched on asks again.
+            Console.WriteLine($"[DialLabels] Asking about the key layout failed: {ex.Message}");
+            return;
+        }
+
         Config.DialLabelsLayoutPrompted = true;
-        if (!await _buttonTemplates.AskPreventDialLabelObstructionAsync()) return;
+        if (!prevent) return;
 
         LoupedeckDevice.Device.LoupedeckDevice device = _deviceService?.Device;
         if (device == null) return;

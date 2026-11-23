@@ -1982,9 +1982,13 @@ public static class BitmapHelper
     public static void DrawDialLabelOverlay(SKCanvas canvas, SKBitmap label, int x, int y)
     {
         using var paint = new SKPaint();
-        paint.ImageFilter = SKImageFilter.CreateDropShadow(2, 0, 2, 2, new SKColor(0, 0, 0, 170));
+        paint.ImageFilter = DialLabelShadow;
         canvas.DrawBitmap(label, x, y, SKSamplingOptions.Default, paint);
     }
+
+    // One filter for every label draw: the video wallpaper draws the labels on every frame.
+    private static readonly SKImageFilter DialLabelShadow =
+        SKImageFilter.CreateDropShadow(2, 0, 2, 2, new SKColor(0, 0, 0, 170));
 
     /// <summary>Largest editor-frame extent (canvas px). The frame's longer side maps
     /// to this; the shorter side scales proportionally. A square 90×90 button yields a
@@ -4004,8 +4008,6 @@ public static class BitmapHelper
                 // clips an outer key that hangs over the edge, exactly as the panel does.
                 SKRectI rect = device.GetKeyRectInGridRegion(i);
                 canvas.DrawBitmap(slot, rect.Left, rect.Top, SKSamplingOptions.Default, paint: null);
-                if (device.KeyOverlay?.Invoke(i) is { } overlay)
-                    DrawDialLabelOverlay(canvas, overlay, rect.Left, rect.Top);
             }
             canvas.Flush();
         }

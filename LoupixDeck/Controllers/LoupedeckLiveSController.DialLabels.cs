@@ -23,6 +23,9 @@ public partial class LoupedeckLiveSController
     // The labels whose edits repaint their key; rewired whenever the shown labels change.
     private readonly HashSet<TouchButton> _wiredDialLabels = [];
 
+    // The dials whose label being replaced or removed (reset, undo, paste) repaints the keys.
+    private readonly HashSet<RotaryButton> _wiredDialLabelDials = [];
+
     private void InitDialLabels()
     {
         if (deviceService.Device is not LoupedeckLiveSDevice device) return;
@@ -34,6 +37,26 @@ public partial class LoupedeckLiveSController
         // The first page was drawn before the overlay existed.
         if (config.DialLabelsEnabled)
             Dispatcher.UIThread.Post(RepaintDialLabelKeys);
+    }
+
+    /// <summary>Undoes <see cref="InitDialLabels"/> when the device goes away.</summary>
+    private void ShutdownDialLabels()
+    {
+        config.PropertyChanged -= OnDialLabelConfigChanged;
+        UnwireDialLabels();
+        if (deviceService.Device is { } device)
+            device.KeyOverlay = null;
+    }
+
+    private void UnwireDialLabels()
+    {
+        foreach (TouchButton wired in _wiredDialLabels)
+            wired.ItemChanged -= DialLabelItemChanged;
+        _wiredDialLabels.Clear();
+
+        foreach (RotaryButton dial in _wiredDialLabelDials)
+            dial.PropertyChanged -= DialLabelDialChanged;
+        _wiredDialLabelDials.Clear();
     }
 
     private void OnDialLabelConfigChanged(object sender, PropertyChangedEventArgs e)
@@ -53,7 +76,18 @@ public partial class LoupedeckLiveSController
             _fullDisplayActive || exclusiveMode.Owns(ExclusiveControlScope.TouchButtons))
             return null;
 
-        TouchButton label = DialLabelForKey(keyIndex);
+        TouchButton label;
+        try
+        {
+            label = DialLabelForKey(keyIndex);
+        }
+        catch (Exception ex) when (ex is ArgumentOutOfRangeException or InvalidOperationException)
+        {
+            // The dial list is edited on the UI thread while this runs on a render thread; the
+            // repaint that follows such an edit shows the label again.
+            return null;
+        }
+
         if (label == null) return null;
 
         SKBitmap image = label.RenderedImage;
@@ -115,16 +149,19 @@ public partial class LoupedeckLiveSController
     /// </summary>
     private void RenderShownDialLabels(LoupedeckLiveSDevice device)
     {
-        foreach (TouchButton wired in _wiredDialLabels)
-            wired.ItemChanged -= DialLabelItemChanged;
-        _wiredDialLabels.Clear();
+        UnwireDialLabels();
 
         var dials = config.CurrentRotaryButtonPage?.RotaryButtons;
         if (dials == null) return;
 
         foreach (RotaryButton dial in dials)
         {
-            if (dial?.DialLabel is not { } label) continue;
+            if (dial == null) continue;
+
+            dial.PropertyChanged += DialLabelDialChanged;
+            _wiredDialLabelDials.Add(dial);
+
+            if (dial.DialLabel is not { } label) continue;
 
             BitmapHelper.RenderDialLabel(label, DialLabelGeometry.Width(device.KeySize), device.KeySize);
             label.ItemChanged += DialLabelItemChanged;
@@ -134,6 +171,12 @@ public partial class LoupedeckLiveSController
 
     private void DialLabelItemChanged(object sender, EventArgs e) =>
         Dispatcher.UIThread.Post(RepaintDialLabelKeys);
+
+    private void DialLabelDialChanged(object sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(RotaryButton.DialLabel))
+            Dispatcher.UIThread.Post(RepaintDialLabelKeys);
+    }
 
     /// <summary>True when the device has dial labels (the Live S).</summary>
     public bool SupportsDialLabels => deviceService.Device is LoupedeckLiveSDevice;

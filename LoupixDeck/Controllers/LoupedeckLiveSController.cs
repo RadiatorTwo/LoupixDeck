@@ -902,6 +902,7 @@ public partial class LoupedeckLiveSController(
         folderNav.StateChanged -= OnFolderStateChanged;
         exclusiveMode.StateChanged -= OnExclusiveStateChanged;
         config.PropertyChanged -= ConfigOnPropertyChanged;
+        ShutdownDialLabels();
 
         // Detach from whichever workspace's pages we are currently bound to (issue #132).
         if (_boundTouchPages != null)
