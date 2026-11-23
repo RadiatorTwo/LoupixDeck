@@ -1305,6 +1305,10 @@
                             <CheckBox Content="{loc:Tr Settings_CyclePages}"
                                       IsChecked="{Binding Config.PageWrapEnabled, Mode=TwoWay}"
                                       ToolTip.Tip="{loc:Tr Settings_CyclePagesHint}" />
+                            <CheckBox Content="{loc:Tr Settings_DialLabels}"
+                                      IsVisible="{Binding SupportsDialLabels}"
+                                      IsChecked="{Binding DialLabelsEnabled, Mode=TwoWay}"
+                                      ToolTip.Tip="{loc:Tr Settings_DialLabelsHint}" />
                         </StackPanel>
                     </Border>
                 </StackPanel>
