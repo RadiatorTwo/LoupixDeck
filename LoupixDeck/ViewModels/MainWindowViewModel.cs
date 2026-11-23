@@ -1472,6 +1472,9 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void ClearSelected()
     {
+        // Del reaches here with any key selected; an empty one has nothing to clear or save.
+        if (!CanClearSelected()) return;
+
         LoupedeckButton button = _selectedButton;
         ButtonKind? kind = Classify(button);
         if (kind == null) return;

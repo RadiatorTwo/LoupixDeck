@@ -82,7 +82,8 @@ public static class DeviceButtonMenu
         menu.Items.Add(MakeItem(Loc.Tr("ButtonMenu_Cut"), vm.CutSelectedCommand, vm.CanClearSelected() && vm.CanCopySelected()));
         menu.Items.Add(MakeItem(Loc.Tr("ButtonMenu_Paste"), vm.PasteSelectedCommand, vm.CanPasteSelected()));
         menu.Items.Add(new Separator());
-        menu.Items.Add(MakeItem(Loc.Tr("ButtonMenu_Clear"), vm.ClearSelectedCommand, vm.CanClearSelected()));
+        menu.Items.Add(MakeItem(Loc.Tr("ButtonMenu_Clear"), vm.ClearSelectedCommand, vm.CanClearSelected(),
+            new KeyGesture(Key.Delete)));
 
         menu.ShowAt(button, showAtPointer: true);
         e.Handled = true;
@@ -144,6 +145,6 @@ public static class DeviceButtonMenu
         bool enabled)
         => new() { Header = Loc.Tr(headerKey), Command = command, CommandParameter = template, IsEnabled = enabled };
 
-    private static MenuItem MakeItem(string header, ICommand command, bool enabled)
-        => new() { Header = header, Command = command, IsEnabled = enabled };
+    private static MenuItem MakeItem(string header, ICommand command, bool enabled, KeyGesture gesture = null)
+        => new() { Header = header, Command = command, IsEnabled = enabled, InputGesture = gesture };
 }
