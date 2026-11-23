@@ -1801,13 +1801,13 @@ public partial class MainWindowViewModel : ViewModelBase
                 title: Loc.Tr(canAppend ? "Confirm_OverwriteOrAppendTitle" : "Confirm_OverwriteButtonTitle"),
                 confirmText: Loc.Tr("Confirm_Overwrite"),
                 cancelText: Loc.Tr("Confirm_Cancel"),
-                alternativeText: canAppend ? Loc.Tr("Confirm_AppendToSequence") : null);
+                alternatives: canAppend ? [Loc.Tr("Confirm_AppendToSequence")] : null);
         });
 
         if (result?.IsConfirmed != true)
             return PanelDropChoice.Cancel;
 
-        return dialog?.AlternativeChosen == true ? PanelDropChoice.Append : PanelDropChoice.Overwrite;
+        return dialog?.ChosenAlternative == 0 ? PanelDropChoice.Append : PanelDropChoice.Overwrite;
     }
 
     // ─────────────────────────── Dial context menu ───────────────────────────

@@ -4,7 +4,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:LoupixDeck.ViewModels"
         mc:Ignorable="d"
-        Width="440" SizeToContent="Height"
+        Width="{Binding DialogWidth}" SizeToContent="Height"
         MinHeight="150"
         x:Class="LoupixDeck.Views.ConfirmDialog"
         x:DataType="vm:ConfirmDialogViewModel"
@@ -94,10 +94,20 @@
                         Content="{Binding ConfirmText}"
                         IsDefault="True"
                         Command="{Binding ConfirmCommand}" />
-                <Button Classes="dialogBtn cancel"
-                        Content="{Binding AlternativeText}"
-                        IsVisible="{Binding ShowAlternative}"
-                        Command="{Binding AlternativeCommand}" />
+                <ItemsControl ItemsSource="{Binding Alternatives}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="10" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:DialogChoice">
+                            <Button Classes="dialogBtn cancel"
+                                    Content="{Binding Text}"
+                                    Command="{Binding Command}" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
                 <Button Classes="dialogBtn cancel"
                         Content="{Binding CancelText}"
                         IsVisible="{Binding ShowCancel}"
