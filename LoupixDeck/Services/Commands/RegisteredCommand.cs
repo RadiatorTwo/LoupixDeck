@@ -33,6 +33,10 @@ public sealed class RegisteredCommand
     /// </summary>
     public bool RequiresSideStrips { get; init; }
 
+    /// <summary>When true the command is only listed in the selection menu for devices with dial
+    /// labels (the Live S). It stays registered and executable on all devices.</summary>
+    public bool RequiresDialLabels { get; init; }
+
     /// <summary>True when the command renders dynamic text onto a touch button.</summary>
     public bool IsDisplayCommand { get; init; }
 

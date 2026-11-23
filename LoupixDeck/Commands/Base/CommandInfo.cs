@@ -17,6 +17,7 @@ public class CommandInfo
     public string ParameterTemplate { get; set; }
     public bool Hidden { get; set; }
     public bool RequiresSideStrips { get; set; }
+    public bool RequiresDialLabels { get; set; }
     public List<ParameterDescriptor> Parameters { get; set; } = [];
 
     /// <summary>

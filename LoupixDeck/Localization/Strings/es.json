@@ -1612,9 +1612,11 @@
   "DialLabel_Tooltip": "Etiqueta del dial: muestra lo que hace el dial de al lado. Doble clic para editar.",
   "DialLabel_EditorTitleFmt": "Etiqueta del dial {0}",
   "DialLabel_PreventObstructionTitle": "Etiquetas de dial",
-  "DialLabel_PreventObstructionMessage": "¿Evitar que las etiquetas de dial tapen los botones táctiles?\n\nSí dibuja los iconos y textos de los botones táctiles bajo las etiquetas desplazados a la derecha y con textos más estrechos mientras se muestran las etiquetas. Los botones no se modifican, y se puede desactivar de nuevo en los ajustes.",
+  "DialLabel_PreventObstructionMessage": "¿Evitar que las etiquetas de dial tapen los botones táctiles?\n\nSí coloca los iconos y textos de los botones táctiles bajo las etiquetas en la parte junto a la etiqueta mientras se muestran las etiquetas. Los botones no se modifican, y se puede desactivar de nuevo en los ajustes.",
   "Settings_DialLabels": "Activar etiquetas de dial (solo Live S)",
   "Settings_DialLabelsHint": "Muestra una etiqueta para cada dial sobre el borde izquierdo del botón táctil de al lado. Las etiquetas pertenecen a la página de diales y cambian con ella. Haz doble clic en una etiqueta en la vista del dispositivo para editarla.",
   "Settings_DialLabelsKeepClear": "Mantener libres los botones táctiles bajo las etiquetas de dial",
-  "Settings_DialLabelsKeepClearHint": "Dibuja el contenido de los botones táctiles bajo las etiquetas desplazado a la derecha y con textos más estrechos. Los botones no se modifican; al desactivarlo se ven como antes."
+  "Settings_DialLabelsKeepClearHint": "Coloca el contenido de los botones táctiles bajo las etiquetas en la parte junto a la etiqueta, como en un botón más estrecho. Los botones no se modifican; al desactivarlo se ven como antes.",
+  "CommandOption_Dial": "Dial {0}",
+  "DialLabel_Edit": "Editar etiqueta"
 }

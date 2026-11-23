@@ -73,4 +73,11 @@ public class CommandAttribute(
     /// the command stays registered and executable by name.
     /// </summary>
     public bool RequiresSideStrips { get; set; }
+
+    /// <summary>
+    /// When true the command is only listed in the command-selection menu for devices with dial
+    /// labels (the Loupedeck Live S). Like <see cref="RequiresSideStrips"/>, this only affects menu
+    /// listing; the command stays registered and executable by name.
+    /// </summary>
+    public bool RequiresDialLabels { get; set; }
 }

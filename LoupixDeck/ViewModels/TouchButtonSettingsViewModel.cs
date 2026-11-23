@@ -1448,7 +1448,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// The States section + transition UI are shown for ordinary grid touch buttons only.
     /// Side-strip canvases keep their single default state and their per-segment command flow.
     /// </summary>
-    public bool ShowStatesSection => !IsStripCanvas && !IsWheelCanvas && !IsDialLabelCanvas;
+    public bool ShowStatesSection => !IsStripCanvas && !IsWheelCanvas;
 
     /// <summary>The Button block ("Run while device is off", vibration): grid keys only. The strip
     /// canvas is never pressed as a key and a wheel canvas has neither, so no flag would be read.</summary>

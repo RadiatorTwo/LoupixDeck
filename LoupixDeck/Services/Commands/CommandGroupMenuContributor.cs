@@ -43,12 +43,14 @@ public class CommandGroupMenuContributor : IMenuContributor
         // Side-display-targeting commands (e.g. per-side rotary paging) are only offered on
         // devices with separate side-display rotary areas; other devices never see them.
         var hasSideStrips = _deviceService.Device?.HasSideStrips == true;
+        var hasDialLabels = _deviceService.Device is LoupedeckDevice.Device.LoupedeckLiveSDevice;
 
         var groups = _registry.GetAll()
             .Where(c => c.Info != null && !string.IsNullOrEmpty(c.Info.Group))
             .Where(c => !SpecializedGroups.Contains(c.Info.Group))
             .Where(c => !c.HiddenFromMenu)
             .Where(c => !c.RequiresSideStrips || hasSideStrips)
+            .Where(c => !c.RequiresDialLabels || hasDialLabels)
             .Where(c => !CompanionCommandPolicy.IsBlocked(_companions, _device.ScopeKey, c.CommandName))
             // Any overlap, so a combined target (the action panel's) lists every command that
             // fits at least one of its button types.

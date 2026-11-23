@@ -30,6 +30,8 @@ public sealed class CommandParameterOptions(IDeviceService deviceService) : ICom
             return LedButtons();
         if (enumType == typeof(TouchButtonNumber))
             return TouchButtons();
+        if (enumType == typeof(DialNumber))
+            return Dials();
 
         return Enum.GetNames(enumType).Select(n => new ParameterOption(n, n)).ToList();
     }
@@ -73,6 +75,19 @@ public sealed class CommandParameterOptions(IDeviceService deviceService) : ICom
         }
 
         options.Add(new ParameterOption(nameof(TouchButtonNumber.All), Loc.Tr("CommandOption_All")));
+        return options;
+    }
+
+    private static List<ParameterOption> Dials()
+    {
+        List<ParameterOption> options = [];
+        foreach (DialNumber number in Enum.GetValues<DialNumber>())
+        {
+            if (number == DialNumber.All) continue;
+            options.Add(new ParameterOption(number.ToString(), Loc.Tr("CommandOption_Dial", (int)number)));
+        }
+
+        options.Add(new ParameterOption(nameof(DialNumber.All), Loc.Tr("CommandOption_All")));
         return options;
     }
 

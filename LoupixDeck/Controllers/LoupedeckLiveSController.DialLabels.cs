@@ -31,6 +31,7 @@ public partial class LoupedeckLiveSController
         if (deviceService.Device is not LoupedeckLiveSDevice device) return;
 
         device.KeyOverlay = DialLabelOverlayAt;
+        _dialLabelResetPage = config.CurrentRotaryButtonPage;
         config.DialLabelSlots = Enumerable.Range(0, device.RotaryCount)
             .Select(device.GetTouchSlotForRotary)
             .Where(slot => slot >= 0)
@@ -64,8 +65,14 @@ public partial class LoupedeckLiveSController
         _wiredDialLabelDials.Clear();
     }
 
+    // The rotary page whose labels were last reset for being shown, so only a real page change resets.
+    private RotaryButtonPage _dialLabelResetPage;
+
     private void OnDialLabelConfigChanged(object sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(LoupedeckConfig.CurrentRotaryButtonPage))
+            Dispatcher.UIThread.Post(ResetDialLabelsForPageChange);
+
         if (e.PropertyName is nameof(LoupedeckConfig.DialLabelsEnabled) or nameof(LoupedeckConfig.DialLabelsKeepKeysClear)
             or nameof(LoupedeckConfig.CurrentRotaryButtonPage))
             Dispatcher.UIThread.Post(RepaintDialLabelKeys);
@@ -107,6 +114,26 @@ public partial class LoupedeckLiveSController
         }
 
         return image;
+    }
+
+    /// <summary>
+    /// Puts the labels of a newly shown rotary page back to their default state when they ask for it
+    /// (Reset to default on page change), the same as the touch buttons of a newly shown touch page.
+    /// </summary>
+    private void ResetDialLabelsForPageChange()
+    {
+        RotaryButtonPage page = config.CurrentRotaryButtonPage;
+        if (ReferenceEquals(page, _dialLabelResetPage)) return;
+
+        bool first = _dialLabelResetPage == null;
+        _dialLabelResetPage = page;
+        if (first || page?.RotaryButtons == null) return;
+
+        foreach (RotaryButton dial in page.RotaryButtons)
+        {
+            if (dial?.DialLabel is { ResetOnPageChange: true, Mode: ButtonStateMode.Local } label)
+                label.ResetToDefaultState();
+        }
     }
 
     /// <summary>The label of the current rotary page's dial next to grid key <paramref name="keyIndex"/>.</summary>

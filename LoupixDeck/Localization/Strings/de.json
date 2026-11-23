@@ -1612,9 +1612,11 @@
   "DialLabel_Tooltip": "Dial-Label: zeigt, was der Drehregler daneben macht. Doppelklick zum Bearbeiten.",
   "DialLabel_EditorTitleFmt": "Label für Drehregler {0}",
   "DialLabel_PreventObstructionTitle": "Dial-Labels",
-  "DialLabel_PreventObstructionMessage": "Verhindern, dass Dial-Labels Touch-Buttons verdecken?\n\nJa zeichnet Icons und Texte der Touch-Buttons unter den Labels nach rechts versetzt und mit schmaleren Texten, solange die Labels angezeigt werden. Die Buttons selbst werden nicht verändert, und das lässt sich in den Einstellungen wieder ausschalten.",
+  "DialLabel_PreventObstructionMessage": "Verhindern, dass Dial-Labels Touch-Buttons verdecken?\n\nJa ordnet Icons und Texte der Touch-Buttons unter den Labels auf der Fläche neben dem Label an, solange die Labels angezeigt werden. Die Buttons selbst werden nicht verändert, und das lässt sich in den Einstellungen wieder ausschalten.",
   "Settings_DialLabels": "Dial-Labels aktivieren (nur Live S)",
   "Settings_DialLabelsHint": "Zeigt für jeden Drehregler ein Label über dem linken Rand des Touch-Buttons daneben. Die Labels gehören zur Drehregler-Seite und wechseln mit ihr. Doppelklick auf ein Label in der Geräteansicht bearbeitet es.",
   "Settings_DialLabelsKeepClear": "Touch-Buttons unter den Dial-Labels freihalten",
-  "Settings_DialLabelsKeepClearHint": "Zeichnet den Inhalt der Touch-Buttons unter den Labels nach rechts versetzt und mit schmaleren Texten. Die Buttons selbst werden nicht verändert; ausgeschaltet sehen sie aus wie vorher."
+  "Settings_DialLabelsKeepClearHint": "Ordnet den Inhalt der Touch-Buttons unter den Labels auf der Fläche neben dem Label an, wie auf einem schmaleren Button. Die Buttons selbst werden nicht verändert; ausgeschaltet sehen sie aus wie vorher.",
+  "CommandOption_Dial": "Drehregler {0}",
+  "DialLabel_Edit": "Label bearbeiten"
 }
