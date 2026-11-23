@@ -1608,5 +1608,11 @@
   "Companions_StoppedHint": "Detenido: cada dispositivo muestra sus propios perfiles hasta que el grupo se inicie de nuevo, también tras reiniciar.",
   "MainWindow_CompanionSyncPaused": "Sincronización en pausa",
   "MainWindow_PauseCompanionSync": "Pausar la sincronización de acompañantes",
-  "MainWindow_ResumeCompanionSync": "Reanudar la sincronización de acompañantes"
+  "MainWindow_ResumeCompanionSync": "Reanudar la sincronización de acompañantes",
+  "DialLabel_Tooltip": "Etiqueta del dial: muestra lo que hace el dial de al lado. Doble clic para editar.",
+  "DialLabel_EditorTitleFmt": "Etiqueta del dial {0}",
+  "DialLabel_PreventObstructionTitle": "Etiquetas de dial",
+  "DialLabel_PreventObstructionMessage": "¿Evitar que las etiquetas de dial tapen los botones táctiles?\n\nSí mueve los iconos y textos de los botones táctiles junto a los diales a la derecha y estrecha sus textos, para que las etiquetas no los tapen.",
+  "Settings_DialLabels": "Activar etiquetas de dial (solo Live S)",
+  "Settings_DialLabelsHint": "Muestra una etiqueta para cada dial sobre el borde izquierdo del botón táctil de al lado. Las etiquetas pertenecen a la página de diales y cambian con ella. Haz doble clic en una etiqueta en la vista del dispositivo para editarla."
 }

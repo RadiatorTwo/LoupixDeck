@@ -49,6 +49,12 @@ public interface IButtonTemplateService
     /// color ones take the tint like a glyph. Returns false when the file could not be copied.
     /// </summary>
     bool ApplyPackIcon(SymbolLayer layer, IconPackEntry icon, double size);
+
+    /// <summary>
+    /// Asks whether the keys next to the Live S dial labels should keep clear of them
+    /// (<see cref="DialLabelLayout"/>). True for yes.
+    /// </summary>
+    Task<bool> AskPreventDialLabelObstructionAsync();
 }
 
 /// <summary>What <see cref="IButtonTemplateService.ApplyAsync"/> did.</summary>
@@ -150,6 +156,15 @@ public sealed class ButtonTemplateService(IDialogService dialogService, IAssetSe
 
         return ActionAssignment.ApplyTemplateToPages(pages, template, keyWidthPx, keyHeightPx, skip,
             commandRegistry.DrawsOnKey);
+    }
+
+    public async Task<bool> AskPreventDialLabelObstructionAsync()
+    {
+        DialogResult result = await dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
+            vm.Configure(
+                Loc.Tr("DialLabel_PreventObstructionMessage"),
+                title: Loc.Tr("DialLabel_PreventObstructionTitle")));
+        return result is { IsConfirmed: true };
     }
 
     public async Task<SymbolLayer> PickSymbolLayerAsync(IEnumerable<LayerBase> layers)

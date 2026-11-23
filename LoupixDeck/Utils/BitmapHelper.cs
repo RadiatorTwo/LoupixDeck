@@ -2070,7 +2070,8 @@ public static class BitmapHelper
         TouchButton wheelShared = null,
         int wheelHover = -1,
         bool wheelDividers = true,
-        Func<int, DialRenderContext> stripZoneDial = null)
+        Func<int, DialRenderContext> stripZoneDial = null,
+        Func<SKBitmap> underlay = null)
     {
         ArgumentNullException.ThrowIfNull(canvas);
         ArgumentNullException.ThrowIfNull(touchButton);
@@ -2126,6 +2127,32 @@ public static class BitmapHelper
             // without changing what it shows.
             if (!editingShared)
                 ShadeOutsideSegment(canvas, frame, wheelSplit, wheelSegment);
+        }
+        else if (underlay != null)
+        {
+            // A Live S dial label: the key it sits on shows through wherever the label is
+            // transparent, as on the device.
+            lock (SkiaRenderGate.Sync)
+            {
+                if (underlay() is { } below)
+                {
+                    var source = new SKRect(0, 0, Math.Min(deviceWidth, below.Width), Math.Min(deviceHeight, below.Height));
+                    canvas.DrawBitmap(below, source, frameRect, SKSamplingOptions.Default, paint: null);
+                }
+                else
+                {
+                    using var black = new SKPaint { Color = SKColors.Black };
+                    canvas.DrawRect(frameRect, black);
+                }
+            }
+
+            if (touchButton.BackgroundEnabled)
+            {
+                using var background = new SKPaint { Color = touchButton.BackColor.ToSKColor() };
+                canvas.DrawRect(frameRect, background);
+            }
+
+            DrawEditorSurface(canvas, touchButton, frame, dial, area: null, faded: false, fillBackground: false);
         }
         else
         {

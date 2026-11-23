@@ -456,7 +456,53 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
     /// <summary>True when the surface has a value an indicator layer can draw: the wheel, a touch
     /// key, or a tap-zone strip (the dial beside each zone). A strip in the other modes draws no canvas.</summary>
-    public bool CanAddIndicator => !IsStripCanvas || IsSegmentCommandMode;
+    public bool CanAddIndicator => (!IsStripCanvas || IsSegmentCommandMode) && !IsDialLabelCanvas;
+
+    /// <summary>A dial label is drawn once per change, so it takes no animation.</summary>
+    public bool CanAddAnimation => !IsDialLabelCanvas;
+
+    /// <summary>The layout templates are laid out for a key; a strip or a dial label takes none.</summary>
+    public bool ShowLayoutTemplate => !IsStripCanvas && !IsDialLabelCanvas;
+
+    // ───────── Live S dial label (#676) ─────────
+
+    private int _dialLabelIndex = -1;
+    private TouchButton _dialLabelKey;
+    private bool _nextToDialLabel;
+
+    /// <summary>True while editing a Live S dial label (<see cref="RotaryButton.DialLabel"/>).</summary>
+    public bool IsDialLabelCanvas => _dialLabelIndex >= 0;
+
+    /// <summary>
+    /// Marks this editor as editing the label of dial <paramref name="dial"/>: Properties only, no
+    /// states, commands or animation, and the key below (<paramref name="keyBelow"/>) shown behind
+    /// the label so a see-through background can be judged. Call after <see cref="SetCanvasSize"/>
+    /// and before <see cref="Initialize"/>.
+    /// </summary>
+    public void ConfigureDialLabel(int dial, TouchButton keyBelow)
+    {
+        _dialLabelIndex = Math.Max(0, dial);
+        _dialLabelKey = keyBelow;
+        OnPropertyChanged(nameof(IsDialLabelCanvas));
+        OnPropertyChanged(nameof(ShowStatesSection));
+        OnPropertyChanged(nameof(ShowButtonSection));
+        OnPropertyChanged(nameof(ShowCommandArea));
+        OnPropertyChanged(nameof(ShowParametersTab));
+        OnPropertyChanged(nameof(CanAddIndicator));
+        OnPropertyChanged(nameof(CanAddAnimation));
+        OnPropertyChanged(nameof(ShowLayoutTemplate));
+        OnPropertyChanged(nameof(ShowButtonNumberTitle));
+        OnPropertyChanged(nameof(ButtonLabel));
+    }
+
+    /// <summary>
+    /// Marks the edited key as one a Live S dial label sits on, so applying a layout template asks
+    /// whether to keep its content clear of the label.
+    /// </summary>
+    public void MarkNextToDialLabel() => _nextToDialLabel = true;
+
+    /// <summary>The "Button N" panel title: grid keys only.</summary>
+    public bool ShowButtonNumberTitle => !IsWheelCanvas && !IsDialLabelCanvas;
 
     /// <summary>Height of a zone divider bar as a <see cref="LayerBase.ScaleY"/> multiplier.</summary>
     private const double ZoneDividerThickness = 0.17;
@@ -1068,7 +1114,9 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     public int ButtonNumber => (ButtonData?.Index ?? 0) + 1;
 
     /// <summary>Window title, e.g. "Touch Button 1" — or the wheel's own title for its canvas.</summary>
-    public string ButtonLabel => IsWheelCanvas
+    public string ButtonLabel => IsDialLabelCanvas
+        ? Loc.Tr("DialLabel_EditorTitleFmt", _dialLabelIndex + 1)
+        : IsWheelCanvas
         ? EditedSegment != null
             ? Loc.Tr("Wheel_SegmentTitleFmt", Loc.Tr("TouchButton_CentreWheelTitle"),
                 Loc.Tr(WheelSplitGeometry.SegmentNameKey(_wheel.SplitMode, _wheelSegmentIndex)))
@@ -1228,7 +1276,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     public ObservableCollection<CommandSegment> ParameterSegments { get; } = [];
 
     /// <summary>True when at least one command in the sequence has parameters to edit.</summary>
-    public bool ShowParametersTab => ParameterSegments.Count > 0 && !IsWheelCanvas;
+    public bool ShowParametersTab => ParameterSegments.Count > 0 && !IsWheelCanvas && !IsDialLabelCanvas;
 
     /// <summary>Index of the selected right-hand tab (0 Properties, 1 Commands, 2 Parameters).</summary>
     public int RightTabIndex
@@ -1407,15 +1455,15 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// The States section + transition UI are shown for ordinary grid touch buttons only.
     /// Side-strip canvases keep their single default state and their per-segment command flow.
     /// </summary>
-    public bool ShowStatesSection => !IsStripCanvas && !IsWheelCanvas;
+    public bool ShowStatesSection => !IsStripCanvas && !IsWheelCanvas && !IsDialLabelCanvas;
 
     /// <summary>The Button block ("Run while device is off", vibration): grid keys only. The strip
     /// canvas is never pressed as a key and a wheel canvas has neither, so no flag would be read.</summary>
-    public bool ShowButtonSection => !IsStripCanvas && !IsWheelCanvas;
+    public bool ShowButtonSection => !IsStripCanvas && !IsWheelCanvas && !IsDialLabelCanvas;
 
     /// <summary>The Commands and Apps tabs and the command-sequence strip: hidden for a wheel canvas,
     /// and for a Segmented or PluginOverride strip, which runs no user command.</summary>
-    public bool ShowCommandArea => !IsWheelCanvas && (!IsStripCanvas || IsSegmentCommandMode);
+    public bool ShowCommandArea => !IsWheelCanvas && !IsDialLabelCanvas && (!IsStripCanvas || IsSegmentCommandMode);
 
     private const int CommandsTabIndex = 1;
     private const int AppsTabIndex = 2;
@@ -1858,9 +1906,18 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             BoxHeight = box
         };
 
-        // The defaults from Settings are laid out for a key, not for a side strip.
-        if (!IsStripCanvas)
+        if (IsDialLabelCanvas)
+        {
+            // A box one letter wide, so the text wraps into a column down the label.
+            layer.BoxWidth = DialLabelGeometry.TextBoxWidth(DeviceHeight);
+            layer.BoxHeight = DialLabelGeometry.TextBoxHeight(DeviceHeight);
+            layer.TextSize = DialLabelGeometry.TextSize(DeviceHeight);
+        }
+        // The defaults from Settings are laid out for a key, not for a side strip or a dial label.
+        else if (!IsStripCanvas)
+        {
             LayerDefaults.ApplyToNewText(layer, DeviceWidth, DeviceHeight);
+        }
 
         AddLayer(layer);
         SelectedLayer = layer;
@@ -1873,12 +1930,15 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// </summary>
     private async Task ApplyTemplate(ButtonTemplate template)
     {
-        if (ButtonData == null || IsStripCanvas) return;
+        if (ButtonData == null || IsStripCanvas || IsDialLabelCanvas) return;
 
         ButtonTemplateOutcome outcome = await _buttonTemplates.ApplyAsync(ButtonData, template, DeviceWidth,
             DeviceHeight);
         if (!outcome.Applied)
             return;
+
+        if (_nextToDialLabel && await _buttonTemplates.AskPreventDialLabelObstructionAsync())
+            DialLabelLayout.Adjust(ButtonData.Layers, DeviceHeight);
 
         // A caption the template created has not been stamped with the surface size yet.
         ApplyDeviceBaseToLayers();
@@ -2601,7 +2661,8 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
                 wheelShared: IsWheelSplit ? _wheel.SplitCanvas : null,
                 wheelHover: _hoverSegment,
                 wheelDividers: _wheel?.ShowSplitDividers ?? true,
-                stripZoneDial: IsSegmentCommandMode ? StripZonePreviewDial : null);
+                stripZoneDial: IsSegmentCommandMode ? StripZonePreviewDial : null,
+                underlay: IsDialLabelCanvas ? () => _dialLabelKey?.RenderedImage : null);
         }
 
         EditorPreview = target;

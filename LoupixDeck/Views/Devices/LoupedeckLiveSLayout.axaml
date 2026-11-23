@@ -124,6 +124,29 @@
         <Style Selector="Button[Tag=Touch] /template/ Border#HighlightBorder.selected">
             <Setter Property="BorderBrush" Value="{StaticResource PageActiveBorderBrush}" />
         </Style>
+
+        <!-- Dial labels (#676): chrome-free like the touch tiles, highlighted on hover only. A
+             click selects the key below, a double click edits the label. -->
+        <Style Selector="Button.DialLabel">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Grid Background="Transparent">
+                        <ContentPresenter Content="{TemplateBinding Content}" />
+                        <Border Name="HighlightBorder"
+                                Margin="3,5,1,5" CornerRadius="5"
+                                BorderThickness="2" BorderBrush="Transparent"
+                                IsHitTestVisible="False" />
+                    </Grid>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="Button.DialLabel:pointerover /template/ Border#HighlightBorder">
+            <Setter Property="BorderBrush" Value="{StaticResource PageActiveBorderBrush}" />
+        </Style>
     </UserControl.Styles>
 
     <!-- The device is drawn from its SVG body (Assets/loupedeck-gehaeuse.svg) and the
@@ -321,6 +344,32 @@
                                     CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[14]}">
                                 <Border CornerRadius="0" ClipToBounds="True">
                                     <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[14].RenderedImage}" />
+                                </Border>
+                            </Button>
+
+                            <!-- Dial labels (#676): drawn over the left edge of the keys next to the two
+                                 dials, with a shadow that lifts them off the key. The device draws the
+                                 same bitmap there. -->
+                            <Button Classes="DialLabel" Tag="0" Grid.Row="0" Grid.Column="0"
+                                    Width="24" Height="90" HorizontalAlignment="Left"
+                                    IsVisible="{Binding LoupedeckController.Config.DialLabelsEnabled}"
+                                    ToolTip.Tip="{loc:Tr DialLabel_Tooltip}"
+                                    Tapped="OnButtonTapped" DoubleTapped="OnDialLabelDoubleTapped"
+                                    CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[0]}">
+                                <Border BoxShadow="2 0 4 0 #99000000"
+                                        IsVisible="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[0].DialLabel, Converter={x:Static ObjectConverters.IsNotNull}, FallbackValue=False}">
+                                    <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[0].DialLabel.RenderedImage}" />
+                                </Border>
+                            </Button>
+                            <Button Classes="DialLabel" Tag="1" Grid.Row="1" Grid.Column="0"
+                                    Width="24" Height="90" HorizontalAlignment="Left"
+                                    IsVisible="{Binding LoupedeckController.Config.DialLabelsEnabled}"
+                                    ToolTip.Tip="{loc:Tr DialLabel_Tooltip}"
+                                    Tapped="OnButtonTapped" DoubleTapped="OnDialLabelDoubleTapped"
+                                    CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[5]}">
+                                <Border BoxShadow="2 0 4 0 #99000000"
+                                        IsVisible="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[1].DialLabel, Converter={x:Static ObjectConverters.IsNotNull}, FallbackValue=False}">
+                                    <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[1].DialLabel.RenderedImage}" />
                                 </Border>
                             </Button>
                         </Grid>

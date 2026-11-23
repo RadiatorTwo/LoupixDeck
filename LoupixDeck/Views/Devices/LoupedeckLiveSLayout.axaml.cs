@@ -67,6 +67,18 @@ public partial class LoupedeckLiveSLayout : UserControl
         }
     }
 
+    // A dial label carries the key below as its CommandParameter (a click selects that key) and its
+    // dial index as Tag; a double click edits the label.
+    private void OnDialLabelDoubleTapped(object sender, TappedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm || sender is not Button { Tag: string tag } ||
+            !int.TryParse(tag, out int dial))
+            return;
+
+        vm.EditDialLabelCommand.Execute(dial);
+        e.Handled = true;
+    }
+
     // Clicking empty device chrome clears the selection. Button taps set e.Handled, so they
     // never reach this bubbling handler.
     private void OnBackgroundTapped(object sender, TappedEventArgs e)

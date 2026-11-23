@@ -130,4 +130,35 @@ public partial class LoupedeckLiveSController
 
     private void DialLabelItemChanged(object sender, EventArgs e) =>
         Dispatcher.UIThread.Post(RepaintDialLabelKeys);
+
+    /// <summary>True when the device has dial labels (the Live S).</summary>
+    public bool SupportsDialLabels => deviceService.Device is LoupedeckLiveSDevice;
+
+    /// <summary>Grid key next to dial <paramref name="dial"/>, or -1.</summary>
+    public int DialLabelSlot(int dial) =>
+        deviceService.Device is LoupedeckLiveSDevice device && dial >= 0 && dial < device.RotaryCount
+            ? device.GetTouchSlotForRotary(dial)
+            : -1;
+
+    /// <summary>The shown touch page's key that the label of dial <paramref name="dial"/> sits on, or null.</summary>
+    public TouchButton KeyUnderDialLabel(int dial)
+    {
+        int slot = DialLabelSlot(dial);
+        return slot < 0 ? null : config.CurrentTouchButtonPage?.TouchButtons?.FirstOrDefault(b => b?.Index == slot);
+    }
+
+    /// <summary>True when dial labels are on and a label sits on grid key <paramref name="key"/>.</summary>
+    public bool IsUnderDialLabel(TouchButton key)
+    {
+        if (key == null || !config.DialLabelsEnabled || deviceService.Device is not LoupedeckLiveSDevice device)
+            return false;
+
+        for (int dial = 0; dial < device.RotaryCount; dial++)
+        {
+            if (device.GetTouchSlotForRotary(dial) == key.Index)
+                return true;
+        }
+
+        return false;
+    }
 }

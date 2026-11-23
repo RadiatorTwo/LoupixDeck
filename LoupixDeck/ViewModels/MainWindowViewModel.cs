@@ -94,6 +94,9 @@ public partial class MainWindowViewModel : ViewModelBase
     /// that side is in FreeDraw mode.</summary>
     public IAsyncRelayCommand EditStripCanvasCommand { get; }
 
+    /// <summary>Opens the layer editor on a Live S dial label; the parameter is the dial index.</summary>
+    public IAsyncRelayCommand<int> EditDialLabelCommand { get; }
+
     /// <summary>Opens the layer editor on the current touch page's active CT wheel mode, so its
     /// screen can be styled like a touch button. No-op on devices without a wheel.</summary>
     public IAsyncRelayCommand EditWheelCanvasCommand { get; }
@@ -458,6 +461,7 @@ public partial class MainWindowViewModel : ViewModelBase
         PreviousRightRotaryPageCommand = new RelayCommand(() => PageRotaryForSide(RotarySide.Right, next: false));
 
         EditStripCanvasCommand = new AsyncRelayCommand<RotarySide>(EditStripCanvas_Click);
+        EditDialLabelCommand = new AsyncRelayCommand<int>(EditDialLabel_Click);
         EditWheelCanvasCommand = new AsyncRelayCommand(EditWheelCanvas_Click);
 
         AddTouchPageCommand = new RelayCommand(AddTouchPageButton_Click);
@@ -875,11 +879,60 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         if (button == null || button.IsFolderNavTile || IsMirroredFolderKey(button)) return;
 
-        await _dialogService.ShowDialogAsync<TouchButtonSettingsViewModel, DialogResult>(vm => vm.Initialize(button));
+        bool underDialLabel = LoupedeckController.IsUnderDialLabel(button);
+        await _dialogService.ShowDialogAsync<TouchButtonSettingsViewModel, DialogResult>(vm =>
+        {
+            if (underDialLabel)
+                vm.MarkNextToDialLabel();
+            vm.Initialize(button);
+        });
 
         LoupedeckController.SaveConfig();
         _dynamicTextManager.Rescan();
         _buttonAnimationManager.Rescan();
+    }
+
+    /// <summary>
+    /// Opens the layer editor on the label of dial <paramref name="dial"/> on the current rotary page
+    /// (Live S). A label is created for the editor and dropped again when it is closed without an
+    /// edit, so opening and closing leaves the config as it was.
+    /// </summary>
+    private async Task EditDialLabel_Click(int dial)
+    {
+        if (!LoupedeckController.SupportsDialLabels) return;
+
+        RotaryButton rotary = LoupedeckController.Config.CurrentRotaryButtonPage?.RotaryButtons
+            .ElementAtOrDefault(dial);
+        if (rotary == null) return;
+
+        int keySize = _geometry.KeySize;
+        bool created = false;
+        if (rotary.DialLabel == null)
+        {
+            var label = new TouchButton(RotaryButton.DialLabelCanvasIndex);
+            label.BackgroundEnabled = true;
+            label.BackColor = Avalonia.Media.Colors.Black;
+            rotary.DialLabel = label;
+            created = true;
+        }
+
+        // Renders the label and wires its edits, so the device follows the editor live.
+        LoupedeckController.RepaintDialLabelKeys();
+
+        TouchButtonSettingsViewModel editor = null;
+        await _dialogService.ShowDialogAsync<TouchButtonSettingsViewModel, DialogResult>(vm =>
+        {
+            editor = vm;
+            vm.SetCanvasSize(DialLabelGeometry.Width(keySize), keySize);
+            vm.ConfigureDialLabel(dial, LoupedeckController.KeyUnderDialLabel(dial));
+            vm.Initialize(rotary.DialLabel);
+        });
+
+        if (created && editor is { HasEdits: false })
+            rotary.DialLabel = null;
+
+        LoupedeckController.SaveConfig();
+        LoupedeckController.RepaintDialLabelKeys();
     }
 
     private LoupedeckButton _selectedButton;
@@ -1403,6 +1456,10 @@ public partial class MainWindowViewModel : ViewModelBase
             await _buttonTemplates.ApplyAsync(button, template, _geometry.KeySize, _geometry.KeySize);
         if (!outcome.Applied) return;
 
+        if (LoupedeckController.IsUnderDialLabel(button) &&
+            await _buttonTemplates.AskPreventDialLabelObstructionAsync())
+            Services.Actions.DialLabelLayout.Adjust(button.Layers, _geometry.KeySize);
+
         AfterTemplateApplied();
     }
 
@@ -1427,6 +1484,17 @@ public partial class MainWindowViewModel : ViewModelBase
         Services.Actions.TemplateApplyResult? result =
             await _buttonTemplates.ApplyToPageAsync(page, template, _geometry.KeySize, _geometry.KeySize, skip);
         if (result is not { ButtonsChanged: > 0 }) return;
+
+        // One question for the keys under the dial labels; the other keys never ask.
+        List<TouchButton> underLabels = page.TouchButtons
+            .Where(b => b != null && !skip.Contains(b) && LoupedeckController.IsUnderDialLabel(b) &&
+                        b.Layers?.Any(l => l is { Visible: true }) == true)
+            .ToList();
+        if (underLabels.Count > 0 && await _buttonTemplates.AskPreventDialLabelObstructionAsync())
+        {
+            foreach (TouchButton key in underLabels)
+                Services.Actions.DialLabelLayout.AdjustAllStates(key, _geometry.KeySize);
+        }
 
         AfterTemplateApplied();
     }

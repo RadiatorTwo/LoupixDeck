@@ -1608,5 +1608,11 @@
   "Companions_StoppedHint": "Gestoppt: Jedes Gerät zeigt seine eigenen Profile, bis die Gruppe wieder gestartet wird, auch nach einem Neustart.",
   "MainWindow_CompanionSyncPaused": "Sync pausiert",
   "MainWindow_PauseCompanionSync": "Companion-Sync pausieren",
-  "MainWindow_ResumeCompanionSync": "Companion-Sync fortsetzen"
+  "MainWindow_ResumeCompanionSync": "Companion-Sync fortsetzen",
+  "DialLabel_Tooltip": "Dial-Label: zeigt, was der Drehregler daneben macht. Doppelklick zum Bearbeiten.",
+  "DialLabel_EditorTitleFmt": "Label für Drehregler {0}",
+  "DialLabel_PreventObstructionTitle": "Dial-Labels",
+  "DialLabel_PreventObstructionMessage": "Verhindern, dass Dial-Labels Touch-Buttons verdecken?\n\nJa verschiebt Icons und Texte der Touch-Buttons neben den Drehreglern nach rechts und macht ihre Texte schmaler, damit die Labels sie nicht verdecken.",
+  "Settings_DialLabels": "Dial-Labels aktivieren (nur Live S)",
+  "Settings_DialLabelsHint": "Zeigt für jeden Drehregler ein Label über dem linken Rand des Touch-Buttons daneben. Die Labels gehören zur Drehregler-Seite und wechseln mit ihr. Doppelklick auf ein Label in der Geräteansicht bearbeitet es."
 }
