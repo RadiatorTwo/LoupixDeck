@@ -1,8 +1,8 @@
 namespace LoupixDeck.Models;
 
 /// <summary>
-/// A draw-time adjustment of a key's layers: every layer moved right by <paramref name="ShiftX"/>
-/// pixels and no text box wider than <paramref name="MaxTextWidth"/> (0 for no limit). The default
-/// draws the layers as they are. Keeps the keys under the Live S dial labels clear of them.
+/// A draw-time narrowing of a key's layer surface: the layers are laid out on the part of the key
+/// right of <paramref name="Left"/> pixels, as if the key were that much narrower, and clipped to it.
+/// The default draws them on the whole key. Keeps the keys under the Live S dial labels clear of them.
 /// </summary>
-public readonly record struct KeyInset(int ShiftX, int MaxTextWidth);
+public readonly record struct KeyInset(int Left);

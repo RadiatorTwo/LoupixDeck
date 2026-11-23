@@ -879,12 +879,24 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         if (button == null || button.IsFolderNavTile || IsMirroredFolderKey(button)) return;
 
-        await _dialogService.ShowDialogAsync<TouchButtonSettingsViewModel, DialogResult>(vm => vm.Initialize(button));
+        // A key under a Live S dial label is edited on the part beside the label, as it is drawn.
+        int surfaceWidth = LayerSurfaceWidth(button);
+        await _dialogService.ShowDialogAsync<TouchButtonSettingsViewModel, DialogResult>(vm =>
+        {
+            if (surfaceWidth != _geometry.KeySize)
+                vm.SetCanvasSize(surfaceWidth, _geometry.KeySize);
+            vm.Initialize(button);
+        });
 
         LoupedeckController.SaveConfig();
         _dynamicTextManager.Rescan();
         _buttonAnimationManager.Rescan();
     }
+
+    /// <summary>Width of the surface <paramref name="key"/>'s layers are laid out on: the key, or the
+    /// part beside a dial label that keeps the key clear.</summary>
+    private int LayerSurfaceWidth(TouchButton key) =>
+        DialLabelGeometry.LayerSurfaceWidth(LoupedeckController.Config, key, _geometry.KeySize);
 
     /// <summary>
     /// Opens the layer editor on the label of dial <paramref name="dial"/> on the current rotary page
@@ -1447,7 +1459,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         TouchButton button = (TouchButton)_selectedButton;
         Services.Actions.ButtonTemplateOutcome outcome =
-            await _buttonTemplates.ApplyAsync(button, template, _geometry.KeySize, _geometry.KeySize);
+            await _buttonTemplates.ApplyAsync(button, template, LayerSurfaceWidth(button), _geometry.KeySize);
         if (!outcome.Applied) return;
 
         AfterTemplateApplied();
@@ -1474,6 +1486,19 @@ public partial class MainWindowViewModel : ViewModelBase
         Services.Actions.TemplateApplyResult? result =
             await _buttonTemplates.ApplyToPageAsync(page, template, _geometry.KeySize, _geometry.KeySize, skip);
         if (result is not { ButtonsChanged: > 0 }) return;
+
+        // The keys under the dial labels are laid out again for the narrower surface they are drawn on.
+        foreach (TouchButton key in page.TouchButtons)
+        {
+            if (key == null || skip.Contains(key)) continue;
+
+            int surfaceWidth = LayerSurfaceWidth(key);
+            if (surfaceWidth == _geometry.KeySize) continue;
+
+            HashSet<TouchButton> others = page.TouchButtons.Where(b => !ReferenceEquals(b, key)).ToHashSet();
+            Services.Actions.ActionAssignment.ApplyTemplateToPages([page], template, surfaceWidth, _geometry.KeySize,
+                others, _commandRegistry.DrawsOnKey);
+        }
 
         AfterTemplateApplied();
     }

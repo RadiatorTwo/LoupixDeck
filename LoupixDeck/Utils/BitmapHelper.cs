@@ -2435,9 +2435,16 @@ public static class BitmapHelper
     {
         if (layers == null) return;
 
+        // A key under a dial label lays its layers out beside the label, as on a narrower key.
         int saved = canvas.Save();
-        if (inset.ShiftX != 0)
-            canvas.Translate(inset.ShiftX, 0);
+        int maxTextWidth = 0;
+        if (inset.Left > 0)
+        {
+            canvas.Translate(inset.Left, 0);
+            width = Math.Max(1, width - inset.Left);
+            canvas.ClipRect(new SKRect(0, 0, width, height));
+            maxTextWidth = width;
+        }
 
         foreach (var layer in layers)
         {
@@ -2449,7 +2456,7 @@ public static class BitmapHelper
                     DrawImageLayer(canvas, image, width, height);
                     break;
                 case TextLayer text:
-                    DrawTextLayer(canvas, text, width, height, dial, inset.MaxTextWidth);
+                    DrawTextLayer(canvas, text, width, height, dial, maxTextWidth);
                     break;
                 case SymbolLayer symbol:
                     DrawSymbolLayer(canvas, symbol, width, height);
