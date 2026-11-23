@@ -549,6 +549,16 @@ public partial class LoupedeckConfig : ObservableObject
     [ObservableProperty]
     public partial bool HapticEnabled { get; set; }
 
+    // Live S only: draws each dial's label (RotaryButton.DialLabel of the current rotary page)
+    // over the left edge of the touch key next to that dial. Opt-in; absent from an old config
+    // it defaults to false, so nothing changes on the device until the user enables it.
+    [ObservableProperty]
+    public partial bool DialLabelsEnabled { get; set; }
+
+    // Set once the user has answered whether existing keys next to the dials should be moved
+    // out from under the labels, so enabling the labels again later does not shift them twice.
+    public bool DialLabelsLayoutPrompted { get; set; }
+
     /// <summary>
     /// Ids of plugins the user has enabled. The v2→v3 migration seeds this from
     /// the former per-integration enable flags (see <c>PluginConfigMigrator</c>).

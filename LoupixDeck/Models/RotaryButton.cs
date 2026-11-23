@@ -93,11 +93,25 @@ public partial class RotaryButton(int index,string rotaryLeftCommand, string rot
     public void RewireAfterLoad()
     {
         _canvas?.RewireLayerHandlers();
+        DialLabel?.RewireLayerHandlers();
         SplitCanvas?.RewireLayerHandlers();
         EnsureSegments();
         foreach (var segment in Segments)
             segment?.RewireAfterLoad();
     }
+
+    /// <summary><see cref="TouchButton.Index"/> of a <see cref="DialLabel"/>; only an identifier.</summary>
+    public const int DialLabelCanvasIndex = 1020;
+
+    /// <summary>
+    /// Live S dial label: a narrow layer canvas drawn over the left edge of the touch key next to
+    /// this dial while <see cref="LoupedeckConfig.DialLabelsEnabled"/> is on. Belongs to the rotary
+    /// page, so it changes with the dial page, and has no command of its own. Null until the user
+    /// edits it; persisted only when set, so configs without one load and save unchanged.
+    /// </summary>
+    [ObservableProperty]
+    [JsonProperty("DialLabel", NullValueHandling = NullValueHandling.Ignore)]
+    public partial TouchButton DialLabel { get; set; }
 
     // ───────── Split wheel screen (PluginSdk #30) ─────────
 
