@@ -37,6 +37,8 @@
         <KeyBinding Gesture="Ctrl+C" Command="{Binding SelectedDevice.CopySelectedCommand}" />
         <KeyBinding Gesture="Ctrl+X" Command="{Binding SelectedDevice.CutSelectedCommand}" />
         <KeyBinding Gesture="Ctrl+V" Command="{Binding SelectedDevice.PasteSelectedCommand}" />
+        <!-- Del clears the selected button like the context menu's Clear and leaves the clipboard alone (issue #683). -->
+        <KeyBinding Gesture="Delete" Command="{Binding SelectedDevice.ClearSelectedCommand}" />
         <KeyBinding Gesture="Ctrl+Z" Command="{Binding SelectedDevice.UndoCommand}" />
         <KeyBinding Gesture="Ctrl+Shift+Z" Command="{Binding SelectedDevice.RedoCommand}" />
         <KeyBinding Gesture="Ctrl+Y" Command="{Binding SelectedDevice.RedoCommand}" />
