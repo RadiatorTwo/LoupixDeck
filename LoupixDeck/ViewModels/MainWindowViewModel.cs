@@ -1948,12 +1948,25 @@ public partial class MainWindowViewModel : ViewModelBase
     /// target is a MOVE (source cleared) and a non-empty target is a SWAP; with Ctrl it is a COPY
     /// that overwrites the target and leaves the source untouched. A Ctrl-copy onto a non-empty
     /// target asks for confirmation first (like Ctrl+V paste); move and swap never lose data and
-    /// so are not confirmed.
+    /// so are not confirmed. A plain drop onto a key that opens a folder asks first whether the
+    /// button goes into the folder or swaps places with the folder key (issue #682).
     /// </summary>
     public async Task DropAsync(LoupedeckButton source, LoupedeckButton target, bool copy)
     {
         if (!CanDropOnto(source, target)) return;
         ButtonKind kind = Classify(source).Value;
+
+        if (!copy && kind == ButtonKind.Touch && FolderDropTarget(source, target) is { } folder)
+        {
+            FolderDropChoice choice = await AskFolderDropChoice();
+            if (choice == FolderDropChoice.Cancel) return;
+            if (choice != FolderDropChoice.Swap)
+            {
+                await DropIntoFolder((TouchButton)source, folder, keepSource: choice == FolderDropChoice.Copy);
+                SelectButton(target);
+                return;
+            }
+        }
 
         if (kind == ButtonKind.SideDisplay)
         {
@@ -1984,6 +1997,81 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         SelectButton(target);
+    }
+
+    private enum FolderDropChoice
+    {
+        Cancel,
+        Move,
+        Copy,
+        Swap
+    }
+
+    /// <summary>
+    /// The folder <paramref name="target"/> opens, when <paramref name="source"/> can be put into
+    /// it. Null for a key that opens no folder, a folder the source itself opens (a key cannot go
+    /// into the folder it leads to), or a companion's mirror, which is edited on its master only.
+    /// </summary>
+    private CustomFolder FolderDropTarget(LoupedeckButton source, LoupedeckButton target)
+    {
+        Guid folderId = Services.Folders.FolderCommand.ReferencedFolders(target.Command).FirstOrDefault();
+        if (folderId == Guid.Empty || Services.Folders.FolderCommand.ReferencedFolders(source.Command).Contains(folderId))
+            return null;
+
+        CustomFolder folder = LoupedeckController.Config.ActiveWorkspace?.EnumerateFolders()
+            .FirstOrDefault(f => f.Id == folderId);
+        return folder is { IsMirror: false } ? folder : null;
+    }
+
+    private async Task<FolderDropChoice> AskFolderDropChoice()
+    {
+        ConfirmDialogViewModel dialog = null;
+        DialogResult result = await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
+        {
+            dialog = vm;
+            vm.Configure(
+                Loc.Tr("FolderDrop_Message"),
+                title: Loc.Tr("FolderDrop_Title"),
+                confirmText: Loc.Tr("FolderDrop_Move"),
+                cancelText: Loc.Tr("Confirm_Cancel"),
+                alternatives: [Loc.Tr("FolderDrop_Copy"), Loc.Tr("FolderDrop_Swap")]);
+        });
+
+        if (result?.IsConfirmed != true)
+            return FolderDropChoice.Cancel;
+
+        return dialog?.ChosenAlternative switch
+        {
+            0 => FolderDropChoice.Copy,
+            1 => FolderDropChoice.Swap,
+            _ => FolderDropChoice.Move
+        };
+    }
+
+    /// <summary>
+    /// Puts <paramref name="source"/> on the first free key of <paramref name="folder"/>; a move
+    /// then empties the source, a copy leaves it as it is. A full folder is reported and nothing
+    /// changes.
+    /// </summary>
+    private async Task DropIntoFolder(TouchButton source, CustomFolder folder, bool keepSource)
+    {
+        TouchButton key = LoupedeckController.PageManager.FindFreeFolderKey(folder.Id);
+        if (key == null)
+        {
+            await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
+                vm.Configure(
+                    Loc.Tr("FolderDrop_FullMessage", folder.Name),
+                    title: Loc.Tr("FolderDrop_FullTitle"),
+                    confirmText: Loc.Tr("Confirm_Ok"),
+                    showCancel: false));
+            return;
+        }
+
+        ButtonSnapshot.Apply(ButtonSnapshot.Capture(source), key);
+        if (!keepSource)
+            ClearContent(source, ButtonKind.Touch);
+
+        PostTouchChange();
     }
 
     private void TransferOrSwap(LoupedeckButton source, LoupedeckButton target, bool copy, ButtonKind kind)
