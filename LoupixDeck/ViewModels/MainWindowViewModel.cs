@@ -1423,7 +1423,21 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        if (!_clipboard.IsEmpty(button) && !await ConfirmOverwrite()) return;
+        // A folder key asks whether the copy goes into its folder instead (issue #682).
+        if (kind == ButtonKind.Touch && FolderDropTarget(button) is { } folder)
+        {
+            CopyIntoFolderChoice choice = await AskCopyIntoFolderChoice(folder, "FolderPaste_Into");
+            if (choice == CopyIntoFolderChoice.Cancel) return;
+            if (choice == CopyIntoFolderChoice.IntoFolder)
+            {
+                await PasteIntoFolder(folder);
+                return;
+            }
+        }
+        else if (!_clipboard.IsEmpty(button) && !await ConfirmOverwrite())
+        {
+            return;
+        }
 
         // Before the paste, so the pasted commands and plugin layers resolve right away.
         await _pastePlugins.EnableRequiredAsync(_clipboard.Snapshots);
@@ -1632,11 +1646,23 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
 
         PanelDropChoice choice = PanelDropChoice.Overwrite;
+        CustomFolder folder = null;
         if (!_clipboard.IsEmpty(target))
         {
+            // A folder key also offers putting the row into its folder (issue #682), unless the
+            // row is that folder itself.
+            folder = FolderDropTarget(target,
+                item is ViewModels.FolderPanel.FolderNodeViewModel node ? [node.Folder.Id] : null);
             choice = await AskPanelDropChoice("Confirm_OverwriteButtonMessage",
-                "Confirm_OverwriteOrAppendButtonMessage", _panelAssignment.CanAppend(item, target));
+                "Confirm_OverwriteOrAppendButtonMessage", _panelAssignment.CanAppend(item, target), folder);
             if (choice == PanelDropChoice.Cancel)
+                return;
+        }
+
+        if (choice == PanelDropChoice.IntoFolder)
+        {
+            target = await FreeFolderKeyOrNotify(folder);
+            if (target == null)
                 return;
         }
 
@@ -1657,6 +1683,13 @@ public partial class MainWindowViewModel : ViewModelBase
 
         if (!assigned)
             return;
+
+        if (choice == PanelDropChoice.IntoFolder)
+        {
+            // The new key is not on the page shown, so the folder key stays selected.
+            PostTouchChange();
+            return;
+        }
 
         switch (Classify(target))
         {
@@ -1781,33 +1814,45 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         Cancel,
         Overwrite,
-        Append
+        Append,
+        IntoFolder
     }
 
     /// <summary>
     /// Asks what a panel drop onto an occupied target should do. With <paramref name="canAppend"/>
-    /// the dialog also offers adding the command to the target's sequence; without it, it is the
-    /// plain overwrite confirmation.
+    /// the dialog also offers adding the command to the target's sequence, and with a
+    /// <paramref name="folder"/> putting it on a free key of that folder (issue #682); without
+    /// either, it is the plain overwrite confirmation.
     /// </summary>
     private async Task<PanelDropChoice> AskPanelDropChoice(string overwriteKey, string appendKey,
-        bool canAppend)
+        bool canAppend, CustomFolder folder = null)
     {
+        List<PanelDropChoice> extras = [];
+        if (canAppend) extras.Add(PanelDropChoice.Append);
+        if (folder != null) extras.Add(PanelDropChoice.IntoFolder);
+
+        string message = folder != null
+            ? Loc.Tr(canAppend ? "FolderDrop_PanelAppendMessage" : "FolderDrop_PanelMessage", folder.Name)
+            : Loc.Tr(canAppend ? appendKey : overwriteKey);
+
         ConfirmDialogViewModel dialog = null;
         DialogResult result = await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
         {
             dialog = vm;
             vm.Configure(
-                Loc.Tr(canAppend ? appendKey : overwriteKey),
-                title: Loc.Tr(canAppend ? "Confirm_OverwriteOrAppendTitle" : "Confirm_OverwriteButtonTitle"),
+                message,
+                title: Loc.Tr(extras.Count > 0 ? "Confirm_OverwriteOrAppendTitle" : "Confirm_OverwriteButtonTitle"),
                 confirmText: Loc.Tr("Confirm_Overwrite"),
                 cancelText: Loc.Tr("Confirm_Cancel"),
-                alternatives: canAppend ? [Loc.Tr("Confirm_AppendToSequence")] : null);
+                alternatives: [.. extras.Select(static e => Loc.Tr(e == PanelDropChoice.Append
+                    ? "Confirm_AppendToSequence" : "FolderDrop_AddToFolder"))]);
         });
 
         if (result?.IsConfirmed != true)
             return PanelDropChoice.Cancel;
 
-        return dialog?.ChosenAlternative == 0 ? PanelDropChoice.Append : PanelDropChoice.Overwrite;
+        int chosen = dialog?.ChosenAlternative ?? -1;
+        return (chosen >= 0) && (chosen < extras.Count) ? extras[chosen] : PanelDropChoice.Overwrite;
     }
 
     // ─────────────────────────── Dial context menu ───────────────────────────
@@ -1956,13 +2001,30 @@ public partial class MainWindowViewModel : ViewModelBase
         if (!CanDropOnto(source, target)) return;
         ButtonKind kind = Classify(source).Value;
 
-        if (!copy && kind == ButtonKind.Touch && FolderDropTarget(source, target) is { } folder)
+        bool overwriteConfirmed = false;
+        if (kind == ButtonKind.Touch
+            && FolderDropTarget(target, Services.Folders.FolderCommand.ReferencedFolders(source.Command)) is { } folder)
         {
-            FolderDropChoice choice = await AskFolderDropChoice();
-            if (choice == FolderDropChoice.Cancel) return;
-            if (choice != FolderDropChoice.Swap)
+            bool intoFolder;
+            if (copy)
             {
-                await DropIntoFolder((TouchButton)source, folder, keepSource: choice == FolderDropChoice.Copy);
+                // Ctrl: a copy, either into the folder or over the folder key.
+                CopyIntoFolderChoice choice = await AskCopyIntoFolderChoice(folder, "FolderDrop_Copy");
+                if (choice == CopyIntoFolderChoice.Cancel) return;
+                intoFolder = choice == CopyIntoFolderChoice.IntoFolder;
+                overwriteConfirmed = true;
+            }
+            else
+            {
+                FolderDropChoice choice = await AskFolderDropChoice();
+                if (choice == FolderDropChoice.Cancel) return;
+                intoFolder = choice != FolderDropChoice.Swap;
+                copy = choice == FolderDropChoice.Copy;
+            }
+
+            if (intoFolder)
+            {
+                await DropIntoFolder((TouchButton)source, folder, keepSource: copy);
                 SelectButton(target);
                 return;
             }
@@ -1977,7 +2039,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         // Only a Ctrl-copy clobbers the target's configuration; confirm before overwriting a
         // non-empty target. Move (empty target) and swap (non-empty, no Ctrl) lose nothing.
-        if (copy && !_clipboard.IsEmpty(target) && !await ConfirmOverwrite()) return;
+        if (copy && !overwriteConfirmed && !_clipboard.IsEmpty(target) && !await ConfirmOverwrite()) return;
 
         TransferOrSwap(source, target, copy, kind);
 
@@ -2007,15 +2069,25 @@ public partial class MainWindowViewModel : ViewModelBase
         Swap
     }
 
-    /// <summary>
-    /// The folder <paramref name="target"/> opens, when <paramref name="source"/> can be put into
-    /// it. Null for a key that opens no folder, a folder the source itself opens (a key cannot go
-    /// into the folder it leads to), or a companion's mirror, which is edited on its master only.
-    /// </summary>
-    private CustomFolder FolderDropTarget(LoupedeckButton source, LoupedeckButton target)
+    private enum CopyIntoFolderChoice
     {
+        Cancel,
+        IntoFolder,
+        Overwrite
+    }
+
+    /// <summary>
+    /// The folder the touch key <paramref name="target"/> opens, when something can be put into
+    /// it. Null for a key that opens no folder, a folder in <paramref name="excluded"/> (a key
+    /// cannot go into the folder it leads to), or a companion's mirror, which is edited on its
+    /// master only.
+    /// </summary>
+    private CustomFolder FolderDropTarget(LoupedeckButton target, IEnumerable<Guid> excluded = null)
+    {
+        if (target is not TouchButton) return null;
+
         Guid folderId = Services.Folders.FolderCommand.ReferencedFolders(target.Command).FirstOrDefault();
-        if (folderId == Guid.Empty || Services.Folders.FolderCommand.ReferencedFolders(source.Command).Contains(folderId))
+        if (folderId == Guid.Empty || (excluded?.Contains(folderId) ?? false))
             return null;
 
         CustomFolder folder = LoupedeckController.Config.ActiveWorkspace?.EnumerateFolders()
@@ -2049,23 +2121,72 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// Asks whether a copy dropped or pasted on a folder key goes into the folder or over the key.
+    /// <paramref name="intoKey"/> captions the into-folder button.
+    /// </summary>
+    private async Task<CopyIntoFolderChoice> AskCopyIntoFolderChoice(CustomFolder folder, string intoKey)
+    {
+        ConfirmDialogViewModel dialog = null;
+        DialogResult result = await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
+        {
+            dialog = vm;
+            vm.Configure(
+                Loc.Tr("FolderPaste_Message", folder.Name),
+                title: Loc.Tr("FolderPaste_Title"),
+                confirmText: Loc.Tr(intoKey),
+                cancelText: Loc.Tr("Confirm_Cancel"),
+                alternatives: [Loc.Tr("Confirm_Overwrite")]);
+        });
+
+        if (result?.IsConfirmed != true)
+            return CopyIntoFolderChoice.Cancel;
+
+        return dialog?.ChosenAlternative == 0 ? CopyIntoFolderChoice.Overwrite : CopyIntoFolderChoice.IntoFolder;
+    }
+
+    /// <summary>
+    /// The first free key of <paramref name="folder"/>, or null after telling the user the folder
+    /// is full.
+    /// </summary>
+    private async Task<TouchButton> FreeFolderKeyOrNotify(CustomFolder folder)
+    {
+        TouchButton key = LoupedeckController.PageManager.FindFreeFolderKey(folder.Id);
+        if (key != null) return key;
+
+        await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
+            vm.Configure(
+                Loc.Tr("FolderDrop_FullMessage", folder.Name),
+                title: Loc.Tr("FolderDrop_FullTitle"),
+                confirmText: Loc.Tr("Confirm_Ok"),
+                showCancel: false));
+        return null;
+    }
+
+    /// <summary>Pastes the clipboard on the first free key of <paramref name="folder"/>.</summary>
+    private async Task PasteIntoFolder(CustomFolder folder)
+    {
+        TouchButton key = await FreeFolderKeyOrNotify(folder);
+        if (key == null) return;
+
+        await _pastePlugins.EnableRequiredAsync(_clipboard.Snapshots);
+        _clipboard.PasteInto(key, PasteLinkedFolders());
+
+        // Inside the folder a link to the folder itself would only reopen it.
+        Services.Folders.FolderReferenceCleaner.CleanButton(key, id => id == folder.Id || !_folders.CanLink(id));
+        _buttonStates?.RefreshState(key);
+
+        PostTouchChange();
+    }
+
+    /// <summary>
     /// Puts <paramref name="source"/> on the first free key of <paramref name="folder"/>; a move
     /// then empties the source, a copy leaves it as it is. A full folder is reported and nothing
     /// changes.
     /// </summary>
     private async Task DropIntoFolder(TouchButton source, CustomFolder folder, bool keepSource)
     {
-        TouchButton key = LoupedeckController.PageManager.FindFreeFolderKey(folder.Id);
-        if (key == null)
-        {
-            await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
-                vm.Configure(
-                    Loc.Tr("FolderDrop_FullMessage", folder.Name),
-                    title: Loc.Tr("FolderDrop_FullTitle"),
-                    confirmText: Loc.Tr("Confirm_Ok"),
-                    showCancel: false));
-            return;
-        }
+        TouchButton key = await FreeFolderKeyOrNotify(folder);
+        if (key == null) return;
 
         ButtonSnapshot.Apply(ButtonSnapshot.Capture(source), key);
         if (!keepSource)
