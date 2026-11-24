@@ -17,7 +17,7 @@ namespace LoupixDeck.ViewModels;
 /// Mirrors the command-chain logic of <c>TouchButtonSettingsViewModel</c> but is
 /// self-contained so several slots can coexist in a single editor dialog.
 /// </summary>
-public class CommandSequenceSlot : ViewModelBase
+public class CommandSequenceSlot : ViewModelBase, ICommandChain
 {
     private readonly ICommandBuilder _commandBuilder;
     private readonly ICommandRegistry _commandRegistry;

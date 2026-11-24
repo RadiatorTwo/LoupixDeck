@@ -489,6 +489,11 @@
         <Setter Property="Opacity" Value="0.55" />
         <Setter Property="BorderBrush" Value="#4DA3FF" />
     </Style>
+    <!-- A selected chip: the commands the context menu copies, cuts, duplicates or removes. -->
+    <Style Selector="Border.command-chip.selected">
+        <Setter Property="BorderBrush" Value="#4DA3FF" />
+        <Setter Property="Background" Value="{DynamicResource AppAccentSubtle}" />
+    </Style>
     <Style Selector="TextBlock.chip-title">
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="FontSize" Value="12" />

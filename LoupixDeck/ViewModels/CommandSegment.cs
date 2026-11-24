@@ -340,4 +340,9 @@ public partial class CommandSegment
 
     [ObservableProperty]
     public partial bool IsDragging { get; set; }
+
+    /// <summary>Whether the chip is part of the selection the command menu acts on (issue #684).
+    /// View state only; it never reaches the command string.</summary>
+    [ObservableProperty]
+    public partial bool IsSelected { get; set; }
 }

@@ -38,6 +38,7 @@
                 </Panel>
                 <Border Classes="command-chip"
                         Classes.dragging="{Binding IsDragging}"
+                        Classes.selected="{Binding IsSelected}"
                         ToolTip.Tip="{Binding DisplayName}">
                     <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
                         <Border Grid.Column="0" Classes="drag-handle chip-grip"

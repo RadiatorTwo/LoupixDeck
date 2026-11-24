@@ -32,6 +32,9 @@ public partial class SimpleButtonSettings : Window
     {
         InitializeComponent();
 
+        // Copy and paste of single commands and whole sequences (issue #684).
+        Utils.CommandChainMenu.Attach(this);
+
         // Re-evaluate which chips start a wrapped row (and thus shouldn't draw a
         // leading arrow) after every layout pass — covers adds, removes, reorders
         // and resizes that re-wrap the sequence.

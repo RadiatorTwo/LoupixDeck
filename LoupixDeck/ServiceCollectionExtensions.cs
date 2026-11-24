@@ -253,6 +253,10 @@ public static class ServiceCollectionExtensions
         // so a layer copied on one button can be pasted onto another, on any device.
         collection.AddSingleton<ILayerClipboardService, LayerClipboardService>();
 
+        // In-app clipboard for the commands of a sequence (issue #684). Root singleton so a
+        // command copied in one editor can be pasted into another, on any device.
+        collection.AddSingleton<ICommandClipboardService, CommandClipboardService>();
+
         // User-defined macros: in-memory store (macros.json), shared across devices.
         collection.AddSingleton<IMacroManager, MacroManager>();
 
@@ -348,6 +352,7 @@ public static class ServiceCollectionExtensions
         collection.Forward<IMacroStopCoordinator>(root);
         collection.Forward<IButtonClipboardService>(root);
         collection.Forward<ILayerClipboardService>(root);
+        collection.Forward<ICommandClipboardService>(root);
         collection.Forward<IDeviceHostRegistry>(root);
         collection.Forward<IDeviceRouter>(root);
         collection.Forward<IPluginManager>(root);
