@@ -97,7 +97,7 @@ public partial class CommandParameter
         // than failing when it is pressed.
         HasPicker = dialogService != null && ParameterPicker.IsKeyCapture(picker) && IsText;
         IsMultiLine = IsText && (picker == ParameterPicker.MultiLineText);
-        PickerHint = HasPicker ? "Record by pressing the keys" : null;
+        PickerHint = HasPicker ? Loc.Tr("CommandParameter_RecordByPressingKeys") : null;
     }
 
     private async Task PickValueAsync()

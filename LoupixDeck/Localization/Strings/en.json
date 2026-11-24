@@ -1638,5 +1638,6 @@
   "DialLabel_Edit": "Edit label",
   "MacroEditor_PasteText": "Paste Text",
   "MacroEditor_PasteKeys": "Paste keys",
-  "MacroEditor_PasteTextHint": "Puts the text on the clipboard, presses the paste keys and then restores what was on the clipboard before. Works in apps that lose characters when text is typed. Leave the paste keys empty for Ctrl+V (Cmd+V on macOS); a Linux terminal needs Ctrl+Shift+V."
+  "MacroEditor_PasteTextHint": "Puts the text on the clipboard, presses the paste keys and then restores what was on the clipboard before. Works in apps that lose characters when text is typed. Leave the paste keys empty for Ctrl+V (Cmd+V on macOS); a Linux terminal needs Ctrl+Shift+V.",
+  "CommandParameter_RecordByPressingKeys": "Record by pressing the keys"
 }

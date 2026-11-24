@@ -1638,5 +1638,6 @@
   "DialLabel_Edit": "Label bearbeiten",
   "MacroEditor_PasteText": "Text einfügen",
   "MacroEditor_PasteKeys": "Einfügetasten",
-  "MacroEditor_PasteTextHint": "Legt den Text in die Zwischenablage, drückt die Einfügetasten und stellt danach den vorherigen Inhalt der Zwischenablage wieder her. Funktioniert auch in Apps, die beim Tippen Zeichen verlieren. Leer lassen für Strg+V (Cmd+V unter macOS); ein Linux-Terminal braucht Strg+Umschalt+V."
+  "MacroEditor_PasteTextHint": "Legt den Text in die Zwischenablage, drückt die Einfügetasten und stellt danach den vorherigen Inhalt der Zwischenablage wieder her. Funktioniert auch in Apps, die beim Tippen Zeichen verlieren. Leer lassen für Strg+V (Cmd+V unter macOS); ein Linux-Terminal braucht Strg+Umschalt+V.",
+  "CommandParameter_RecordByPressingKeys": "Durch Drücken der Tasten aufnehmen"
 }

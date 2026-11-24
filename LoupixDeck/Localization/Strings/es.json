@@ -1638,5 +1638,6 @@
   "DialLabel_Edit": "Editar etiqueta",
   "MacroEditor_PasteText": "Pegar texto",
   "MacroEditor_PasteKeys": "Teclas de pegado",
-  "MacroEditor_PasteTextHint": "Coloca el texto en el portapapeles, pulsa las teclas de pegado y después restaura lo que había antes en el portapapeles. Funciona en aplicaciones que pierden caracteres al escribir texto. Déjalo vacío para Ctrl+V (Cmd+V en macOS); un terminal de Linux necesita Ctrl+Mayús+V."
+  "MacroEditor_PasteTextHint": "Coloca el texto en el portapapeles, pulsa las teclas de pegado y después restaura lo que había antes en el portapapeles. Funciona en aplicaciones que pierden caracteres al escribir texto. Déjalo vacío para Ctrl+V (Cmd+V en macOS); un terminal de Linux necesita Ctrl+Mayús+V.",
+  "CommandParameter_RecordByPressingKeys": "Grabar pulsando las teclas"
 }
