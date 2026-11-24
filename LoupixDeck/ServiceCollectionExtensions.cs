@@ -352,6 +352,7 @@ public static class ServiceCollectionExtensions
         collection.Forward<IMacroStopCoordinator>(root);
         collection.Forward<IButtonClipboardService>(root);
         collection.Forward<ILayerClipboardService>(root);
+        collection.Forward<ICommandClipboardService>(root);
         collection.Forward<IDeviceHostRegistry>(root);
         collection.Forward<IDeviceRouter>(root);
         collection.Forward<IPluginManager>(root);

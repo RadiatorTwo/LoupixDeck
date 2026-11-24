@@ -78,7 +78,18 @@ public static class CommandChainMenu
             Add(menu, "ButtonMenu_Paste", () => Paste(chain, clipboard, chain.Commands.Count), clipboard.HasData);
         }
 
-        menu.ShowAt(strip, showAtPointer: true);
+        // Mark the chip while its menu is open, so it is clear which command the entries act on.
+        Border chip = segment == null
+            ? null
+            : source.GetSelfAndVisualAncestors().OfType<Border>()
+                .FirstOrDefault(b => b.Classes.Contains("command-chip"));
+        if (chip != null)
+        {
+            chip.Classes.Add("menu-target");
+            menu.Closed += (_, _) => chip.Classes.Remove("menu-target");
+        }
+
+        menu.ShowAt(chip ?? (Control)strip, showAtPointer: true);
         e.Handled = true;
     }
 
