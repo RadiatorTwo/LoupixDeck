@@ -1015,9 +1015,13 @@ public partial class MainWindowViewModel : ViewModelBase
             button.IsSelected = true;
     }
 
+    /// <summary>Longest parameter text a tooltip segment shows before it is cut with an ellipsis.</summary>
+    private const int TooltipParameterMaxLength = 80;
+
     /// <summary>
     /// Tooltip text for a device button in the layout view (issue #306): the display names of the
-    /// assigned command chain, joined with arrows. Unknown and shell segments show their raw text.
+    /// assigned command chain, joined with arrows, each followed by its parameter values (issue
+    /// #685), e.g. "Key Combination (Ctrl+Shift+T)". Unknown and shell segments show their raw text.
     /// Null when nothing is assigned, so no tooltip opens.
     /// </summary>
     public string DescribeCommand(string command)
@@ -1026,12 +1030,63 @@ public partial class MainWindowViewModel : ViewModelBase
         foreach (string segment in CommandStringParser.SplitChain(command))
         {
             CommandInfo info = _commandRegistry.Get(CommandStringParser.GetName(segment))?.Info;
-            names.Add(string.IsNullOrWhiteSpace(info?.DisplayName)
-                ? segment
-                : LocalizationManager.Instance.TrText(info.DisplayName, info.OwnerPluginId));
+            if (string.IsNullOrWhiteSpace(info?.DisplayName))
+            {
+                names.Add(Shorten(segment));
+                continue;
+            }
+
+            string name = LocalizationManager.Instance.TrText(info.DisplayName, info.OwnerPluginId);
+            string parameters = DescribeParameters(segment, info);
+            names.Add(parameters.Length == 0 ? name : $"{name} ({parameters})");
         }
 
         return names.Count == 0 ? null : string.Join(" → ", names);
+    }
+
+    /// <summary>
+    /// Tooltip text for a dial in the layout view (issue #685): one line per assigned gesture
+    /// (rotate left, rotate right, press). Null when no gesture is assigned.
+    /// </summary>
+    public string DescribeRotary(RotaryButton dial)
+    {
+        List<string> lines = [];
+        foreach (RotaryAction action in RotaryButtonExtensions.Gestures)
+        {
+            string text = DescribeCommand(dial.GetCommand(action));
+            if (text != null)
+                lines.Add($"{action.DisplayName()}: {text}");
+        }
+
+        return lines.Count == 0 ? null : string.Join(Environment.NewLine, lines);
+    }
+
+    /// <summary>The non-empty parameter values of one segment, comma-separated and shortened. Key
+    /// values read as the platform names its keys, as in the editor.</summary>
+    private static string DescribeParameters(string segment, CommandInfo info)
+    {
+        string[] values = CommandStringParser.GetParameters(segment, info);
+        List<string> shown = [];
+        for (int i = 0; i < values.Length; i++)
+        {
+            string value = values[i];
+            if (string.IsNullOrWhiteSpace(value))
+                continue;
+
+            string picker = i < info.Parameters.Count ? info.Parameters[i].Picker : null;
+            shown.Add(ParameterPicker.IsKeyCapture(picker) ? KeyComboFormatter.ForDisplay(value) : value);
+        }
+
+        return Shorten(string.Join(", ", shown));
+    }
+
+    /// <summary>Keeps a tooltip value on one line and within <see cref="TooltipParameterMaxLength"/>.</summary>
+    private static string Shorten(string text)
+    {
+        text = text.Trim().ReplaceLineEndings(" ↵ ");
+        return text.Length <= TooltipParameterMaxLength
+            ? text
+            : string.Concat(text.AsSpan(0, TooltipParameterMaxLength).TrimEnd(), "…");
     }
 
     // ─────────────────────────── Copy / cut / paste / clear (issue #166) ───────────────────────────
