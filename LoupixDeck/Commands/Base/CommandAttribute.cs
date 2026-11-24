@@ -55,6 +55,13 @@ public class CommandAttribute(
     /// </summary>
     public string[] ParameterPickers { get; set; }
 
+    /// <summary>
+    /// When true the last parameter receives the rest of the parameter list verbatim, commas
+    /// included, instead of being split at each ','. For free-text commands (typed or pasted
+    /// text) whose text may contain commas. Only the commas before it still separate values.
+    /// </summary>
+    public bool LastParameterTakesRest { get; set; }
+
     public CommandPlatform Platform { get; set; } = CommandPlatform.All;
 
     /// <summary>

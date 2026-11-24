@@ -90,7 +90,21 @@ public static class CommandStringParser
     /// <c>["x"]</c> and commands checking the parameter count see what they did before.
     /// The list ends at the matching <c>')'</c> (see <see cref="FindParameterListEnd"/>).
     /// </remarks>
-    public static string[] GetParameters(string segment)
+    public static string[] GetParameters(string segment) => GetParameters(segment, 0);
+
+    /// <summary>
+    /// Like <see cref="GetParameters(string)"/>, but honours
+    /// <see cref="Commands.Base.CommandInfo.LastParameterTakesRest"/>: for such a command the
+    /// last declared parameter gets the rest of the list verbatim, commas included. Every
+    /// other command (and a null <paramref name="info"/>) splits as usual.
+    /// </summary>
+    public static string[] GetParameters(string segment, Commands.Base.CommandInfo info) =>
+        GetParameters(segment, info is { LastParameterTakesRest: true } ? info.Parameters.Count : 0);
+
+    /// <param name="segment">One command of a chain.</param>
+    /// <param name="maxCount">When above zero, at most this many values: the last one is the
+    /// rest of the list, only trimmed at its ends. Zero splits at every ','.</param>
+    private static string[] GetParameters(string segment, int maxCount)
     {
         if (string.IsNullOrWhiteSpace(segment))
             return [];
@@ -107,7 +121,15 @@ public static class CommandStringParser
         ReadOnlySpan<char> inner = span.Slice(start + 1, end - start - 1);
         List<string> result = [];
         foreach (Range range in inner.Split(','))
+        {
+            if ((maxCount > 0) && (result.Count == maxCount - 1))
+            {
+                result.Add(inner[range.Start..].Trim().ToString());
+                break;
+            }
+
             result.Add(inner[range].Trim().ToString());
+        }
 
         int count = result.Count;
         while ((count > 0) && (result[count - 1].Length == 0))

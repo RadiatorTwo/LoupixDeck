@@ -1,6 +1,7 @@
 ﻿using LoupixDeck.Commands.Base;
 using LoupixDeck.Services;
 using LoupixDeck.Services.Macros;
+using LoupixDeck.Services.TextPaste;
 
 namespace LoupixDeck.Commands;
 
@@ -12,6 +13,7 @@ namespace LoupixDeck.Commands;
     ["Text"],
     [typeof(string)],
     Platform = CommandPlatform.All,
+    LastParameterTakesRest = true,
     Icon = "\U000F040A", // mdi-play
     Description = "Run a basic macro")]
 public class SimpleMacroCommand(IUInputKeyboard uInputKeyboard) : IExecutableCommand
@@ -26,6 +28,33 @@ public class SimpleMacroCommand(IUInputKeyboard uInputKeyboard) : IExecutableCom
 
         uInputKeyboard.SendText(parameters[0]);
         return Task.CompletedTask;
+    }
+}
+
+[Command(
+    "System.PasteText",
+    "Paste Text",
+    "Macros",
+    "({Text})",
+    ["Text"],
+    [typeof(string)],
+    ParameterPickers = [ParameterPicker.MultiLineText],
+    LastParameterTakesRest = true,
+    Platform = CommandPlatform.All,
+    Icon = "\U000F0192", // mdi-content-paste
+    Description = "Paste a text through the clipboard")]
+public class PasteTextCommand(ITextPaster textPaster) : IExecutableCommand
+{
+    public Task Execute(string[] parameters)
+    {
+        // LastParameterTakesRest: the text arrives in one piece, commas included.
+        if (parameters.Length != 1)
+        {
+            Console.WriteLine("Usage: System.PasteText(text)");
+            return Task.CompletedTask;
+        }
+
+        return textPaster.PasteAsync(parameters[0], null);
     }
 }
 

@@ -489,6 +489,9 @@ public static class ServiceCollectionExtensions
         // Built-in dial presets this device can run, plus the plugins' and the user's own.
         collection.AddSingleton<IDialPresetCatalog, DialPresetCatalog>();
 
+        // Pastes text through the clipboard; sends the paste shortcut with this device's keyboard.
+        collection.AddSingleton<Services.TextPaste.ITextPaster, Services.TextPaste.TextPaster>();
+
         // Sequential macro-step executor (uses this device's command service).
         collection.AddSingleton<MacroRunner>();
 

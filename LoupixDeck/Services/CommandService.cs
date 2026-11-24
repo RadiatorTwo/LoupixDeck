@@ -237,7 +237,7 @@ public class CommandService : ICommandService
         RegisteredCommand registered = _commandRegistry.Get(cleanCommand);
         if (registered != null)
         {
-            string[] parameters = CommandStringParser.GetParameters(command) ?? [];
+            string[] parameters = CommandStringParser.GetParameters(command, registered.Info) ?? [];
 
             // An adjustment command bound to a dial is driven by the encoder, not by a
             // plain Execute: a turn applies the delta, a press resets. Any other target

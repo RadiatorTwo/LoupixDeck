@@ -21,7 +21,8 @@ public enum MacroStepType
     Else,
     EndIf,
     WaitForCondition,
-    Prompt
+    Prompt,
+    PasteText
 }
 
 /// <summary>What a <see cref="WaitForConditionStep"/> does when its timeout elapses.</summary>

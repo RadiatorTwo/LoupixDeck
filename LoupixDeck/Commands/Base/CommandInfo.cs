@@ -20,6 +20,9 @@ public class CommandInfo
     public bool RequiresDialLabels { get; set; }
     public List<ParameterDescriptor> Parameters { get; set; } = [];
 
+    /// <summary>See <see cref="CommandAttribute.LastParameterTakesRest"/>. False for plugin commands.</summary>
+    public bool LastParameterTakesRest { get; set; }
+
     /// <summary>
     /// The button states this command brings along, in order. Empty for commands that leave
     /// states to the user (every core command, and every plugin command that declares none).

@@ -157,5 +157,7 @@
   "Toggle Companion Group Stop": "Toggle Companion Group Stop",
   "Companions show their own profiles again until the group is started, also after a restart": "Companions show their own profiles again until the group is started, also after a restart",
   "Companions follow the master again with the mirrored profiles they had": "Companions follow the master again with the mirrored profiles they had",
-  "Stop the companion group, or start it when stopped": "Stop the companion group, or start it when stopped"
+  "Stop the companion group, or start it when stopped": "Stop the companion group, or start it when stopped",
+  "Paste Text": "Paste Text",
+  "Paste a text through the clipboard": "Paste a text through the clipboard"
 }

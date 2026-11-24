@@ -3,6 +3,7 @@ using System.Globalization;
 using LoupixDeck.Models.Macros;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Services.Mouse;
+using LoupixDeck.Services.TextPaste;
 
 namespace LoupixDeck.Services.Macros;
 
@@ -20,10 +21,11 @@ public class MacroRunner : IDisposable
     private readonly IMacroConditionEvaluator _conditionEvaluator;
     private readonly IMacroExecutionRegistry _executionRegistry;
     private readonly IMacroPromptService _promptService;
+    private readonly ITextPaster _textPaster;
 
     public MacroRunner(IUInputKeyboard keyboard, IVirtualMouse mouse, ICommandService commandService,
         IMacroStopCoordinator stopCoordinator, IMacroConditionEvaluator conditionEvaluator,
-        IMacroExecutionRegistry executionRegistry, IMacroPromptService promptService)
+        IMacroExecutionRegistry executionRegistry, IMacroPromptService promptService, ITextPaster textPaster)
     {
         _keyboard = keyboard;
         _mouse = mouse;
@@ -32,6 +34,7 @@ public class MacroRunner : IDisposable
         _conditionEvaluator = conditionEvaluator;
         _executionRegistry = executionRegistry;
         _promptService = promptService;
+        _textPaster = textPaster;
 
         // Join the app-global registry so the global stop hotkey can reach this runner.
         _stopCoordinator.Register(this);
@@ -542,6 +545,12 @@ public class MacroRunner : IDisposable
                 var expandedText = context.Expand(text.Text);
                 if (!string.IsNullOrEmpty(expandedText))
                     _keyboard.SendText(expandedText);
+                break;
+
+            case PasteTextStep paste:
+                var expandedPaste = context.Expand(paste.Text);
+                if (!string.IsNullOrEmpty(expandedPaste))
+                    await _textPaster.PasteAsync(expandedPaste, paste.PasteKeys, token);
                 break;
 
             case KeyCombinationStep combo:

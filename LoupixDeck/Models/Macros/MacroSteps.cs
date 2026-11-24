@@ -28,6 +28,47 @@ public class TextStep : MacroStep
     public override string ValueText => Text ?? string.Empty;
 }
 
+/// <summary>
+/// Inserts a text through the clipboard: puts it there, sends the paste shortcut and restores
+/// the previous clipboard content. Unlike <see cref="TextStep"/> it does not depend on how fast
+/// the target application reads typed input.
+/// </summary>
+public class PasteTextStep : MacroStep
+{
+    public string Text
+    {
+        get;
+        set
+        {
+            if (field == value) return;
+            field = value;
+            OnValueChanged();
+        }
+    } = string.Empty;
+
+    /// <summary>
+    /// Shortcut that triggers the paste, same syntax as <see cref="KeyCombinationStep.Keys"/>.
+    /// Empty uses Ctrl+V (Cmd+V on macOS); a Linux terminal needs Ctrl+Shift+V.
+    /// </summary>
+    public string PasteKeys
+    {
+        get;
+        set
+        {
+            if (field == value) return;
+            field = value;
+            OnValueChanged();
+        }
+    } = string.Empty;
+
+    public override MacroStepType StepType => MacroStepType.PasteText;
+    public override string Icon => Glyph(0xF0192); // mdi-content-paste
+    public override string TypeText => "Paste Text";
+
+    // One line in the collapsed step row; a multi-line text would otherwise stretch it.
+    public override string ValueText => (Text ?? string.Empty).ReplaceLineEndings(" ↵ ");
+}
+
 /// <summary>Presses a key combination, e.g. "Ctrl+Shift+Esc".</summary>
 public class KeyCombinationStep : MacroStep
 {

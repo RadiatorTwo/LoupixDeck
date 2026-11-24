@@ -15,4 +15,14 @@ public static class ParameterPicker
 
     /// <summary>Record modifier keys only, e.g. "Ctrl+Shift".</summary>
     public const string Modifiers = "Modifiers";
+
+    /// <summary>
+    /// Not a dialog: the parameter is free text that may span several lines, so the editor shows
+    /// a text box that accepts Enter instead of a single-line one.
+    /// </summary>
+    public const string MultiLineText = "MultiLineText";
+
+    /// <summary>True for the ids that open a key-capture dialog.</summary>
+    public static bool IsKeyCapture(string picker) =>
+        picker is KeyCombination or KeySequence or Modifiers;
 }
