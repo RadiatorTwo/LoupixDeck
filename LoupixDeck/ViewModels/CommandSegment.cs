@@ -58,6 +58,9 @@ public partial class CommandParameter
     /// </summary>
     public bool HasPicker { get; }
 
+    /// <summary>True when the text box takes several lines (<see cref="ParameterPicker.MultiLineText"/>).</summary>
+    public bool IsMultiLine { get; }
+
     /// <summary>Tooltip of the record button; null when the parameter has no picker.</summary>
     public string PickerHint { get; }
 
@@ -92,7 +95,8 @@ public partial class CommandParameter
 
         // Without a dialog service there is nothing to open, so the button stays hidden rather
         // than failing when it is pressed.
-        HasPicker = dialogService != null && picker != null && IsText;
+        HasPicker = dialogService != null && ParameterPicker.IsKeyCapture(picker) && IsText;
+        IsMultiLine = IsText && (picker == ParameterPicker.MultiLineText);
         PickerHint = HasPicker ? "Record by pressing the keys" : null;
     }
 
@@ -305,9 +309,11 @@ public partial class CommandSegment
         }
     } = string.Empty;
 
-    /// <summary>Compact secondary text for the collapsed card.</summary>
+    /// <summary>Compact secondary text for the collapsed card. Kept to one line: a multi-line
+    /// parameter shows its line breaks as an arrow.</summary>
     public string Summary => IsKnown
         ? string.Join(", ", Parameters.Select(p => p.Value).Where(v => !string.IsNullOrWhiteSpace(v)))
+            .ReplaceLineEndings(" ↵ ")
         : Raw;
 
     // ───────── UI state (not persisted) ─────────

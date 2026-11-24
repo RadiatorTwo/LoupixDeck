@@ -46,6 +46,7 @@
                            Margin="0,0,10,0" />
                 <TextBox Grid.Column="1"
                          Text="{Binding DisplayValue, Mode=TwoWay}"
+                         Classes.multiline="{Binding IsMultiLine}"
                          IsVisible="{Binding IsText}">
                     <TextBox.InnerRightContent>
                         <!-- Record the value by pressing the keys instead of typing their names. -->

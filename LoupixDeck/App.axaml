@@ -22,6 +22,13 @@
         <Style Selector="TextBox">
             <Setter Property="Background" Value="{DynamicResource AppControlBackground}" />
         </Style>
+        <!-- Command parameters that hold free text over several lines (CommandParameter.IsMultiLine). -->
+        <Style Selector="TextBox.multiline">
+            <Setter Property="AcceptsReturn" Value="True" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="MinHeight" Value="56" />
+            <Setter Property="VerticalContentAlignment" Value="Top" />
+        </Style>
         <Style Selector="TextBox:pointerover /template/ Border">
             <Setter Property="Background" Value="{DynamicResource AppControlBackgroundHover}" />
         </Style>

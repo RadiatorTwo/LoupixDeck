@@ -37,6 +37,7 @@ public class SimpleMacroCommand(IUInputKeyboard uInputKeyboard) : IExecutableCom
     "({Text})",
     ["Text"],
     [typeof(string)],
+    ParameterPickers = [ParameterPicker.MultiLineText],
     Platform = CommandPlatform.All,
     Icon = "\U000F0192", // mdi-content-paste
     Description = "Paste a text through the clipboard")]
