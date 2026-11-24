@@ -1742,13 +1742,17 @@ public static class BitmapHelper
         int width,
         int height)
     {
-        if (touchButton.BackgroundEnabled)
+        // An explicitly enabled background is drawn over the page wallpaper. Opaque, it covers the
+        // wallpaper completely; with a reduced alpha the wallpaper shows through (issue #692), the
+        // same way the animated-wallpaper path blends it. Off (the default) leaves the wallpaper visible.
+        var backColor = touchButton.BackColor.ToSKColor();
+        if (touchButton.BackgroundEnabled && backColor.Alpha == 255)
         {
-            // An explicitly enabled background covers everything below the layers — the page
-            // wallpaper included. Off (the default) leaves the wallpaper visible.
-            canvas.Clear(touchButton.BackColor.ToSKColor());
+            canvas.Clear(backColor);
+            return;
         }
-        else if (wallpaper != null && wallpaperSource is { } source)
+
+        if (wallpaper != null && wallpaperSource is { } source)
         {
             // The caller says which part of the panel-wide wallpaper this key covers
             // (device.GetWallpaperKeyRect). It has to come from there rather than from
@@ -1776,6 +1780,12 @@ public static class BitmapHelper
             // The panel renders transparent as black, so the two agreed on hardware and disagreed
             // on screen, where a bare key vanished into the window instead of looking like a key.
             canvas.Clear(SKColors.Black);
+        }
+
+        if (touchButton.BackgroundEnabled)
+        {
+            using var background = new SKPaint { Color = backColor };
+            canvas.DrawRect(new SKRect(0, 0, width, height), background);
         }
     }
 
