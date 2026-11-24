@@ -246,6 +246,7 @@
                             <Button.Flyout>
                                 <MenuFlyout Placement="BottomEdgeAlignedRight">
                                     <MenuItem Header="{loc:Tr MacroEditor_TypeText}" Tag="Text" Click="AddStepMenu_Click" />
+                                    <MenuItem Header="{loc:Tr MacroEditor_PasteText}" Tag="PasteText" Click="AddStepMenu_Click" />
                                     <MenuItem Header="{loc:Tr MacroEditor_KeyCombination}" Tag="KeyCombination" Click="AddStepMenu_Click" />
                                     <MenuItem Header="{loc:Tr MacroEditor_KeyDown}" Tag="KeyDown" Click="AddStepMenu_Click" />
                                     <MenuItem Header="{loc:Tr MacroEditor_KeyUp}" Tag="KeyUp" Click="AddStepMenu_Click" />
@@ -401,6 +402,30 @@
                                                                     <TextBox Grid.Column="1"
                                                                              Text="{Binding Text, Mode=TwoWay}" />
                                                                 </Grid>
+                                                            </DataTemplate>
+
+                                                            <DataTemplate DataType="{x:Type macros:PasteTextStep}">
+                                                                <StackPanel Spacing="6">
+                                                                    <Grid ColumnDefinitions="Auto,*">
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
+                                                                                   Text="{loc:Tr MacroEditor_Text}" Margin="0,3,10,0"
+                                                                                   VerticalAlignment="Top" />
+                                                                        <TextBox Grid.Column="1"
+                                                                                 AcceptsReturn="True"
+                                                                                 MinHeight="56"
+                                                                                 TextWrapping="Wrap"
+                                                                                 Text="{Binding Text, Mode=TwoWay}" />
+                                                                    </Grid>
+                                                                    <Grid ColumnDefinitions="Auto,*">
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
+                                                                                   Text="{loc:Tr MacroEditor_PasteKeys}" Margin="0,0,10,0" />
+                                                                        <TextBox Grid.Column="1"
+                                                                                 PlaceholderText="Ctrl+V"
+                                                                                 Text="{Binding PasteKeys, Mode=TwoWay}" />
+                                                                    </Grid>
+                                                                    <TextBlock Classes="hint"
+                                                                               Text="{loc:Tr MacroEditor_PasteTextHint}" />
+                                                                </StackPanel>
                                                             </DataTemplate>
 
                                                             <DataTemplate DataType="{x:Type macros:KeyCombinationStep}">

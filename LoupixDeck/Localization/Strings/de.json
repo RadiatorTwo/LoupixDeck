@@ -1635,5 +1635,8 @@
   "Settings_DialLabelsKeepClear": "Touch-Buttons unter den Dial-Labels freihalten",
   "Settings_DialLabelsKeepClearHint": "Ordnet den Inhalt der Touch-Buttons unter den Labels auf der Fläche neben dem Label an, wie auf einem schmaleren Button. Die Buttons selbst werden nicht verändert; ausgeschaltet sehen sie aus wie vorher.",
   "CommandOption_Dial": "Drehregler {0}",
-  "DialLabel_Edit": "Label bearbeiten"
+  "DialLabel_Edit": "Label bearbeiten",
+  "MacroEditor_PasteText": "Text einfügen",
+  "MacroEditor_PasteKeys": "Einfügetasten",
+  "MacroEditor_PasteTextHint": "Legt den Text in die Zwischenablage, drückt die Einfügetasten und stellt danach den vorherigen Inhalt der Zwischenablage wieder her. Funktioniert auch in Apps, die beim Tippen Zeichen verlieren. Leer lassen für Strg+V (Cmd+V unter macOS); ein Linux-Terminal braucht Strg+Umschalt+V."
 }

@@ -1635,5 +1635,8 @@
   "Settings_DialLabelsKeepClear": "Mantener libres los botones táctiles bajo las etiquetas de dial",
   "Settings_DialLabelsKeepClearHint": "Coloca el contenido de los botones táctiles bajo las etiquetas en la parte junto a la etiqueta, como en un botón más estrecho. Los botones no se modifican; al desactivarlo se ven como antes.",
   "CommandOption_Dial": "Dial {0}",
-  "DialLabel_Edit": "Editar etiqueta"
+  "DialLabel_Edit": "Editar etiqueta",
+  "MacroEditor_PasteText": "Pegar texto",
+  "MacroEditor_PasteKeys": "Teclas de pegado",
+  "MacroEditor_PasteTextHint": "Coloca el texto en el portapapeles, pulsa las teclas de pegado y después restaura lo que había antes en el portapapeles. Funciona en aplicaciones que pierden caracteres al escribir texto. Déjalo vacío para Ctrl+V (Cmd+V en macOS); un terminal de Linux necesita Ctrl+Mayús+V."
 }

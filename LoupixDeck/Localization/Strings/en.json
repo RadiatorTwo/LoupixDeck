@@ -1635,5 +1635,8 @@
   "Settings_DialLabelsKeepClear": "Keep touch buttons clear of the dial labels",
   "Settings_DialLabelsKeepClearHint": "Lays out the content of the touch buttons under the labels on the part beside the label, as on a narrower button. The buttons themselves are not changed; switching this off shows them as before.",
   "CommandOption_Dial": "Dial {0}",
-  "DialLabel_Edit": "Edit label"
+  "DialLabel_Edit": "Edit label",
+  "MacroEditor_PasteText": "Paste Text",
+  "MacroEditor_PasteKeys": "Paste keys",
+  "MacroEditor_PasteTextHint": "Puts the text on the clipboard, presses the paste keys and then restores what was on the clipboard before. Works in apps that lose characters when text is typed. Leave the paste keys empty for Ctrl+V (Cmd+V on macOS); a Linux terminal needs Ctrl+Shift+V."
 }
