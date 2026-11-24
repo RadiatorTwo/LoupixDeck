@@ -10,7 +10,7 @@ using LoupixDeck.ViewModels.CommandPicker;
 
 namespace LoupixDeck.ViewModels;
 
-public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, DialogResult>, IAsyncInitViewModel
+public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, DialogResult>, IAsyncInitViewModel, ICommandChain
 {
     public override void Initialize(SimpleButton parameter)
     {
@@ -378,13 +378,16 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
         InsertRawAt(Services.AppLauncher.AppAssignment.BuildLaunchCommand(app), index);
     }
 
-    private void InsertRawAt(string formattedCommand, int index)
+    /// <summary>Inserts an already formatted command at the given card index. Returns false when
+    /// there was nothing to insert.</summary>
+    public bool InsertRawAt(string formattedCommand, int index)
     {
-        if (string.IsNullOrWhiteSpace(formattedCommand)) return;
+        if (ButtonData == null || string.IsNullOrWhiteSpace(formattedCommand)) return false;
 
         index = Math.Clamp(index, 0, Commands.Count);
         Commands.Insert(index, CreateSegment(formattedCommand));
         RebuildCommandString();
+        return true;
     }
 
     /// <summary>

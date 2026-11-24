@@ -41,6 +41,9 @@ public partial class RotaryButtonSettings : Window
     {
         InitializeComponent();
 
+        // Copy and paste of single commands and whole sequences (issue #684).
+        Utils.CommandChainMenu.Attach(this);
+
         _strips =
         [
             (CommandDropZoneLeft, CommandListLeft),
