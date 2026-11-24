@@ -489,8 +489,8 @@
         <Setter Property="Opacity" Value="0.55" />
         <Setter Property="BorderBrush" Value="#4DA3FF" />
     </Style>
-    <!-- The chip a context menu is open on, so it is clear which command the menu acts on. -->
-    <Style Selector="Border.command-chip.menu-target">
+    <!-- A selected chip: the commands the context menu copies, cuts, duplicates or removes. -->
+    <Style Selector="Border.command-chip.selected">
         <Setter Property="BorderBrush" Value="#4DA3FF" />
         <Setter Property="Background" Value="{DynamicResource AppAccentSubtle}" />
     </Style>
