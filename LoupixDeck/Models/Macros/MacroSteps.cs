@@ -64,7 +64,9 @@ public class PasteTextStep : MacroStep
     public override MacroStepType StepType => MacroStepType.PasteText;
     public override string Icon => Glyph(0xF0192); // mdi-content-paste
     public override string TypeText => "Paste Text";
-    public override string ValueText => Text ?? string.Empty;
+
+    // One line in the collapsed step row; a multi-line text would otherwise stretch it.
+    public override string ValueText => (Text ?? string.Empty).ReplaceLineEndings(" ↵ ");
 }
 
 /// <summary>Presses a key combination, e.g. "Ctrl+Shift+Esc".</summary>

@@ -575,7 +575,7 @@ public partial class MacroEditorViewModel : DialogViewModelBase<DialogResult>, I
     private static string StepSummary(MacroStep step) => step switch
     {
         TextStep t => $"Type \"{Truncate(t.Text)}\"",
-        PasteTextStep p => $"Paste \"{Truncate(p.Text)}\"",
+        PasteTextStep p => $"Paste \"{Truncate(p.ValueText)}\"",
         KeyCombinationStep k => string.IsNullOrWhiteSpace(k.Keys) ? "Keys" : k.Keys,
         DelayStep d => $"{d.Milliseconds} ms",
         KeyDownStep kd => $"↓{kd.Key}",
