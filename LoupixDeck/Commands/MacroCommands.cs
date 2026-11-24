@@ -1,6 +1,7 @@
 ﻿using LoupixDeck.Commands.Base;
 using LoupixDeck.Services;
 using LoupixDeck.Services.Macros;
+using LoupixDeck.Services.TextPaste;
 
 namespace LoupixDeck.Commands;
 
@@ -26,6 +27,33 @@ public class SimpleMacroCommand(IUInputKeyboard uInputKeyboard) : IExecutableCom
 
         uInputKeyboard.SendText(parameters[0]);
         return Task.CompletedTask;
+    }
+}
+
+[Command(
+    "System.PasteText",
+    "Paste Text",
+    "Macros",
+    "({Text})",
+    ["Text"],
+    [typeof(string)],
+    Platform = CommandPlatform.All,
+    Icon = "\U000F0192", // mdi-content-paste
+    Description = "Paste a text through the clipboard")]
+public class PasteTextCommand(ITextPaster textPaster) : IExecutableCommand
+{
+    public Task Execute(string[] parameters)
+    {
+        if (parameters.Length == 0)
+        {
+            Console.WriteLine("Usage: System.PasteText(text)");
+            return Task.CompletedTask;
+        }
+
+        // The command parser splits on ',' and trims each part, so "Hello, world" arrives as two
+        // parameters. Join them back the way prose writes a comma; a macro Paste Text step keeps
+        // the text exactly as entered.
+        return textPaster.PasteAsync(string.Join(", ", parameters), null);
     }
 }
 
