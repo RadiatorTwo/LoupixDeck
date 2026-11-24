@@ -261,7 +261,7 @@ public partial class CommandSegment
 
         // Map the positional values parsed from the raw string onto the declared
         // parameters; missing trailing values default to empty.
-        var values = CommandStringParser.GetParameters(raw);
+        var values = CommandStringParser.GetParameters(raw, info);
         for (var i = 0; i < info.Parameters.Count; i++)
         {
             var descriptor = info.Parameters[i];

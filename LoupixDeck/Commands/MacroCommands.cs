@@ -13,6 +13,7 @@ namespace LoupixDeck.Commands;
     ["Text"],
     [typeof(string)],
     Platform = CommandPlatform.All,
+    LastParameterTakesRest = true,
     Icon = "\U000F040A", // mdi-play
     Description = "Run a basic macro")]
 public class SimpleMacroCommand(IUInputKeyboard uInputKeyboard) : IExecutableCommand
@@ -38,6 +39,7 @@ public class SimpleMacroCommand(IUInputKeyboard uInputKeyboard) : IExecutableCom
     ["Text"],
     [typeof(string)],
     ParameterPickers = [ParameterPicker.MultiLineText],
+    LastParameterTakesRest = true,
     Platform = CommandPlatform.All,
     Icon = "\U000F0192", // mdi-content-paste
     Description = "Paste a text through the clipboard")]
@@ -45,16 +47,14 @@ public class PasteTextCommand(ITextPaster textPaster) : IExecutableCommand
 {
     public Task Execute(string[] parameters)
     {
-        if (parameters.Length == 0)
+        // LastParameterTakesRest: the text arrives in one piece, commas included.
+        if (parameters.Length != 1)
         {
             Console.WriteLine("Usage: System.PasteText(text)");
             return Task.CompletedTask;
         }
 
-        // The command parser splits on ',' and trims each part, so "Hello, world" arrives as two
-        // parameters. Join them back the way prose writes a comma; a macro Paste Text step keeps
-        // the text exactly as entered.
-        return textPaster.PasteAsync(string.Join(", ", parameters), null);
+        return textPaster.PasteAsync(parameters[0], null);
     }
 }
 

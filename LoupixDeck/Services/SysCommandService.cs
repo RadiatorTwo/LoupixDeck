@@ -140,7 +140,8 @@ public class SysCommandService : ISysCommandService
                 Hidden = entry.Attribute.Hidden,
                 RequiresSideStrips = entry.Attribute.RequiresSideStrips,
                 RequiresDialLabels = entry.Attribute.RequiresDialLabels,
-                Parameters = CreateParameterDescriptors(entry.Attribute)
+                Parameters = CreateParameterDescriptors(entry.Attribute),
+                LastParameterTakesRest = entry.Attribute.LastParameterTakesRest
             };
         }
 
@@ -164,7 +165,8 @@ public class SysCommandService : ISysCommandService
             Hidden = kvp.Value.Attribute.Hidden,
             RequiresSideStrips = kvp.Value.Attribute.RequiresSideStrips,
             RequiresDialLabels = kvp.Value.Attribute.RequiresDialLabels,
-            Parameters = CreateParameterDescriptors(kvp.Value.Attribute)
+            Parameters = CreateParameterDescriptors(kvp.Value.Attribute),
+            LastParameterTakesRest = kvp.Value.Attribute.LastParameterTakesRest
         });
     }
 
