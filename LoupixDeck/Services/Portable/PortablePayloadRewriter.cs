@@ -1,3 +1,5 @@
+using LoupixDeck.Models;
+using LoupixDeck.Models.Converter;
 using LoupixDeck.Utils;
 using Newtonsoft.Json.Linq;
 
@@ -26,16 +28,7 @@ public static class PortablePayloadRewriter
         if (payload == null || renames == null || renames.Count == 0)
             return;
 
-        foreach (JProperty property in payload.DescendantsAndSelf().OfType<JProperty>())
-        {
-            bool isCommand = PortableCommandScanner.IsCommandProperty(property.Name);
-            bool isOwnerKey = string.Equals(property.Name, OwnerKeyProperty, StringComparison.OrdinalIgnoreCase);
-
-            if (!isCommand && !isOwnerKey)
-                continue;
-
-            RewriteStrings(property.Value, text => RenameInCommandChain(text, renames));
-        }
+        RewriteCommands(payload, text => RenameInCommandChain(text, renames), call => RenameInCall(call, renames));
     }
 
     /// <summary>Prefix of the commands that address a companion by its device key.</summary>
@@ -51,15 +44,103 @@ public static class PortablePayloadRewriter
         if (payload == null || keys == null || keys.Count == 0)
             return;
 
-        foreach (JProperty property in payload.DescendantsAndSelf().OfType<JProperty>())
-        {
-            bool isCommand = PortableCommandScanner.IsCommandProperty(property.Name);
-            bool isOwnerKey = string.Equals(property.Name, OwnerKeyProperty, StringComparison.OrdinalIgnoreCase);
+        RewriteCommands(payload, text => RemapKeysInCommandChain(text, keys), call => RemapKeysInCall(call, keys));
+    }
 
-            if (!isCommand && !isOwnerKey)
+    /// <summary>The structured counterpart of <see cref="RemapKeysInCommandChain"/>: whole values only.</summary>
+    private static CommandCall RemapKeysInCall(CommandCall call, IReadOnlyDictionary<string, string> keys)
+    {
+        if (!call.Name.StartsWith(CompanionCommandPrefix, StringComparison.Ordinal))
+            return call;
+
+        string[] parameters = call.GetParameters();
+        bool changed = false;
+        for (int i = 0; i < parameters.Length; i++)
+        {
+            if (keys.TryGetValue(parameters[i], out string newKey) && !string.IsNullOrEmpty(newKey))
+            {
+                parameters[i] = newKey;
+                changed = true;
+            }
+        }
+
+        return changed ? CommandCall.Create(call.Name, parameters) : call;
+    }
+
+    /// <summary>The structured counterpart of <see cref="RenameInCommandChain"/>.</summary>
+    private static CommandCall RenameInCall(CommandCall call, IReadOnlyDictionary<string, string> renames)
+    {
+        if (!string.Equals(call.Name, PortableCommandScanner.MacroCommandName, StringComparison.Ordinal))
+            return call;
+
+        string[] parameters = call.GetParameters();
+        if (parameters.Length == 0 || !renames.TryGetValue(parameters[0], out string newName))
+            return call;
+
+        parameters[0] = newName;
+        return CommandCall.Create(call.Name, parameters);
+    }
+
+    /// <summary>
+    /// Applies a rewrite to every command and layer owner key in <paramref name="payload"/>. A legacy
+    /// string, and every text call of an array, goes through <paramref name="rewriteText"/>, exactly
+    /// as before; a structured call goes through <paramref name="rewriteCall"/>, so its values never
+    /// pass through the legacy syntax. A command in array form is written back in array form.
+    /// </summary>
+    private static void RewriteCommands(JObject payload, Func<string, string> rewriteText,
+        Func<CommandCall, CommandCall> rewriteCall)
+    {
+        foreach (JProperty property in payload.DescendantsAndSelf().OfType<JProperty>().ToList())
+        {
+            if (string.Equals(property.Name, OwnerKeyProperty, StringComparison.OrdinalIgnoreCase))
+            {
+                RewriteStrings(property.Value, rewriteText);
+                continue;
+            }
+
+            if (!PortableCommandScanner.IsCommandProperty(property.Name))
                 continue;
 
-            RewriteStrings(property.Value, text => RemapKeysInCommandChain(text, keys));
+            foreach (JToken token in PortableCommandScanner.CommandTokensOf(property).ToList())
+            {
+                switch (token)
+                {
+                    case JValue { Type: JTokenType.String } value when value.Value is string text:
+                        value.Value = rewriteText(text);
+                        break;
+
+                    case JArray array:
+                        JToken rewritten = RewriteArray(array, rewriteText, rewriteCall);
+                        if (!ReferenceEquals(rewritten, array))
+                            array.Replace(rewritten);
+                        break;
+                }
+            }
+        }
+    }
+
+    private static JToken RewriteArray(JArray array, Func<string, string> rewriteText,
+        Func<CommandCall, CommandCall> rewriteCall)
+    {
+        CommandBinding command = CommandBindingJsonConverter.FromToken(array);
+        List<CommandCall> calls = [];
+        bool changed = false;
+
+        foreach (CommandCall call in command)
+        {
+            CommandCall rewritten = call.IsText
+                ? Rewrite(call)
+                : rewriteCall(call);
+            changed |= !ReferenceEquals(rewritten, call);
+            calls.Add(rewritten);
+        }
+
+        return changed ? CommandBindingJsonConverter.ToToken(new CommandBinding(calls)) : array;
+
+        CommandCall Rewrite(CommandCall call)
+        {
+            string text = rewriteText(call.Text);
+            return string.Equals(text, call.Text, StringComparison.Ordinal) ? call : CommandCall.FromText(text);
         }
     }
 
