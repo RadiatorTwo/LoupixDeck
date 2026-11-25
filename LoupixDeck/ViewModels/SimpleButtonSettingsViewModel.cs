@@ -75,7 +75,7 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
     public IRelayCommand ClearCommandCommand => field ??= Relay.Create(ClearCommandOnly);
 
     /// <summary>True when the button has a non-empty command assigned.</summary>
-    public bool HasCommand => !string.IsNullOrWhiteSpace(ButtonData?.Command);
+    public bool HasCommand => !CommandBinding.IsNullOrEmpty(ButtonData?.Command);
 
     // ───────── States ─────────
 
@@ -317,8 +317,8 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
 
         if (ButtonData == null) return;
 
-        foreach (var raw in CommandStringParser.SplitChain(ButtonData.Command))
-            Commands.Add(CreateSegment(raw));
+        foreach (CommandCall call in ButtonData.Command ?? CommandBinding.Empty)
+            Commands.Add(CreateSegment(call.ToLegacyString()));
     }
 
     /// <summary>Builds a <see cref="CommandSegment"/> from a raw segment, resolving its

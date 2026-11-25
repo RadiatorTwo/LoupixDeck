@@ -49,7 +49,7 @@ public abstract partial class LayerBase
     /// True when this layer belongs to <paramref name="boundCommand"/>, the command bound to its
     /// button or state. A layer left behind by a command that is no longer bound has no owner left.
     /// </summary>
-    public bool IsOwnedBy(string boundCommand)
+    public bool IsOwnedBy(CommandBinding boundCommand)
     {
         if (!IsCommandOwned) return false;
 

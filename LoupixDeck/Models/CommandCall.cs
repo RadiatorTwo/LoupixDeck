@@ -74,14 +74,22 @@ public sealed class CommandCall : IEquatable<CommandCall>
         : $"{Name}({string.Join(",", _parameters)})";
 
     /// <summary>
-    /// Two structured calls are equal when name and values match exactly. When either is a text
-    /// call, both are compared the way the executor reads them: name plus the parsed values.
+    /// Two structured calls are equal when name and values match exactly, two text calls when their
+    /// text does. A text call and a structured one are compared the way the executor reads them:
+    /// name plus the parsed values.
     /// </summary>
+    /// <remarks>Two text calls are not compared by their parsed values: without the command's
+    /// <see cref="CommandInfo"/> the parse cannot tell <c>PasteText(a, b)</c> from
+    /// <c>PasteText(a,b)</c>, which run differently, and a property setter that took them for equal
+    /// would drop the edit.</remarks>
     public bool Equals(CommandCall other)
     {
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
         if (!string.Equals(Name, other.Name, StringComparison.Ordinal)) return false;
+
+        if (IsText && other.IsText)
+            return string.Equals(Text, other.Text, StringComparison.Ordinal);
 
         return !IsText && !other.IsText
             ? _parameters.AsSpan().SequenceEqual(other._parameters)

@@ -27,15 +27,15 @@ public static class DialPresetCommandFilter
     /// True when <paramref name="command"/> can be put on a dial. An empty string is fine — a
     /// preset need not fill all three gestures.
     /// </summary>
-    public static bool IsUsable(string command, ICommandRegistry registry)
+    public static bool IsUsable(CommandBinding command, ICommandRegistry registry)
     {
-        if (string.IsNullOrWhiteSpace(command))
+        if (CommandBinding.IsNullOrEmpty(command))
             return true;
 
         if (registry == null)
             return false;
 
-        foreach (CommandCall segment in CommandBinding.FromLegacy(command))
+        foreach (CommandCall segment in command)
         {
             RegisteredCommand registered = registry.Get(segment.Name);
             if (registered == null || !registered.SupportedTargets.HasFlag(ButtonTargets.RotaryEncoder))

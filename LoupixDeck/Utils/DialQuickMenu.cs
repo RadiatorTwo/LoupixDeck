@@ -59,7 +59,7 @@ public static class DialQuickMenu
     private static MenuItem BuildGestureMenu(RotaryButton dial, MainWindowViewModel vm,
         DialQuickMenuViewModel menu, RotaryAction gesture)
     {
-        string current = dial.GetCommand(gesture);
+        CommandBinding current = dial.GetCommand(gesture);
         MenuEntry assigned = menu.FindAssigned(current);
 
         MenuItem item = new()
@@ -73,7 +73,7 @@ public static class DialQuickMenu
         item.Items.Add(new MenuItem
         {
             Header = Loc.Tr("DialMenu_Remove"),
-            IsEnabled = !string.IsNullOrWhiteSpace(current),
+            IsEnabled = !CommandBinding.IsNullOrEmpty(current),
             Command = Relay.Create(() => vm.ClearDialGestureAsync(dial, gesture))
         });
 

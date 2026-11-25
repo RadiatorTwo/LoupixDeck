@@ -25,9 +25,9 @@ public sealed record LaunchAppSpec(string Target, bool SingleInstance, string Pr
     /// Reads the <c>System.LaunchApp</c> segment of <paramref name="command"/>, or returns null
     /// when the command contains none. In a chain the first such segment counts.
     /// </summary>
-    public static LaunchAppSpec FromCommand(string command)
+    public static LaunchAppSpec FromCommand(CommandBinding command)
     {
-        CommandCall call = CommandBinding.FromLegacy(command).FirstOrDefault(c =>
+        CommandCall call = command?.FirstOrDefault(c =>
             string.Equals(c.Name, LoupixDeck.Commands.LaunchAppCommand.CommandName, StringComparison.Ordinal));
         return call == null ? null : FromParameters(call.GetParameters());
     }

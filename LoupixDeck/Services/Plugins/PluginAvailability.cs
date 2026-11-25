@@ -73,13 +73,13 @@ public static class PluginAvailability
     }
 
     /// <summary>True when any command of <paramref name="boundCommand"/> belongs to an unavailable plugin.</summary>
-    public static bool IsUnavailable(string boundCommand)
+    public static bool IsUnavailable(CommandBinding boundCommand)
     {
         HashSet<string> commands = _unavailableCommands;
-        if (commands.Count == 0 || string.IsNullOrWhiteSpace(boundCommand))
+        if (commands.Count == 0 || CommandBinding.IsNullOrEmpty(boundCommand))
             return false;
 
-        return CommandBinding.FromLegacy(boundCommand).Any(segment => commands.Contains(segment.Name));
+        return boundCommand.Any(segment => commands.Contains(segment.Name));
     }
 
     /// <summary>Rebuilds the snapshot under the gate; true when it changed.</summary>

@@ -113,9 +113,9 @@ public sealed class WrapSlot
     public CommandWrap Wrap { get; }
 
     private readonly bool _origPreEnabled;
-    private readonly string _origPreCommands;
+    private readonly CommandBinding _origPreCommands;
     private readonly bool _origPostEnabled;
-    private readonly string _origPostCommands;
+    private readonly CommandBinding _origPostCommands;
 
     public WrapSlot(string label, CommandWrap wrap)
     {

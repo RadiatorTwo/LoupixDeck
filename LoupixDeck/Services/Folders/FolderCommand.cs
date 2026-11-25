@@ -1,3 +1,5 @@
+using LoupixDeck.Models;
+
 namespace LoupixDeck.Services.Folders;
 
 /// <summary>
@@ -11,15 +13,7 @@ public static class FolderCommand
     public const string BackName = "System.FolderBack";
     public const string CloseName = "System.CloseFolders";
 
-    private const string SequenceSeparator = "&&";
-
     public static string Build(Guid folderId) => $"{OpenName}({folderId})";
-
-    /// <summary>The segments of a command sequence, trimmed, without empty entries.</summary>
-    public static IEnumerable<string> Segments(string command)
-        => string.IsNullOrWhiteSpace(command)
-            ? []
-            : command.Split(SequenceSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
     /// <summary>True when the single command <paramref name="segment"/> opens a folder; returns its id.</summary>
     public static bool TryParseSegment(string segment, out Guid folderId)
@@ -35,26 +29,38 @@ public static class FolderCommand
         return Guid.TryParse(argument, out folderId);
     }
 
-    /// <summary>The ids of every folder the command sequence opens.</summary>
-    public static IEnumerable<Guid> ReferencedFolders(string command)
+    /// <summary>True when <paramref name="call"/> opens a folder; returns its id.</summary>
+    public static bool TryParse(CommandCall call, out Guid folderId)
     {
-        foreach (string segment in Segments(command))
-            if (TryParseSegment(segment, out Guid id))
+        folderId = Guid.Empty;
+        if (call == null) return false;
+        if (call.IsText) return TryParseSegment(call.Text, out folderId);
+
+        string[] parameters = call.GetParameters();
+        return string.Equals(call.Name, OpenName, StringComparison.Ordinal)
+            && parameters.Length == 1
+            && Guid.TryParse(parameters[0].Trim(), out folderId);
+    }
+
+    /// <summary>The ids of every folder the command sequence opens.</summary>
+    public static IEnumerable<Guid> ReferencedFolders(CommandBinding command)
+    {
+        foreach (CommandCall call in command ?? CommandBinding.Empty)
+            if (TryParse(call, out Guid id))
                 yield return id;
     }
 
     /// <summary>True when any segment of the command sequence opens a folder.</summary>
-    public static bool OpensFolder(string command) => ReferencedFolders(command).Any();
+    public static bool OpensFolder(CommandBinding command) => ReferencedFolders(command).Any();
 
     /// <summary>
-    /// Removes the segments that open one of <paramref name="folderIds"/>. Returns the remaining
-    /// sequence, or an empty string when nothing is left.
+    /// Removes the calls that open one of <paramref name="folderIds"/>. Returns the remaining
+    /// sequence, which is empty when nothing is left.
     /// </summary>
-    public static string RemoveReferences(string command, IReadOnlySet<Guid> folderIds)
+    public static CommandBinding RemoveReferences(CommandBinding command, IReadOnlySet<Guid> folderIds)
     {
-        if (string.IsNullOrWhiteSpace(command)) return command;
+        if (CommandBinding.IsNullOrEmpty(command)) return command;
 
-        List<string> kept = [.. Segments(command).Where(s => !(TryParseSegment(s, out Guid id) && folderIds.Contains(id)))];
-        return string.Join($" {SequenceSeparator} ", kept);
+        return new CommandBinding(command.Where(c => !(TryParse(c, out Guid id) && folderIds.Contains(id))));
     }
 }

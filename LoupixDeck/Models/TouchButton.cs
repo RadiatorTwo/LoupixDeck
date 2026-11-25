@@ -84,7 +84,7 @@ public class TouchButton : StatefulButton
     [JsonIgnore]
     public bool ShowsCommandHint =>
         !IsFolderNavTile
-        && !string.IsNullOrWhiteSpace(Command)
+        && !CommandBinding.IsNullOrEmpty(Command)
         && !(Layers?.Any(layer => layer is { Visible: true }) ?? false);
 
     /// <summary>

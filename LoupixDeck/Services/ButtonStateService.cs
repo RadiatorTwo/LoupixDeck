@@ -94,8 +94,8 @@ public sealed class ButtonStateService(LoupedeckConfig config, ICommandRegistry 
 
         foreach (var state in button.States)
         {
-            if (string.IsNullOrEmpty(state.Command)) continue;
-            foreach (CommandCall part in CommandBinding.FromLegacy(state.Command))
+            if (CommandBinding.IsNullOrEmpty(state.Command)) continue;
+            foreach (CommandCall part in state.Command)
             {
                 RegisteredCommand command = commandRegistry.Get(part.Name);
                 if (command?.GetButtonState == null) continue;
@@ -112,8 +112,8 @@ public sealed class ButtonStateService(LoupedeckConfig config, ICommandRegistry 
         // The parameters come from the segment that binds the button to the command; every state
         // of a command-owned button carries the same command string.
         CommandCall segment = button.States
-            .Where(s => !string.IsNullOrEmpty(s.Command))
-            .SelectMany(s => CommandBinding.FromLegacy(s.Command))
+            .Where(s => !CommandBinding.IsNullOrEmpty(s.Command))
+            .SelectMany(s => s.Command)
             .FirstOrDefault(part => string.Equals(part.Name, command.CommandName, StringComparison.Ordinal));
         if (segment == null) return;
 
@@ -176,8 +176,8 @@ public sealed class ButtonStateService(LoupedeckConfig config, ICommandRegistry 
 
     private static bool StateBindsTo(ButtonState state, string commandName)
     {
-        if (string.IsNullOrEmpty(state.Command)) return false;
-        return CommandBinding.FromLegacy(state.Command)
+        if (CommandBinding.IsNullOrEmpty(state.Command)) return false;
+        return state.Command
             .Any(part => string.Equals(part.Name, commandName, StringComparison.Ordinal));
     }
 }

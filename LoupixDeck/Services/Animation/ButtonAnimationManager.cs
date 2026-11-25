@@ -170,9 +170,9 @@ public sealed class ButtonAnimationManager : IButtonAnimationManager, IDisposabl
             }
 
             // Animated plugin command bound to the button.
-            if (!string.IsNullOrWhiteSpace(button.Command))
+            if (!CommandBinding.IsNullOrEmpty(button.Command))
             {
-                CommandBinding chain = CommandBinding.FromLegacy(button.Command);
+                CommandBinding chain = button.Command;
                 var name = chain.First?.Name;
                 var command = string.IsNullOrEmpty(name) ? null : _commandRegistry.Get(name);
                 if (command is { IsAnimatedImageCommand: true, RenderAnimatedFrame: not null })

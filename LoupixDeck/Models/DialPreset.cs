@@ -25,13 +25,13 @@ public sealed class DialPreset
 
     /// <summary>Command run when the dial is turned counter-clockwise. Empty leaves the gesture
     /// unassigned.</summary>
-    public string Left { get; set; } = string.Empty;
+    public CommandBinding Left { get; set; } = CommandBinding.Empty;
 
     /// <summary>Command run when the dial is turned clockwise.</summary>
-    public string Right { get; set; } = string.Empty;
+    public CommandBinding Right { get; set; } = CommandBinding.Empty;
 
     /// <summary>Command run when the dial is pressed.</summary>
-    public string Press { get; set; } = string.Empty;
+    public CommandBinding Press { get; set; } = CommandBinding.Empty;
 
     /// <summary>True for a preset that ships with the app: it can be applied but not edited or
     /// removed. Never persisted — the built-ins are code, not file content.</summary>
@@ -65,9 +65,9 @@ public sealed class DialPreset
     /// offering.</summary>
     [JsonIgnore]
     public bool IsEmpty =>
-        string.IsNullOrWhiteSpace(Left) &&
-        string.IsNullOrWhiteSpace(Right) &&
-        string.IsNullOrWhiteSpace(Press);
+        CommandBinding.IsNullOrEmpty(Left) &&
+        CommandBinding.IsNullOrEmpty(Right) &&
+        CommandBinding.IsNullOrEmpty(Press);
 
     /// <summary>
     /// The preset as the rotary-group map the rest of the app already speaks — the same shape a
@@ -79,14 +79,14 @@ public sealed class DialPreset
     {
         Dictionary<RotaryAction, string> map = [];
 
-        if (!string.IsNullOrWhiteSpace(Left))
-            map[RotaryAction.CounterClockwise] = Left;
+        if (!CommandBinding.IsNullOrEmpty(Left))
+            map[RotaryAction.CounterClockwise] = Left.ToLegacyString();
 
-        if (!string.IsNullOrWhiteSpace(Right))
-            map[RotaryAction.Clockwise] = Right;
+        if (!CommandBinding.IsNullOrEmpty(Right))
+            map[RotaryAction.Clockwise] = Right.ToLegacyString();
 
-        if (!string.IsNullOrWhiteSpace(Press))
-            map[RotaryAction.Press] = Press;
+        if (!CommandBinding.IsNullOrEmpty(Press))
+            map[RotaryAction.Press] = Press.ToLegacyString();
 
         return map;
     }

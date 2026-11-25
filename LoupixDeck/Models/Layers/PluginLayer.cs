@@ -195,7 +195,7 @@ public class PluginLayer : LayerBase
     /// it existed load unchanged.
     /// </summary>
     [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-    public string Command
+    public CommandBinding Command
     {
         get;
         set => SetProperty(ref field, value);

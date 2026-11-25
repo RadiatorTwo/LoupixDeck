@@ -211,10 +211,10 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
         {
             foreach (var button in page.TouchButtons)
             {
-                if (button == null || string.IsNullOrWhiteSpace(button.Command))
+                if (button == null || CommandBinding.IsNullOrEmpty(button.Command))
                     continue;
 
-                CommandBinding chain = CommandBinding.FromLegacy(button.Command);
+                CommandBinding chain = button.Command;
                 var name = chain.First?.Name;
                 if (string.IsNullOrEmpty(name))
                     continue;
@@ -347,7 +347,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
                 continue;
 
             RegisteredCommand command = null;
-            CommandBinding chain = CommandBinding.FromLegacy(layer.TextCommand);
+            CommandBinding chain = layer.TextCommand ?? CommandBinding.Empty;
             string name = chain.First?.Name;
             if (!string.IsNullOrEmpty(name))
                 command = _commandRegistry.Get(name);
@@ -386,7 +386,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
             if (layer.IsCommandOwned)
                 continue;
 
-            CommandBinding chain = CommandBinding.FromLegacy(layer.Command);
+            CommandBinding chain = layer.Command ?? CommandBinding.Empty;
             string name = chain.First?.Name;
             RegisteredCommand command = string.IsNullOrEmpty(name) ? null : _commandRegistry.Get(name);
             if (command is not { IsImageDisplayCommand: true, RenderImage: not null })
@@ -915,9 +915,9 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
     /// the button is not bound to a registered text/image display command.
     /// </summary>
     /// <summary>True when the command string names a command that is not registered on this device.</summary>
-    private bool IsUnregistered(string command)
+    private bool IsUnregistered(CommandBinding command)
     {
-        var name = CommandBinding.FromLegacy(command).First?.Name;
+        var name = command?.First?.Name;
         return !string.IsNullOrEmpty(name) && _commandRegistry.Get(name) == null;
     }
 
@@ -944,10 +944,10 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
     /// </summary>
     private (string Key, DisplayLayerKind Kind) ResolveDisplayKey(TouchButton button)
     {
-        if (button == null || string.IsNullOrWhiteSpace(button.Command))
+        if (button == null || CommandBinding.IsNullOrEmpty(button.Command))
             return (null, DisplayLayerKind.None);
 
-        var name = CommandBinding.FromLegacy(button.Command).First?.Name;
+        var name = button.Command.First?.Name;
         if (string.IsNullOrEmpty(name))
             return (null, DisplayLayerKind.None);
 

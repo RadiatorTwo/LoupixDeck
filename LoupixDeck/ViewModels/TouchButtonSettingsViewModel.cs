@@ -635,7 +635,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
                 CommandSlots.Add(new CommandSequenceSlot(
                     Loc.Tr(SegmentTitleKeys[index]), _commandBuilder, _commandRegistry, _commandLock, _dialogService,
                     () => _stripPage.GetStripSegmentCommand(index),
-                    v => _stripPage.SetStripSegmentCommand(index, string.IsNullOrWhiteSpace(v) ? null : v), _parameterOptions));
+                    v => _stripPage.SetStripSegmentCommand(index, CommandBinding.IsNullOrEmpty(v) ? null : v), _parameterOptions));
                 CommandSlots[^1].Commands.CollectionChanged += (_, _) => RefreshParameterSegments();
             }
         }
@@ -644,7 +644,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             var slot = new CommandSequenceSlot(
                 Loc.Tr("Slot_CommandSequence"), _commandBuilder, _commandRegistry, _commandLock, _dialogService,
                 () => ButtonData.Command,
-                v => ButtonData.Command = string.IsNullOrWhiteSpace(v) ? null : v, _parameterOptions);
+                v => ButtonData.Command = CommandBinding.IsNullOrEmpty(v) ? null : v, _parameterOptions);
             slot.CommandInserted += OnMainCommandInserted;
             slot.Commands.CollectionChanged += (_, _) => RefreshParameterSegments();
             CommandSlots.Add(slot);
@@ -985,8 +985,8 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
     /// <summary>True when the dial has a rotation command, which is what can report a value.</summary>
     private static bool HasRotationCommand(RotaryButton dial) =>
-        dial != null && (!string.IsNullOrWhiteSpace(dial.RotaryLeftCommand) ||
-                         !string.IsNullOrWhiteSpace(dial.RotaryRightCommand));
+        dial != null && (!CommandBinding.IsNullOrEmpty(dial.RotaryLeftCommand) ||
+                         !CommandBinding.IsNullOrEmpty(dial.RotaryRightCommand));
 
     /// <summary>
     /// The preview of a tap-zone strip layer that shows a dial: that dial's real label, and a sample
@@ -1290,9 +1290,9 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     {
         get
         {
-            string name = string.IsNullOrWhiteSpace(SelectedTextLayer?.TextCommand)
+            string name = CommandBinding.IsNullOrEmpty(SelectedTextLayer?.TextCommand)
                 ? null
-                : CommandBinding.FromLegacy(SelectedTextLayer.TextCommand).First?.Name;
+                : SelectedTextLayer.TextCommand.First?.Name;
             return TextCommandChoices.FirstOrDefault(c => c.CommandName == name);
         }
         set
@@ -1330,8 +1330,8 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     {
         get
         {
-            string command = (_selectedLayer as PluginLayer)?.Command;
-            string name = string.IsNullOrWhiteSpace(command) ? null : CommandBinding.FromLegacy(command).First?.Name;
+            CommandBinding command = (_selectedLayer as PluginLayer)?.Command;
+            string name = command?.First?.Name;
             return ImageCommandChoices.FirstOrDefault(c => c.CommandName == name);
         }
         set

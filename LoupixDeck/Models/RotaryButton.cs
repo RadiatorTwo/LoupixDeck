@@ -5,7 +5,7 @@ using SkiaSharp;
 
 namespace LoupixDeck.Models;
 
-public partial class RotaryButton(int index,string rotaryLeftCommand, string rotaryRightCommand) : LoupedeckButton
+public partial class RotaryButton(int index, CommandBinding rotaryLeftCommand, CommandBinding rotaryRightCommand) : LoupedeckButton
 {
     public int Index { get; } = index;
 
@@ -28,26 +28,26 @@ public partial class RotaryButton(int index,string rotaryLeftCommand, string rot
         }
     }
 
-    private string _rotaryLeftCommand = rotaryLeftCommand;
-    private string _rotaryRightCommand = rotaryRightCommand;
+    private CommandBinding _rotaryLeftCommand = rotaryLeftCommand;
+    private CommandBinding _rotaryRightCommand = rotaryRightCommand;
     
-    public string RotaryLeftCommand
+    public CommandBinding RotaryLeftCommand
     {
         get => _rotaryLeftCommand;
         set
         {
-            if (value == _rotaryLeftCommand) return;
+            if (Equals(value, _rotaryLeftCommand)) return;
             _rotaryLeftCommand = value;
             OnPropertyChanged(nameof(RotaryLeftCommand));
         }
     }
 
-    public string RotaryRightCommand
+    public CommandBinding RotaryRightCommand
     {
         get => _rotaryRightCommand;
         set
         {
-            if (value == _rotaryRightCommand) return;
+            if (Equals(value, _rotaryRightCommand)) return;
             _rotaryRightCommand = value;
             OnPropertyChanged(nameof(RotaryRightCommand));
         }
@@ -172,7 +172,7 @@ public partial class RotaryButton(int index,string rotaryLeftCommand, string rot
     /// The commands bound to the dial itself, in resolution order: left, right, then the press
     /// command. A split wheel's press lives on its segments, so its own press command is left out.
     /// </summary>
-    public string[] DialCommands() =>
+    public CommandBinding[] DialCommands() =>
         IsSplit ? [RotaryLeftCommand, RotaryRightCommand] : [RotaryLeftCommand, RotaryRightCommand, Command];
 
     /// <summary>True when the wheel screen is split into segments.</summary>

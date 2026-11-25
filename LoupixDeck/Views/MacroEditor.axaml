@@ -573,7 +573,7 @@
                                                                         <TextBlock Grid.Column="0" Classes="editor-label lead"
                                                                                    Text="{loc:Tr MacroEditor_Command}" Margin="0,0,10,0" />
                                                                         <TextBox Grid.Column="1"
-                                                                                 Text="{Binding CommandString, Mode=TwoWay}" />
+                                                                                 Text="{Binding CommandString, Mode=TwoWay, Converter={x:Static conv:CommandBindingTextConverter.Instance}}" />
                                                                     </Grid>
                                                                     <TextBlock Classes="hint"
                                                                                Text="{loc:Tr MacroEditor_ALoupixDeckSystemCommandOr}" />

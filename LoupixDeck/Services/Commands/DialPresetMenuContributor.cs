@@ -89,11 +89,11 @@ public class DialPresetMenuContributor : IMenuContributor
     {
         List<string> filled = [];
 
-        if (!string.IsNullOrWhiteSpace(preset.Left))
+        if (!CommandBinding.IsNullOrEmpty(preset.Left))
             filled.Add("rotate left");
-        if (!string.IsNullOrWhiteSpace(preset.Right))
+        if (!CommandBinding.IsNullOrEmpty(preset.Right))
             filled.Add("rotate right");
-        if (!string.IsNullOrWhiteSpace(preset.Press))
+        if (!CommandBinding.IsNullOrEmpty(preset.Press))
             filled.Add("press");
 
         return $"Sets {string.Join(", ", filled)}";

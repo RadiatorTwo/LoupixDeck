@@ -1848,11 +1848,11 @@ public partial class LoupedeckLiveSController(
     }
 
     /// <summary>True when any part of a (possibly chained) binding runs the given command.</summary>
-    private static bool BindsCommand(string binding, string commandName)
+    private static bool BindsCommand(CommandBinding binding, string commandName)
     {
-        if (string.IsNullOrWhiteSpace(binding)) return false;
+        if (CommandBinding.IsNullOrEmpty(binding)) return false;
 
-        return CommandBinding.FromLegacy(binding)
+        return binding
             .Any(call => string.Equals(call.Name, commandName, StringComparison.Ordinal));
     }
 
@@ -1984,9 +1984,9 @@ public partial class LoupedeckLiveSController(
             {
                 Index = i,
                 Label = r.DisplayText ?? string.Empty,
-                LeftCommand = r.RotaryLeftCommand ?? string.Empty,
-                RightCommand = r.RotaryRightCommand ?? string.Empty,
-                PressCommand = r.Command ?? string.Empty,
+                LeftCommand = r.RotaryLeftCommand?.ToLegacyString() ?? string.Empty,
+                RightCommand = r.RotaryRightCommand?.ToLegacyString() ?? string.Empty,
+                PressCommand = r.Command?.ToLegacyString() ?? string.Empty,
                 GetValue = () => dial == null ? null : DialAdjustmentValue(dial, globalIndex)
             });
         }
@@ -2081,9 +2081,9 @@ public partial class LoupedeckLiveSController(
         foreach (var r in rotaries)
         {
             parts.Add(r?.DisplayText ?? string.Empty);
-            parts.Add(r?.RotaryLeftCommand ?? string.Empty);
-            parts.Add(r?.RotaryRightCommand ?? string.Empty);
-            parts.Add(r?.Command ?? string.Empty);
+            parts.Add(r?.RotaryLeftCommand?.ToLegacyString() ?? string.Empty);
+            parts.Add(r?.RotaryRightCommand?.ToLegacyString() ?? string.Empty);
+            parts.Add(r?.Command?.ToLegacyString() ?? string.Empty);
         }
         return string.Join("|", parts);
     }
@@ -2283,9 +2283,9 @@ public partial class LoupedeckLiveSController(
     /// value), so an unassigned press slot uses it instead of staying dead. Never borrows a
     /// normal command. Null when there is nothing to run.
     /// </summary>
-    private string RotaryPressCommand(RotaryButton rotary)
+    private CommandBinding RotaryPressCommand(RotaryButton rotary)
     {
-        if (!string.IsNullOrEmpty(rotary.Command)) return rotary.Command;
+        if (!CommandBinding.IsNullOrEmpty(rotary.Command)) return rotary.Command;
 
         var turnCommand = rotary.RotaryLeftCommand;
         if (!commandService.IsAdjustmentCommand(turnCommand))
@@ -2300,10 +2300,10 @@ public partial class LoupedeckLiveSController(
     /// deadlock the very thread that needs to complete the await, and the
     /// device would appear disconnected after the first such command.
     /// </summary>
-    private void FireAndForget(string command, ButtonTargets target, int? sourceIndex = null, int ticks = 0,
+    private void FireAndForget(CommandBinding command, ButtonTargets target, int? sourceIndex = null, int ticks = 0,
         string buttonKey = null)
     {
-        if (string.IsNullOrEmpty(command)) return;
+        if (CommandBinding.IsNullOrEmpty(command)) return;
         _ = Task.Run(async () =>
         {
             try
@@ -2358,7 +2358,7 @@ public partial class LoupedeckLiveSController(
     /// for the command to finish (#186). External buttons never transition automatically; their
     /// state is driven by a plugin.
     /// </summary>
-    private void FireSimpleButtonCommand(SimpleButton button, string wrapped)
+    private void FireSimpleButtonCommand(SimpleButton button, CommandBinding wrapped)
     {
         if (button.Mode == ButtonStateMode.Local)
             ApplyStateTransition(button, button.ActiveState);
@@ -2370,7 +2370,7 @@ public partial class LoupedeckLiveSController(
         {
             try
             {
-                if (!string.IsNullOrEmpty(wrapped))
+                if (!CommandBinding.IsNullOrEmpty(wrapped))
                     await commandService.ExecuteCommand(wrapped, ButtonTargets.SimpleButton, null,
                         buttonKey: button.RuntimeKey);
             }
@@ -2431,7 +2431,7 @@ public partial class LoupedeckLiveSController(
         {
             try
             {
-                if (!string.IsNullOrEmpty(wrapped))
+                if (!CommandBinding.IsNullOrEmpty(wrapped))
                     await commandService.ExecuteCommand(wrapped, ButtonTargets.TouchButton, null,
                         buttonKey: button.RuntimeKey);
             }
@@ -2849,7 +2849,7 @@ public partial class LoupedeckLiveSController(
         // the sign), so binding it to one slot is enough: the empty opposite slot borrows
         // it instead of doing nothing. Only ever borrows an adjustment command — a normal
         // command assigned to one direction keeps turning the other way into a no-op.
-        if (string.IsNullOrEmpty(command))
+        if (CommandBinding.IsNullOrEmpty(command))
         {
             var opposite = leftTurn ? btn.RotaryRightCommand : btn.RotaryLeftCommand;
             if (!commandService.IsAdjustmentCommand(opposite)) return;

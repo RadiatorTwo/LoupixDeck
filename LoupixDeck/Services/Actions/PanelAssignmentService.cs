@@ -343,8 +343,8 @@ public sealed class PanelAssignmentService(
         return !string.IsNullOrEmpty(command);
     }
 
-    private static string AppendToChain(string chain, string command) =>
-        string.IsNullOrWhiteSpace(chain) ? command : $"{chain.TrimEnd()} && {command}";
+    private static CommandBinding AppendToChain(CommandBinding chain, string command) =>
+        CommandBinding.IsNullOrEmpty(chain) ? command : chain.Append(CommandBinding.FromLegacy(command));
 
     // ── Catalogue commands ─────────────────────────────────────────────────
 
@@ -467,9 +467,9 @@ public sealed class PanelAssignmentService(
         buttonStates?.RefreshState(button);
     }
 
-    private bool DeclaresStates(string boundCommand)
+    private bool DeclaresStates(CommandBinding boundCommand)
     {
-        string name = CommandBinding.FromLegacy(boundCommand).First?.Name;
+        string name = boundCommand?.First?.Name;
         return !string.IsNullOrEmpty(name) && commandRegistry.Get(name) is { DeclaresStates: true };
     }
 

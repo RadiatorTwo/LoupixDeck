@@ -18,26 +18,20 @@ public partial class CommandWrap
     public partial bool PreEnabled { get; set; }
 
     [ObservableProperty]
-    public partial string PreCommands { get; set; } = string.Empty;
+    public partial CommandBinding PreCommands { get; set; } = CommandBinding.Empty;
 
     [ObservableProperty]
     public partial bool PostEnabled { get; set; }
 
     [ObservableProperty]
-    public partial string PostCommands { get; set; } = string.Empty;
+    public partial CommandBinding PostCommands { get; set; } = CommandBinding.Empty;
 
-    /// <summary>Returns the chained command string for a given button command.</summary>
-    public string Apply(string command)
+    /// <summary>Returns the chain run for a given button command: pre commands, the command, post commands.</summary>
+    public CommandBinding Apply(CommandBinding command)
     {
-        if (string.IsNullOrEmpty(command)) return command;
-        var pre = PreEnabled && !string.IsNullOrWhiteSpace(PreCommands) ? PreCommands.Trim() : null;
-        var post = PostEnabled && !string.IsNullOrWhiteSpace(PostCommands) ? PostCommands.Trim() : null;
-        if (pre == null && post == null) return command;
-
-        var parts = new List<string>(3);
-        if (pre != null) parts.Add(pre);
-        parts.Add(command);
-        if (post != null) parts.Add(post);
-        return string.Join(" && ", parts);
+        if (CommandBinding.IsNullOrEmpty(command)) return command;
+        CommandBinding pre = PreEnabled && !CommandBinding.IsNullOrEmpty(PreCommands) ? PreCommands : CommandBinding.Empty;
+        CommandBinding post = PostEnabled && !CommandBinding.IsNullOrEmpty(PostCommands) ? PostCommands : CommandBinding.Empty;
+        return pre.Append(command).Append(post);
     }
 }

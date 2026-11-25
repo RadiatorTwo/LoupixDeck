@@ -182,17 +182,17 @@ public sealed class PluginCommandMigrationRunner(
 
         foreach (RotaryAction action in RotaryButtonExtensions.Gestures)
         {
-            string binding = dial.GetCommand(action);
+            CommandBinding binding = dial.GetCommand(action);
 
             if (!rule.From.TryGetValue(action, out string expected))
             {
                 // A gesture the rule does not mention must be free, otherwise the dial is a
                 // composition the user built and not the shape the plugin is replacing.
-                if (!string.IsNullOrWhiteSpace(binding)) return false;
+                if (!CommandBinding.IsNullOrEmpty(binding)) return false;
                 continue;
             }
 
-            CommandBinding parts = CommandBinding.FromLegacy(binding);
+            CommandBinding parts = binding;
             if (parts.Count != 1) return false;
 
             if (!string.Equals(parts[0].Name, expected, StringComparison.Ordinal))

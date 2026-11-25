@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:LoupixDeck.ViewModels"
+        xmlns:conv="clr-namespace:LoupixDeck.Models.Converter"
         xmlns:local="using:LoupixDeck"
         xmlns:views="using:LoupixDeck.Views"
         x:Class="LoupixDeck.Views.PageCommandsSettings"
@@ -39,14 +40,14 @@
                                               IsChecked="{Binding Wrap.PreEnabled, Mode=TwoWay}" />
                                     <TextBox Tag="pre" GotFocus="OnCommandBoxFocused"
                                              PlaceholderText="cmd1 &amp;&amp; cmd2 &amp;&amp; …"
-                                             Text="{Binding Wrap.PreCommands, Mode=TwoWay}"
+                                             Text="{Binding Wrap.PreCommands, Mode=TwoWay, Converter={x:Static conv:CommandBindingTextConverter.Instance}}"
                                              IsEnabled="{Binding Wrap.PreEnabled}" />
 
                                     <CheckBox Content="{loc:Tr PageCommands_RunPostExecutionCommands}" Margin="0,6,0,0"
                                               IsChecked="{Binding Wrap.PostEnabled, Mode=TwoWay}" />
                                     <TextBox Tag="post" GotFocus="OnCommandBoxFocused"
                                              PlaceholderText="cmd1 &amp;&amp; cmd2 &amp;&amp; …"
-                                             Text="{Binding Wrap.PostCommands, Mode=TwoWay}"
+                                             Text="{Binding Wrap.PostCommands, Mode=TwoWay, Converter={x:Static conv:CommandBindingTextConverter.Instance}}"
                                              IsEnabled="{Binding Wrap.PostEnabled}" />
                                 </StackPanel>
                             </Border>

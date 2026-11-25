@@ -584,7 +584,7 @@ public class MacroRunner : IDisposable
                 break;
 
             case CommandStep command:
-                var expandedCommand = context.Expand(command.CommandString);
+                var expandedCommand = context.Expand(command.CommandString?.ToLegacyString());
                 if (!string.IsNullOrWhiteSpace(expandedCommand))
                     await _commandService.ExecuteCommand(expandedCommand, ButtonTargets.None);
                 break;

@@ -338,7 +338,7 @@ public static class ActionAssignment
     /// neither the icon nor the caption, which a template removes. <paramref name="backgrounds"/> are
     /// the pictures that fill the key, the icon among them when it is one.
     /// </summary>
-    private static void FindTemplateLayers(IEnumerable<LayerBase> stateLayers, string command, int keyWidthPx,
+    private static void FindTemplateLayers(IEnumerable<LayerBase> stateLayers, CommandBinding command, int keyWidthPx,
         int keyHeightPx, out LayerBase icon, out TextLayer caption, out List<LayerBase> others, out List<LayerBase> backgrounds)
     {
         List<LayerBase> layers = stateLayers?.ToList() ?? [];
@@ -426,8 +426,8 @@ public static class ActionAssignment
     /// that fills the key stays the background and is never shrunk into the icon, unless
     /// <paramref name="iconImages"/> names it as one, as an import does with a key's own picture.
     /// </summary>
-    private static ButtonTemplatePlan PlanTemplate(ObservableCollection<LayerBase> layers, string command,
-        ButtonTemplate template, int keyWidthPx, int keyHeightPx, bool bulk, Func<string, bool> drawsOnKey,
+    private static ButtonTemplatePlan PlanTemplate(ObservableCollection<LayerBase> layers, CommandBinding command,
+        ButtonTemplate template, int keyWidthPx, int keyHeightPx, bool bulk, Func<CommandBinding, bool> drawsOnKey,
         IReadOnlySet<LayerBase> iconImages)
     {
         if (layers == null)
@@ -591,7 +591,7 @@ public static class ActionAssignment
     /// them. Any other picture that fills the key stays as it is.
     /// </param>
     public static TemplateApplyResult ApplyTemplateToPages(IEnumerable<TouchButtonPage> pages, ButtonTemplate template,
-        int keyWidthPx, int keyHeightPx, IReadOnlySet<TouchButton> skip = null, Func<string, bool> drawsOnKey = null,
+        int keyWidthPx, int keyHeightPx, IReadOnlySet<TouchButton> skip = null, Func<CommandBinding, bool> drawsOnKey = null,
         IReadOnlySet<LayerBase> iconImages = null)
         => RunTemplateOnPages(pages, template, keyWidthPx, keyHeightPx, skip, drawsOnKey, iconImages, apply: true);
 
@@ -600,12 +600,12 @@ public static class ActionAssignment
     /// anything, so the caller can name the totals before asking.
     /// </summary>
     public static TemplateApplyResult PlanTemplateOnPages(IEnumerable<TouchButtonPage> pages, ButtonTemplate template,
-        int keyWidthPx, int keyHeightPx, IReadOnlySet<TouchButton> skip = null, Func<string, bool> drawsOnKey = null,
+        int keyWidthPx, int keyHeightPx, IReadOnlySet<TouchButton> skip = null, Func<CommandBinding, bool> drawsOnKey = null,
         IReadOnlySet<LayerBase> iconImages = null)
         => RunTemplateOnPages(pages, template, keyWidthPx, keyHeightPx, skip, drawsOnKey, iconImages, apply: false);
 
     private static TemplateApplyResult RunTemplateOnPages(IEnumerable<TouchButtonPage> pages, ButtonTemplate template,
-        int keyWidthPx, int keyHeightPx, IReadOnlySet<TouchButton> skip, Func<string, bool> drawsOnKey,
+        int keyWidthPx, int keyHeightPx, IReadOnlySet<TouchButton> skip, Func<CommandBinding, bool> drawsOnKey,
         IReadOnlySet<LayerBase> iconImages, bool apply)
     {
         int buttonsChanged = 0;

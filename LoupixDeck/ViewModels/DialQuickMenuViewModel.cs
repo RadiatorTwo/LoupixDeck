@@ -151,13 +151,13 @@ public sealed class DialQuickMenuViewModel
     /// builder produces for each leaf rather than on a prefix, so a parameterized command is never
     /// confused with the generic entry it was built from.
     /// </summary>
-    public MenuEntry FindAssigned(string command)
+    public MenuEntry FindAssigned(CommandBinding command)
     {
-        if (string.IsNullOrWhiteSpace(command))
+        if (CommandBinding.IsNullOrEmpty(command))
             return null;
 
         _byCommand ??= BuildIndex();
-        return _byCommand.GetValueOrDefault(command);
+        return _byCommand.GetValueOrDefault(command.ToLegacyString());
     }
 
     /// <summary>
@@ -213,7 +213,7 @@ public sealed class DialQuickMenuViewModel
     {
         foreach ((RotaryAction action, string command) in preset.ToRotaryGroup())
         {
-            if (!string.Equals(dial.GetCommand(action), command, StringComparison.Ordinal))
+            if (!string.Equals(dial.GetCommand(action).ToLegacyString(), command, StringComparison.Ordinal))
                 return false;
         }
 

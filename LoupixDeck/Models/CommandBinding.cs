@@ -41,6 +41,13 @@ public sealed class CommandBinding : IReadOnlyList<CommandCall>, IEquatable<Comm
             };
 
     /// <summary>
+    /// A command string in the legacy syntax, read as <see cref="FromLegacy"/> does. Lossless, so
+    /// code that builds a command string can assign it directly. Null stays null, so a property
+    /// that held null keeps serializing as null.
+    /// </summary>
+    public static implicit operator CommandBinding(string command) => command == null ? null : FromLegacy(command);
+
+    /// <summary>
     /// The legacy string this chain was read from, or null when it was built some other way. Every
     /// change produces a new chain without it.
     /// </summary>

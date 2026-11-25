@@ -131,17 +131,17 @@ public static class ButtonSnapshot
                        && (touch.ActiveState?.Layers?.Count ?? 0) == 0
                        && touch.BackColor == Colors.Black
                        && !touch.VibrationEnabled
-                       && string.IsNullOrEmpty(touch.Command);
+                       && CommandBinding.IsNullOrEmpty(touch.Command);
 
             case SimpleButton simple:
                 return simple.States.Count <= 1
                        && simple.ButtonColor == Colors.Black
-                       && string.IsNullOrEmpty(simple.Command);
+                       && CommandBinding.IsNullOrEmpty(simple.Command);
 
             case RotaryButton rotary:
-                return string.IsNullOrEmpty(rotary.Command)
-                       && string.IsNullOrEmpty(rotary.RotaryLeftCommand)
-                       && string.IsNullOrEmpty(rotary.RotaryRightCommand)
+                return CommandBinding.IsNullOrEmpty(rotary.Command)
+                       && CommandBinding.IsNullOrEmpty(rotary.RotaryLeftCommand)
+                       && CommandBinding.IsNullOrEmpty(rotary.RotaryRightCommand)
                        && string.IsNullOrEmpty(rotary.DisplayText)
                        && rotary.Canvas == null
                        && !rotary.IsSplit
@@ -172,7 +172,7 @@ public static class ButtonSnapshot
            || (page.RotaryButtons.All(IsEmpty)
                && page.StripMode == StripMode.Segmented
                && (page.StripCanvas == null || IsEmpty(page.StripCanvas))
-               && (page.StripSegmentCommands ?? []).All(string.IsNullOrEmpty)
+               && (page.StripSegmentCommands ?? []).All(CommandBinding.IsNullOrEmpty)
                && IsEmpty(page.SimpleButtonWrap)
                && IsEmpty(page.KnobLeftWrap)
                && IsEmpty(page.KnobRightWrap)
@@ -180,5 +180,5 @@ public static class ButtonSnapshot
 
     private static bool IsEmpty(CommandWrap wrap)
         => wrap == null
-           || (string.IsNullOrWhiteSpace(wrap.PreCommands) && string.IsNullOrWhiteSpace(wrap.PostCommands));
+           || (CommandBinding.IsNullOrEmpty(wrap.PreCommands) && CommandBinding.IsNullOrEmpty(wrap.PostCommands));
 }

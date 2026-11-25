@@ -24,8 +24,8 @@ public class CommandSequenceSlot : ViewModelBase, ICommandChain
     private readonly Services.Companion.ICommandLockService _commandLock;
     private readonly IDialogService _dialogService;
     private readonly Services.Commands.ICommandParameterOptions _parameterOptions;
-    private readonly Func<string> _read;
-    private readonly Action<string> _write;
+    private readonly Func<CommandBinding> _read;
+    private readonly Action<CommandBinding> _write;
 
     /// <summary>Header shown above the strip, e.g. "Rotate Left".</summary>
     public string Title { get; }
@@ -41,8 +41,8 @@ public class CommandSequenceSlot : ViewModelBase, ICommandChain
         ICommandRegistry commandRegistry,
         Services.Companion.ICommandLockService commandLock,
         IDialogService dialogService,
-        Func<string> read,
-        Action<string> write,
+        Func<CommandBinding> read,
+        Action<CommandBinding> write,
         Services.Commands.ICommandParameterOptions parameterOptions = null)
     {
         Title = title;
@@ -71,10 +71,10 @@ public class CommandSequenceSlot : ViewModelBase, ICommandChain
     }
 
     /// <summary>True when the slot has a non-empty command assigned.</summary>
-    public bool HasCommand => !string.IsNullOrWhiteSpace(_read());
+    public bool HasCommand => !CommandBinding.IsNullOrEmpty(_read());
 
     /// <summary>The slot's command chain as stored on the button.</summary>
-    public string CommandText => _read();
+    public string CommandText => _read()?.ToLegacyString();
 
     /// <summary>Parses the persisted command string into editable chips. Does not write
     /// back — opening (and closing without edits) leaves the string byte-for-byte unchanged.</summary>
@@ -84,8 +84,8 @@ public class CommandSequenceSlot : ViewModelBase, ICommandChain
             segment.Changed -= OnSegmentChanged;
         Commands.Clear();
 
-        foreach (var raw in CommandStringParser.SplitChain(_read()))
-            Commands.Add(CreateSegment(raw));
+        foreach (CommandCall call in _read() ?? CommandBinding.Empty)
+            Commands.Add(CreateSegment(call.ToLegacyString()));
     }
 
     private CommandSegment CreateSegment(string raw)
@@ -132,8 +132,8 @@ public class CommandSequenceSlot : ViewModelBase, ICommandChain
 
         _write(string.IsNullOrWhiteSpace(raw) ? string.Empty : raw);
 
-        foreach (var part in CommandStringParser.SplitChain(_read()))
-            Commands.Add(CreateSegment(part));
+        foreach (CommandCall call in _read() ?? CommandBinding.Empty)
+            Commands.Add(CreateSegment(call.ToLegacyString()));
 
         OnPropertyChanged(nameof(HasCommand));
     }
