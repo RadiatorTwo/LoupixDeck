@@ -85,16 +85,15 @@ public class CommandSequenceSlot : ViewModelBase, ICommandChain
         Commands.Clear();
 
         foreach (CommandCall call in _read() ?? CommandBinding.Empty)
-            Commands.Add(CreateSegment(call.ToLegacyString()));
+            Commands.Add(CreateSegment(call));
     }
 
-    private CommandSegment CreateSegment(string raw)
+    private CommandSegment CreateSegment(CommandCall call)
     {
-        var name = CommandStringParser.GetName(raw);
-        var info = _commandRegistry.Get(name)?.Info;
-        var owner = info == null ? _commandRegistry.GetMissingPluginOwner(name) : null;
-        var segment = CommandSegment.Create(_commandBuilder, _dialogService, info, raw, owner,
-            info != null ? _commandLock.GetLockHint(CommandCall.FromText(raw)) : null, _parameterOptions);
+        var info = _commandRegistry.Get(call.Name)?.Info;
+        var owner = info == null ? _commandRegistry.GetMissingPluginOwner(call.Name) : null;
+        var segment = CommandSegment.Create(_commandBuilder, _dialogService, info, call, owner,
+            info != null ? _commandLock.GetLockHint(call) : null, _parameterOptions);
         segment.Changed += OnSegmentChanged;
         return segment;
     }
@@ -107,14 +106,13 @@ public class CommandSequenceSlot : ViewModelBase, ICommandChain
             Commands[i].Position = i + 1;
     }
 
-    /// <summary>Recomposes the persisted <c>&amp;&amp;</c>-joined command string from the
-    /// current chip order/values and writes it back through the slot's setter.</summary>
+    /// <summary>Recomposes the persisted chain from the current chip order/values and writes it
+    /// back through the slot's setter.</summary>
     private void RebuildCommandString()
     {
-        var joined = string.Join(" && ",
-            Commands.Select(s => s.Raw).Where(r => !string.IsNullOrWhiteSpace(r)));
+        CommandBinding chain = new(Commands.Where(s => !s.IsBlank).Select(s => s.Call));
 
-        _write(string.IsNullOrWhiteSpace(joined) ? string.Empty : joined);
+        _write(chain.IsEmpty ? string.Empty : chain);
         OnPropertyChanged(nameof(HasCommand));
     }
 
@@ -133,7 +131,7 @@ public class CommandSequenceSlot : ViewModelBase, ICommandChain
         _write(string.IsNullOrWhiteSpace(raw) ? string.Empty : raw);
 
         foreach (CommandCall call in _read() ?? CommandBinding.Empty)
-            Commands.Add(CreateSegment(call.ToLegacyString()));
+            Commands.Add(CreateSegment(call));
 
         OnPropertyChanged(nameof(HasCommand));
     }
@@ -155,10 +153,23 @@ public class CommandSequenceSlot : ViewModelBase, ICommandChain
     /// given chip index. Returns false when there was nothing to insert.</summary>
     public bool InsertRawAt(string raw, int index)
     {
-        if (string.IsNullOrWhiteSpace(raw)) return false;
+        // A formatted command may hold a whole chain; each of its commands becomes a chip.
+        int inserted = 0;
+        foreach (CommandCall call in CommandBinding.FromLegacy(raw))
+        {
+            if (InsertCallAt(call, index + inserted))
+                inserted++;
+        }
+
+        return inserted > 0;
+    }
+
+    public bool InsertCallAt(CommandCall call, int index)
+    {
+        if (call == null || (call.IsText && string.IsNullOrWhiteSpace(call.Text))) return false;
 
         index = Math.Clamp(index, 0, Commands.Count);
-        Commands.Insert(index, CreateSegment(raw));
+        Commands.Insert(index, CreateSegment(call));
         RebuildCommandString();
         return true;
     }

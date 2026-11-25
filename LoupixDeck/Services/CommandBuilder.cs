@@ -9,6 +9,12 @@ public interface ICommandBuilder
 {
     string CreateCommandFromMenuEntry(MenuEntry menuEntry);
     string BuildCommandString(CommandInfo commandInfo, Dictionary<string, object> parameterValues);
+
+    /// <summary>
+    /// The structured counterpart of <see cref="BuildCommandString"/>: the same parameter list,
+    /// but every value that fills a whole slot of the template arrives exactly as given.
+    /// </summary>
+    CommandCall BuildCall(CommandInfo commandInfo, Dictionary<string, object> parameterValues);
 }
 
 public class CommandBuilder : ICommandBuilder
@@ -153,5 +159,43 @@ public class CommandBuilder : ICommandBuilder
 
         sb.Append(templateSb);
         return sb.ToString();
+    }
+
+    /// <remarks>
+    /// The template is split into its slots the way the executor reads a command string. A slot
+    /// that is just one placeholder (<c>{Text}</c>) takes the value exactly, untrimmed and with
+    /// any commas or parentheses it holds. A slot with literal text (<c>text=</c>, or a placeholder
+    /// inside other text) gets its placeholders replaced, as <see cref="BuildCommandString"/>
+    /// does. Trailing empty values are dropped, as the text form always dropped them, so commands
+    /// that check the parameter count see what they did before.
+    /// </remarks>
+    public CommandCall BuildCall(CommandInfo commandInfo, Dictionary<string, object> parameterValues)
+    {
+        string[] slots = Utils.CommandStringParser.GetParameters("x" + commandInfo.ParameterTemplate);
+        List<string> values = new(slots.Length);
+
+        foreach (string slot in slots)
+        {
+            ParameterDescriptor whole = commandInfo.Parameters.FirstOrDefault(p => slot == "{" + p.Name + "}");
+            if (whole != null)
+            {
+                values.Add(ValueOf(whole.Name));
+                continue;
+            }
+
+            StringBuilder text = new(slot);
+            foreach (ParameterDescriptor param in commandInfo.Parameters)
+                text.Replace("{" + param.Name + "}", ValueOf(param.Name));
+            values.Add(text.ToString());
+        }
+
+        int count = values.Count;
+        while ((count > 0) && (values[count - 1].Length == 0))
+            count--;
+
+        return CommandCall.Create(commandInfo.CommandName, values.Take(count));
+
+        string ValueOf(string name) =>
+            parameterValues.TryGetValue(name, out object value) ? value?.ToString() ?? "null" : "null";
     }
 }
