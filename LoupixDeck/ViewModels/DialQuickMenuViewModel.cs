@@ -27,10 +27,10 @@ public sealed class DialQuickMenuViewModel
 
     private bool _loadStarted;
 
-    // Command string -> the catalogue leaf that produces it. Built on demand and dropped whenever
+    // Command -> the catalogue leaf that produces it. Built on demand and dropped whenever
     // the catalogue changes, which it does when a slow plugin's group arrives after the tree was
     // first shown.
-    private Dictionary<string, MenuEntry> _byCommand;
+    private Dictionary<CommandBinding, MenuEntry> _byCommand;
 
     public DialQuickMenuViewModel(IMenuTreeBuilder menuTreeBuilder, ICommandBuilder commandBuilder,
         IDialPresetCatalog presets)
@@ -108,11 +108,11 @@ public sealed class DialQuickMenuViewModel
         if (entry.RotaryGroup is { Count: > 0 } group)
             return ApplyRotaryGroup(dial, group, entry.Name);
 
-        string command = _commandBuilder.CreateCommandFromMenuEntry(entry);
-        if (string.IsNullOrEmpty(command))
+        CommandCall command = _commandBuilder.CreateCallFromMenuEntry(entry);
+        if (command == null)
             return false;
 
-        dial.SetCommand(gesture, command);
+        dial.SetCommand(gesture, CommandBinding.Of(command));
 
         if (string.IsNullOrWhiteSpace(dial.DisplayText))
             dial.DisplayText = entry.Name ?? string.Empty;
@@ -147,9 +147,10 @@ public sealed class DialQuickMenuViewModel
 
     /// <summary>
     /// The catalogue entry a gesture's command came from, or null when it matches none — a command
-    /// edited by hand, or a chain the quick menu cannot express. Matched on the exact string the
+    /// edited by hand, or a chain the quick menu cannot express. Matched on the exact command the
     /// builder produces for each leaf rather than on a prefix, so a parameterized command is never
-    /// confused with the generic entry it was built from.
+    /// confused with the generic entry it was built from. A command saved as text matches the
+    /// structured one with the same values (see <see cref="CommandCall.Equals(CommandCall)"/>).
     /// </summary>
     public MenuEntry FindAssigned(CommandBinding command)
     {
@@ -157,18 +158,18 @@ public sealed class DialQuickMenuViewModel
             return null;
 
         _byCommand ??= BuildIndex();
-        return _byCommand.GetValueOrDefault(command.ToLegacyString());
+        return _byCommand.GetValueOrDefault(command);
     }
 
     /// <summary>
-    /// Indexes the catalogue by the command string each leaf produces. Built once per catalogue
+    /// Indexes the catalogue by the command each leaf produces. Built once per catalogue
     /// rather than per menu: resolving three gestures by walking every leaf of every plugin group
     /// is the kind of work a quick menu must not do on each right-click. The first leaf wins when
-    /// two produce the same string, which is the one the user sees ticked.
+    /// two produce the same command, which is the one the user sees ticked.
     /// </summary>
-    private Dictionary<string, MenuEntry> BuildIndex()
+    private Dictionary<CommandBinding, MenuEntry> BuildIndex()
     {
-        Dictionary<string, MenuEntry> index = new(StringComparer.Ordinal);
+        Dictionary<CommandBinding, MenuEntry> index = [];
 
         foreach (MenuEntry group in Catalogue)
             AddToIndex(index, group);
@@ -176,15 +177,15 @@ public sealed class DialQuickMenuViewModel
         return index;
     }
 
-    private void AddToIndex(Dictionary<string, MenuEntry> index, MenuEntry entry)
+    private void AddToIndex(Dictionary<CommandBinding, MenuEntry> index, MenuEntry entry)
     {
         foreach (MenuEntry child in entry.Children)
         {
             if (!string.IsNullOrEmpty(child.Command))
             {
-                string command = _commandBuilder.CreateCommandFromMenuEntry(child);
-                if (!string.IsNullOrEmpty(command))
-                    index.TryAdd(command, child);
+                CommandCall command = _commandBuilder.CreateCallFromMenuEntry(child);
+                if (command != null)
+                    index.TryAdd(CommandBinding.Of(command), child);
             }
 
             AddToIndex(index, child);
@@ -211,9 +212,9 @@ public sealed class DialQuickMenuViewModel
 
     private static bool Matches(RotaryButton dial, DialPreset preset)
     {
-        foreach ((RotaryAction action, string command) in preset.ToRotaryGroup())
+        foreach ((RotaryAction action, CommandBinding command) in preset.ToRotaryGroup())
         {
-            if (!string.Equals(dial.GetCommand(action).ToLegacyString(), command, StringComparison.Ordinal))
+            if (!dial.GetCommand(action).Equals(command))
                 return false;
         }
 
@@ -221,12 +222,12 @@ public sealed class DialQuickMenuViewModel
     }
 
     private static bool ApplyRotaryGroup(RotaryButton dial,
-        IReadOnlyDictionary<RotaryAction, string> group, string label)
+        IReadOnlyDictionary<RotaryAction, CommandBinding> group, string label)
     {
         if (group == null || group.Count == 0)
             return false;
 
-        foreach ((RotaryAction action, string command) in group)
+        foreach ((RotaryAction action, CommandBinding command) in group)
             dial.SetCommand(action, command);
 
         dial.DisplayText = label ?? string.Empty;

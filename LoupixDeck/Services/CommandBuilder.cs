@@ -8,6 +8,12 @@ namespace LoupixDeck.Services;
 public interface ICommandBuilder
 {
     string CreateCommandFromMenuEntry(MenuEntry menuEntry);
+
+    /// <summary>
+    /// The structured counterpart of <see cref="CreateCommandFromMenuEntry"/>, built through
+    /// <see cref="BuildCall"/>; null when the entry's command is not registered.
+    /// </summary>
+    CommandCall CreateCallFromMenuEntry(MenuEntry menuEntry);
     string BuildCommandString(CommandInfo commandInfo, Dictionary<string, object> parameterValues);
 
     /// <summary>
@@ -30,8 +36,19 @@ public class CommandBuilder : ICommandBuilder
     {
         var command = _commandRegistry.Get(menuEntry.Command)?.Info;
 
-        if (command == null) return string.Empty;
+        return command == null ? string.Empty : BuildCommandString(command, ResolveMenuParameters(command, menuEntry));
+    }
 
+    public CommandCall CreateCallFromMenuEntry(MenuEntry menuEntry)
+    {
+        var command = _commandRegistry.Get(menuEntry.Command)?.Info;
+
+        return command == null ? null : BuildCall(command, ResolveMenuParameters(command, menuEntry));
+    }
+
+    /// <summary>The value of every parameter of <paramref name="command"/> for a menu entry.</summary>
+    private static Dictionary<string, object> ResolveMenuParameters(CommandInfo command, MenuEntry menuEntry)
+    {
         var parameters = new Dictionary<string, object>();
         Dictionary<string, string> named = MatchMenuParameters(command, menuEntry);
 
@@ -88,7 +105,7 @@ public class CommandBuilder : ICommandBuilder
             }
         }
 
-        return BuildCommandString(command, parameters);
+        return parameters;
     }
 
     /// <summary>

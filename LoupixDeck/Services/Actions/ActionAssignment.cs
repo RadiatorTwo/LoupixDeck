@@ -79,11 +79,11 @@ public static class ActionAssignment
     /// <param name="layout">
     /// The layers the command asks for, or null for the standard icon-and-caption look.
     /// </param>
-    public static void ApplyToTouchButton(TouchButton button, string command, string label,
+    public static void ApplyToTouchButton(TouchButton button, CommandBinding command, string label,
         string symbolId, int keyWidthPx, int keyHeightPx, ButtonLayoutDescriptor layout = null,
         IAssetService assets = null)
     {
-        if (button == null || string.IsNullOrEmpty(command))
+        if (button == null || CommandBinding.IsNullOrEmpty(command))
             return;
 
         button.Command = command;

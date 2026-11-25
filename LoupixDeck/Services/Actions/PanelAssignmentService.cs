@@ -224,14 +224,14 @@ public sealed class PanelAssignmentService(
         // Layer positions are offsets from the canvas centre; this one is the zone's centre.
         int offsetY = (int)Math.Round(((segment + 0.5) * height / RotaryButtonPage.StripSegmentCount) - (height / 2.0));
 
-        string command;
+        CommandBinding command;
         List<Models.Layers.LayerBase> layers;
 
         if (item is AppPanelItemViewModel appItem)
         {
             InstalledApp app = appItem.App;
             command = AppAssignment.BuildLaunchCommand(app);
-            if (string.IsNullOrEmpty(command))
+            if (CommandBinding.IsNullOrEmpty(command))
                 return false;
 
             string relative = await ImportIconAsync(app);
@@ -251,16 +251,17 @@ public sealed class PanelAssignmentService(
 
             if (parameterValue != null)
             {
-                if (!PanelParameterPrompts.TryBuild(action.Entry.Command, parameterValue, out command, out label))
+                if (!PanelParameterPrompts.TryBuild(action.Entry.Command, parameterValue, out string prompted, out label))
                     return false;
+                command = prompted;
             }
             else
             {
-                command = commandBuilder.CreateCommandFromMenuEntry(action.Entry);
+                command = CommandBinding.Of(commandBuilder.CreateCallFromMenuEntry(action.Entry));
                 layout = commandRegistry.Get(action.Entry.Command)?.Info?.ButtonLayout;
             }
 
-            if (string.IsNullOrEmpty(command))
+            if (CommandBinding.IsNullOrEmpty(command))
                 return false;
 
             layers = ActionAssignment.CreateLayers(label, action.SymbolId, width, segmentHeight, layout, assetService);
@@ -285,7 +286,7 @@ public sealed class PanelAssignmentService(
 
     public Task<bool> AppendAsync(PanelItemViewModel item, LoupedeckButton target, string parameterValue = null)
     {
-        if (!CanAppend(item, target) || !TryBuildCommand(item, parameterValue, out string command))
+        if (!CanAppend(item, target) || !TryBuildCommand(item, parameterValue, out CommandBinding command))
             return Task.FromResult(false);
 
         target.Command = AppendToChain(target.Command, command);
@@ -296,7 +297,7 @@ public sealed class PanelAssignmentService(
         string parameterValue = null)
     {
         if (page == null || segment < 0 || segment >= RotaryButtonPage.StripSegmentCount
-            || !CanAssignToStripSegment(item) || !TryBuildCommand(item, parameterValue, out string command))
+            || !CanAssignToStripSegment(item) || !TryBuildCommand(item, parameterValue, out CommandBinding command))
             return false;
 
         page.SetStripSegmentCommand(segment, AppendToChain(page.GetStripSegmentCommand(segment), command));
@@ -312,11 +313,11 @@ public sealed class PanelAssignmentService(
     };
 
     /// <summary>
-    /// Builds the command string <paramref name="item"/> stands for, without touching any button.
+    /// Builds the command <paramref name="item"/> stands for, without touching any button.
     /// A prompting command needs <paramref name="parameterValue"/>; any other item must come
     /// without one.
     /// </summary>
-    private bool TryBuildCommand(PanelItemViewModel item, string parameterValue, out string command)
+    private bool TryBuildCommand(PanelItemViewModel item, string parameterValue, out CommandBinding command)
     {
         command = null;
         if (NeedsParameter(item, out _) != (parameterValue != null))
@@ -334,17 +335,23 @@ public sealed class PanelAssignmentService(
 
             case ActionPanelItemViewModel { Entry.IsCommandGroup: false } action:
                 if (parameterValue != null)
-                    PanelParameterPrompts.TryBuild(action.Entry.Command, parameterValue, out command, out _);
+                {
+                    PanelParameterPrompts.TryBuild(action.Entry.Command, parameterValue, out string prompted, out _);
+                    command = prompted;
+                }
                 else
-                    command = commandBuilder.CreateCommandFromMenuEntry(action.Entry);
+                {
+                    command = CommandBinding.Of(commandBuilder.CreateCallFromMenuEntry(action.Entry));
+                }
+
                 break;
         }
 
-        return !string.IsNullOrEmpty(command);
+        return !CommandBinding.IsNullOrEmpty(command);
     }
 
-    private static CommandBinding AppendToChain(CommandBinding chain, string command) =>
-        CommandBinding.IsNullOrEmpty(chain) ? command : chain.Append(CommandBinding.FromLegacy(command));
+    private static CommandBinding AppendToChain(CommandBinding chain, CommandBinding command) =>
+        CommandBinding.IsNullOrEmpty(chain) ? command : chain.Append(command);
 
     // ── Catalogue commands ─────────────────────────────────────────────────
 
@@ -353,8 +360,8 @@ public sealed class PanelAssignmentService(
         if (item.Entry.RotaryGroup is { Count: > 0 } group)
             return ApplyRotaryGroup(group, (RotaryButton)target, item.Title);
 
-        string command = commandBuilder.CreateCommandFromMenuEntry(item.Entry);
-        if (string.IsNullOrEmpty(command))
+        CommandBinding command = CommandBinding.Of(commandBuilder.CreateCallFromMenuEntry(item.Entry));
+        if (command.IsEmpty)
             return false;
 
         ButtonLayoutDescriptor layout = commandRegistry.Get(item.Entry.Command)?.Info?.ButtonLayout;
@@ -365,7 +372,7 @@ public sealed class PanelAssignmentService(
     /// Writes a finished command: the layers it asks for (by default glyph and caption) on a touch
     /// key, command only elsewhere.
     /// </summary>
-    private bool ApplyCommand(string command, string label, string symbolId, LoupedeckButton target,
+    private bool ApplyCommand(CommandBinding command, string label, string symbolId, LoupedeckButton target,
         ButtonLayoutDescriptor layout = null)
     {
         if (target is not TouchButton touch)
@@ -382,10 +389,10 @@ public sealed class PanelAssignmentService(
     /// Fills a dial's three actions from one catalogue entry. An action the group does not name
     /// leaves its slot as it was, which is what the button editor does with the same entry.
     /// </summary>
-    private static bool ApplyRotaryGroup(IReadOnlyDictionary<RotaryAction, string> group,
+    private static bool ApplyRotaryGroup(IReadOnlyDictionary<RotaryAction, CommandBinding> group,
         RotaryButton dial, string label)
     {
-        foreach ((RotaryAction action, string command) in group)
+        foreach ((RotaryAction action, CommandBinding command) in group)
         {
             switch (action)
             {
@@ -410,7 +417,7 @@ public sealed class PanelAssignmentService(
     /// A dial also gets the name as its side-strip label, which is the only place its assignment is
     /// visible on the hardware.
     /// </summary>
-    private bool AssignCommandOnly(string command, string label, LoupedeckButton target)
+    private bool AssignCommandOnly(CommandBinding command, string label, LoupedeckButton target)
     {
         switch (target)
         {

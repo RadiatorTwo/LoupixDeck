@@ -119,16 +119,15 @@ public class CommandSequenceSlot : ViewModelBase, ICommandChain
     /// <summary>Appends a command (double-click in the tree) to the end of the chain.</summary>
     public void InsertCommand(MenuEntry menuEntry) => InsertCommandAt(menuEntry, Commands.Count);
 
-    /// <summary>Replaces the slot's whole chain with the given raw command string
-    /// (used when applying a command group). The chips are rebuilt from the string
-    /// so they stay individually editable afterwards.</summary>
-    public void SetCommand(string raw)
+    /// <summary>Replaces the slot's whole chain (used when applying a command group). The chips
+    /// are rebuilt from it so they stay individually editable afterwards.</summary>
+    public void SetCommand(CommandBinding command)
     {
         foreach (var segment in Commands)
             segment.Changed -= OnSegmentChanged;
         Commands.Clear();
 
-        _write(string.IsNullOrWhiteSpace(raw) ? string.Empty : raw);
+        _write(CommandBinding.IsNullOrEmpty(command) ? string.Empty : command);
 
         foreach (CommandCall call in _read() ?? CommandBinding.Empty)
             Commands.Add(CreateSegment(call));
@@ -141,11 +140,11 @@ public class CommandSequenceSlot : ViewModelBase, ICommandChain
     {
         if (menuEntry == null) return;
 
-        var formattedCommand = _commandBuilder.CreateCommandFromMenuEntry(menuEntry);
-        if (string.IsNullOrWhiteSpace(formattedCommand)) return;
+        var call = _commandBuilder.CreateCallFromMenuEntry(menuEntry);
+        if (call == null) return;
 
         var wasEmpty = Commands.Count == 0;
-        InsertRawAt(formattedCommand, index);
+        InsertCallAt(call, index);
         CommandInserted?.Invoke(menuEntry, wasEmpty);
     }
 

@@ -73,20 +73,21 @@ public sealed class DialPreset
     /// The preset as the rotary-group map the rest of the app already speaks — the same shape a
     /// plugin's <see cref="MenuNode.RotaryGroup"/> carries, so a preset can be applied by the code
     /// that already applies those. Gestures the preset leaves empty are omitted, which means they
-    /// keep whatever the dial had.
+    /// keep whatever the dial had. The chains are handed over as they are, so structured values
+    /// reach the dial exactly.
     /// </summary>
-    public IReadOnlyDictionary<RotaryAction, string> ToRotaryGroup()
+    public IReadOnlyDictionary<RotaryAction, CommandBinding> ToRotaryGroup()
     {
-        Dictionary<RotaryAction, string> map = [];
+        Dictionary<RotaryAction, CommandBinding> map = [];
 
         if (!CommandBinding.IsNullOrEmpty(Left))
-            map[RotaryAction.CounterClockwise] = Left.ToLegacyString();
+            map[RotaryAction.CounterClockwise] = Left;
 
         if (!CommandBinding.IsNullOrEmpty(Right))
-            map[RotaryAction.Clockwise] = Right.ToLegacyString();
+            map[RotaryAction.Clockwise] = Right;
 
         if (!CommandBinding.IsNullOrEmpty(Press))
-            map[RotaryAction.Press] = Press.ToLegacyString();
+            map[RotaryAction.Press] = Press;
 
         return map;
     }

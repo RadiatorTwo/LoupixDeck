@@ -66,17 +66,17 @@ public sealed partial class DialPresetEditorViewModel(IDialPresetStore store)
                 return [];
 
             List<string> lines = [];
-            foreach ((RotaryAction action, string command) in Preset.ToRotaryGroup())
+            foreach ((RotaryAction action, CommandBinding command) in Preset.ToRotaryGroup())
                 lines.Add($"{action.DisplayName()}:  {Describe(command)}");
 
             return lines;
         }
     }
 
-    /// <summary>A command string as one readable line: the names of its steps, without the
+    /// <summary>A command chain as one readable line: the names of its steps, without the
     /// parameter noise that would make a chain unreadable at a glance.</summary>
-    private static string Describe(string command) =>
-        string.Join(" → ", CommandBinding.FromLegacy(command).Select(c => c.Name));
+    private static string Describe(CommandBinding command) =>
+        string.Join(" → ", command.Select(c => c.Name));
 
     /// <summary>Raised when the dialog should close, after the result is set. Setting the result
     /// alone leaves the window on screen — the dialog service waits for the window to close.</summary>

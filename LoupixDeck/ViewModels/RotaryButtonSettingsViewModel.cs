@@ -284,9 +284,9 @@ public partial class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryB
 
     /// <summary>Applies a command group: each rotary action replaces the command of
     /// its matching slot. Actions absent from the map leave their slot untouched.</summary>
-    private void ApplyGroup(IReadOnlyDictionary<RotaryAction, string> group)
+    private void ApplyGroup(IReadOnlyDictionary<RotaryAction, CommandBinding> group)
     {
-        foreach (var (action, raw) in group)
+        foreach (var (action, command) in group)
         {
             var slot = action switch
             {
@@ -300,7 +300,7 @@ public partial class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryB
                 _ => null
             };
 
-            slot?.SetCommand(raw);
+            slot?.SetCommand(command);
         }
     }
 

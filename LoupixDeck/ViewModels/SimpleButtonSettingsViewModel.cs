@@ -364,7 +364,7 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
     {
         if (ButtonData == null || menuEntry == null) return;
 
-        InsertRawAt(_commandBuilder.CreateCommandFromMenuEntry(menuEntry), index);
+        InsertCallAt(_commandBuilder.CreateCallFromMenuEntry(menuEntry), index);
     }
 
     /// <summary>Inserts the launch command of <paramref name="app"/> (Apps tab) at the given card
