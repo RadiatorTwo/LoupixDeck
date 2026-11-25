@@ -39,7 +39,7 @@ public sealed class PluginCommandMigrationRunner(
 
         // Planned first, applied second: nothing is mutated until the backup exists, so a
         // failure anywhere above leaves the user's bindings untouched.
-        List<(RotaryButton Dial, RotaryAction Action, string Command)> edits = [];
+        List<(RotaryButton Dial, RotaryAction Action, CommandBinding Command)> edits = [];
 
         Dictionary<string, int> rewritten = new(StringComparer.Ordinal);
 
@@ -47,7 +47,7 @@ public sealed class PluginCommandMigrationRunner(
         {
             foreach ((string id, CommandMigration rule) in pending)
             {
-                if (!TryBuildReplacement(dial, rule, out string replacement))
+                if (!TryBuildReplacement(dial, rule, out CommandBinding replacement))
                     continue;
 
                 foreach (RotaryAction action in rule.From.Keys)
@@ -73,7 +73,7 @@ public sealed class PluginCommandMigrationRunner(
         if (!TryBackup(configPath))
             return false;
 
-        foreach ((RotaryButton dial, RotaryAction action, string command) in edits)
+        foreach ((RotaryButton dial, RotaryAction action, CommandBinding command) in edits)
             dial.SetCommand(action, command);
 
         config.AppliedCommandMigrations.AddRange(pending.Select(p => p.Id));
@@ -167,11 +167,11 @@ public sealed class PluginCommandMigrationRunner(
 
     /// <summary>
     /// Decides whether a dial carries exactly the rule's old binding and, if so, builds the
-    /// command string that replaces it. Every gesture the rule names must hold that command on
+    /// command that replaces it, with the carried-over values exactly. Every gesture the rule names must hold that command on
     /// its own — a chain, a different command or an empty slot means the user's dial is not the
     /// one the rule describes, and it is left alone.
     /// </summary>
-    private bool TryBuildReplacement(RotaryButton dial, CommandMigration rule, out string replacement)
+    private bool TryBuildReplacement(RotaryButton dial, CommandMigration rule, out CommandBinding replacement)
     {
         replacement = null;
 
@@ -212,8 +212,8 @@ public sealed class PluginCommandMigrationRunner(
                 values[parameter.Name] = value;
         }
 
-        replacement = commandBuilder.BuildCommandString(target, values);
-        return !string.IsNullOrWhiteSpace(replacement);
+        replacement = CommandBinding.Of(commandBuilder.BuildCall(target, values));
+        return !replacement.IsEmpty;
     }
 
     /// <summary>
