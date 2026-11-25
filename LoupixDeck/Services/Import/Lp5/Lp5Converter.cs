@@ -588,7 +588,7 @@ public sealed class Lp5Converter
     // ---- Wheel pages -------------------------------------------------------------------------
 
     /// <summary>One converted Loupedeck wheel page: what a mode needs, before it is copied to a touch page.</summary>
-    private sealed record WheelModeSpec(string Press, string Left, string Right, string Label);
+    private sealed record WheelModeSpec(CommandBinding Press, CommandBinding Left, CommandBinding Right, string Label);
 
     /// <summary>
     /// Loupedeck wheel pages belong to a workspace, LoupixDeck wheel modes to a touch page: every touch
@@ -697,7 +697,7 @@ public sealed class Lp5Converter
         for (int i = 0; i < RoundButtonCount; i++)
         {
             string actionRef = i < controls.Count ? Lp5Json.Str(controls[i], "pressAction") : null;
-            string command = null;
+            CommandBinding command = null;
 
             if (!Lp5ActionResolver.IsNone(actionRef))
             {
