@@ -69,8 +69,34 @@ public sealed class CommandBindingJsonConverter : JsonConverter<CommandBinding>
         return array;
     }
 
-    public override void WriteJson(JsonWriter writer, CommandBinding value, JsonSerializer serializer) =>
-        ToToken(value).WriteTo(writer);
+    /// <summary>
+    /// How many chains this thread has written in array form, ever. A caller compares the value
+    /// before and after serializing to learn whether the output holds a structured call.
+    /// </summary>
+    public static int ArrayWritesOnThisThread => _arrayWrites;
+
+    [ThreadStatic]
+    private static int _arrayWrites;
+
+    public override void WriteJson(JsonWriter writer, CommandBinding value, JsonSerializer serializer)
+    {
+        JToken token = ToToken(value);
+        if (token.Type == JTokenType.Array)
+            _arrayWrites++;
+        token.WriteTo(writer);
+    }
+
+    /// <summary>
+    /// True when <paramref name="root"/> holds a chain in array form: an array with an element that
+    /// is <c>{ "Name", "Parameters": [...] }</c> or exactly <c>{ "Text" }</c>.
+    /// </summary>
+    public static bool ContainsArrayForm(JToken root) =>
+        root is JContainer container && container.DescendantsAndSelf().OfType<JArray>().Any(array => array.Any(IsArrayFormCall));
+
+    private static bool IsArrayFormCall(JToken item) =>
+        item is JObject obj
+        && ((obj.Count == 1 && obj[TextKey] is { Type: JTokenType.String })
+            || (obj.Count == 2 && obj[NameKey] is { Type: JTokenType.String } && obj[ParametersKey] is JArray));
 
     private static CommandBinding FromArray(JArray array)
     {
