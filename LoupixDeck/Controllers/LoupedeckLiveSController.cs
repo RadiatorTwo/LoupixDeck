@@ -3190,7 +3190,9 @@ public partial class LoupedeckLiveSController(
 
             var sig = bySlot.TryGetValue(slot, out var entry) ? TileSig.Of(entry) : TileSig.Empty;
             var prev = _dirtyKeys[slot];
-            if (prev.HasValue && prev.Value.Equals(sig))
+            // A Render callback can paint different pixels under an equal signature, and its output
+            // cannot be compared without drawing it, so such a slot is always re-sent.
+            if (prev.HasValue && prev.Value.Equals(sig) && entry?.Render == null)
                 continue; // unchanged — skip the serial write entirely
 
             using (var bmp = RenderSlot(bySlot, slot))
