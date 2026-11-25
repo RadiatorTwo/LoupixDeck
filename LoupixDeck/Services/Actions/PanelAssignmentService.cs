@@ -3,7 +3,6 @@ using LoupixDeck.PluginSdk;
 using LoupixDeck.Registry;
 using LoupixDeck.Services.AppLauncher;
 using LoupixDeck.Services.Commands;
-using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.ActionPanel;
 using SkiaSharp;
 
@@ -470,7 +469,7 @@ public sealed class PanelAssignmentService(
 
     private bool DeclaresStates(string boundCommand)
     {
-        string name = CommandStringParser.GetName(CommandStringParser.SplitChain(boundCommand).FirstOrDefault());
+        string name = CommandBinding.FromLegacy(boundCommand).First?.Name;
         return !string.IsNullOrEmpty(name) && commandRegistry.Get(name) is { DeclaresStates: true };
     }
 

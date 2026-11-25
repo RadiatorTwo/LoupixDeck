@@ -1,5 +1,6 @@
 using System.Collections;
 using LoupixDeck.Models.Converter;
+using LoupixDeck.PluginSdk;
 using LoupixDeck.Utils;
 using Newtonsoft.Json;
 
@@ -69,6 +70,17 @@ public sealed class CommandBinding : IReadOnlyList<CommandCall>, IEquatable<Comm
 
     /// <summary>This chain followed by <paramref name="call"/>.</summary>
     public CommandBinding Append(CommandCall call) => call == null ? this : new CommandBinding(_calls.Append(call));
+
+    /// <summary>
+    /// The ordered sibling list handed to a display command via
+    /// <see cref="CommandContext.SequenceCommands"/>. Empty for a single-command chain, so a
+    /// plugin can treat "in a sequence" as a distinct signal; otherwise one entry per call, in
+    /// order. The 4-command tile cap is intentionally left to the plugin.
+    /// </summary>
+    public IReadOnlyList<SequenceCommand> ToSequence() =>
+        _calls.Length < 2
+            ? []
+            : _calls.Select(c => new SequenceCommand(c.Name, c.GetParameters())).ToList();
 
     /// <summary>The chain in the legacy syntax, for display and for plugins handed a command
     /// string. See <see cref="CommandCall.ToLegacyString"/>.</summary>

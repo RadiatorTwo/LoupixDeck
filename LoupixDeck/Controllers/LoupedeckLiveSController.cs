@@ -1852,13 +1852,8 @@ public partial class LoupedeckLiveSController(
     {
         if (string.IsNullOrWhiteSpace(binding)) return false;
 
-        foreach (var part in CommandStringParser.SplitChain(binding))
-        {
-            if (string.Equals(CommandStringParser.GetName(part), commandName, StringComparison.Ordinal))
-                return true;
-        }
-
-        return false;
+        return CommandBinding.FromLegacy(binding)
+            .Any(call => string.Equals(call.Name, commandName, StringComparison.Ordinal));
     }
 
     /// <inheritdoc/>

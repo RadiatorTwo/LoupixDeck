@@ -94,7 +94,7 @@ public class CommandSequenceSlot : ViewModelBase, ICommandChain
         var info = _commandRegistry.Get(name)?.Info;
         var owner = info == null ? _commandRegistry.GetMissingPluginOwner(name) : null;
         var segment = CommandSegment.Create(_commandBuilder, _dialogService, info, raw, owner,
-            info != null ? _commandLock.GetLockHint(raw) : null, _parameterOptions);
+            info != null ? _commandLock.GetLockHint(CommandCall.FromText(raw)) : null, _parameterOptions);
         segment.Changed += OnSegmentChanged;
         return segment;
     }

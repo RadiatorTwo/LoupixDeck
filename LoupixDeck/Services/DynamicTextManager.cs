@@ -214,7 +214,8 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
                 if (button == null || string.IsNullOrWhiteSpace(button.Command))
                     continue;
 
-                var name = CommandStringParser.GetName(button.Command);
+                CommandBinding chain = CommandBinding.FromLegacy(button.Command);
+                var name = chain.First?.Name;
                 if (string.IsNullOrEmpty(name))
                     continue;
 
@@ -228,7 +229,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
                 if (!isText && !isImage && !isValue)
                     continue;
 
-                var parms = CommandStringParser.GetParameters(button.Command);
+                var parms = chain.First.GetParameters();
                 var interval = command.UpdateInterval;
                 if (interval < TimeSpan.FromMilliseconds(250))
                     interval = TimeSpan.FromMilliseconds(250);
@@ -238,7 +239,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
                     Button = button,
                     Command = command,
                     Parameters = parms,
-                    SequenceCommands = CommandStringParser.BuildSequence(button.Command),
+                    SequenceCommands = chain.ToSequence(),
                     Interval = interval,
                     NextDueUtc = DateTime.UtcNow,
                     OwnerKey = PluginLayerKey.For(button.Command)
@@ -346,7 +347,8 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
                 continue;
 
             RegisteredCommand command = null;
-            string name = string.IsNullOrWhiteSpace(layer.TextCommand) ? null : CommandStringParser.GetName(layer.TextCommand);
+            CommandBinding chain = CommandBinding.FromLegacy(layer.TextCommand);
+            string name = chain.First?.Name;
             if (!string.IsNullOrEmpty(name))
                 command = _commandRegistry.Get(name);
 
@@ -365,8 +367,8 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
                 WheelLayer = layer,
                 WheelRuntimeKey = key,
                 Command = command,
-                Parameters = CommandStringParser.GetParameters(layer.TextCommand),
-                SequenceCommands = CommandStringParser.BuildSequence(layer.TextCommand),
+                Parameters = chain.First.GetParameters(),
+                SequenceCommands = chain.ToSequence(),
                 Interval = interval,
                 NextDueUtc = DateTime.UtcNow
             });
@@ -384,7 +386,8 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
             if (layer.IsCommandOwned)
                 continue;
 
-            string name = string.IsNullOrWhiteSpace(layer.Command) ? null : CommandStringParser.GetName(layer.Command);
+            CommandBinding chain = CommandBinding.FromLegacy(layer.Command);
+            string name = chain.First?.Name;
             RegisteredCommand command = string.IsNullOrEmpty(name) ? null : _commandRegistry.Get(name);
             if (command is not { IsImageDisplayCommand: true, RenderImage: not null })
             {
@@ -402,8 +405,8 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
                 WheelCanvas = canvas,
                 WheelRuntimeKey = key,
                 Command = command,
-                Parameters = CommandStringParser.GetParameters(layer.Command),
-                SequenceCommands = CommandStringParser.BuildSequence(layer.Command),
+                Parameters = chain.First.GetParameters(),
+                SequenceCommands = chain.ToSequence(),
                 Interval = interval,
                 NextDueUtc = DateTime.UtcNow
             });
@@ -914,7 +917,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
     /// <summary>True when the command string names a command that is not registered on this device.</summary>
     private bool IsUnregistered(string command)
     {
-        var name = string.IsNullOrWhiteSpace(command) ? null : CommandStringParser.GetName(command);
+        var name = CommandBinding.FromLegacy(command).First?.Name;
         return !string.IsNullOrEmpty(name) && _commandRegistry.Get(name) == null;
     }
 
@@ -944,7 +947,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
         if (button == null || string.IsNullOrWhiteSpace(button.Command))
             return (null, DisplayLayerKind.None);
 
-        var name = CommandStringParser.GetName(button.Command);
+        var name = CommandBinding.FromLegacy(button.Command).First?.Name;
         if (string.IsNullOrEmpty(name))
             return (null, DisplayLayerKind.None);
 

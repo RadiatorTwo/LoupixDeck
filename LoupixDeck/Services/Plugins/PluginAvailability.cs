@@ -1,5 +1,5 @@
 using LoupixDeck.Models.Layers;
-using LoupixDeck.Utils;
+using LoupixDeck.Models;
 
 namespace LoupixDeck.Services.Plugins;
 
@@ -79,13 +79,7 @@ public static class PluginAvailability
         if (commands.Count == 0 || string.IsNullOrWhiteSpace(boundCommand))
             return false;
 
-        foreach (string segment in CommandStringParser.SplitChain(boundCommand))
-        {
-            if (commands.Contains(PluginLayerKey.ParseCommandName(segment)))
-                return true;
-        }
-
-        return false;
+        return CommandBinding.FromLegacy(boundCommand).Any(segment => commands.Contains(segment.Name));
     }
 
     /// <summary>Rebuilds the snapshot under the gate; true when it changed.</summary>

@@ -1,3 +1,4 @@
+using LoupixDeck.Models;
 using LoupixDeck.Services.AppActivation;
 using LoupixDeck.Utils;
 
@@ -26,13 +27,9 @@ public sealed record LaunchAppSpec(string Target, bool SingleInstance, string Pr
     /// </summary>
     public static LaunchAppSpec FromCommand(string command)
     {
-        foreach (string segment in CommandStringParser.SplitChain(command))
-        {
-            if (string.Equals(CommandStringParser.GetName(segment), LoupixDeck.Commands.LaunchAppCommand.CommandName, StringComparison.Ordinal))
-                return FromParameters(CommandStringParser.GetParameters(segment));
-        }
-
-        return null;
+        CommandCall call = CommandBinding.FromLegacy(command).FirstOrDefault(c =>
+            string.Equals(c.Name, LoupixDeck.Commands.LaunchAppCommand.CommandName, StringComparison.Ordinal));
+        return call == null ? null : FromParameters(call.GetParameters());
     }
 
     /// <summary>The process this launch becomes; empty when it cannot be known.</summary>

@@ -95,9 +95,9 @@ public sealed class ButtonStateService(LoupedeckConfig config, ICommandRegistry 
         foreach (var state in button.States)
         {
             if (string.IsNullOrEmpty(state.Command)) continue;
-            foreach (var part in Utils.CommandStringParser.SplitChain(state.Command))
+            foreach (CommandCall part in CommandBinding.FromLegacy(state.Command))
             {
-                RegisteredCommand command = commandRegistry.Get(PluginLayerKey.ParseCommandName(part));
+                RegisteredCommand command = commandRegistry.Get(part.Name);
                 if (command?.GetButtonState == null) continue;
 
                 Refresh(button, command);
@@ -111,15 +111,14 @@ public sealed class ButtonStateService(LoupedeckConfig config, ICommandRegistry 
     {
         // The parameters come from the segment that binds the button to the command; every state
         // of a command-owned button carries the same command string.
-        string segment = button.States
+        CommandCall segment = button.States
             .Where(s => !string.IsNullOrEmpty(s.Command))
-            .SelectMany(s => Utils.CommandStringParser.SplitChain(s.Command))
-            .FirstOrDefault(part => string.Equals(PluginLayerKey.ParseCommandName(part), command.CommandName,
-                StringComparison.Ordinal));
+            .SelectMany(s => CommandBinding.FromLegacy(s.Command))
+            .FirstOrDefault(part => string.Equals(part.Name, command.CommandName, StringComparison.Ordinal));
         if (segment == null) return;
 
         ButtonTargets kind = button is SimpleButton ? ButtonTargets.SimpleButton : ButtonTargets.TouchButton;
-        string wanted = command.GetButtonState(Utils.CommandStringParser.GetParameters(segment), kind,
+        string wanted = command.GetButtonState(segment.GetParameters(), kind,
             button.ActiveState?.Name, button.RuntimeKey);
         if (string.IsNullOrWhiteSpace(wanted)) return;
 
@@ -178,11 +177,7 @@ public sealed class ButtonStateService(LoupedeckConfig config, ICommandRegistry 
     private static bool StateBindsTo(ButtonState state, string commandName)
     {
         if (string.IsNullOrEmpty(state.Command)) return false;
-        foreach (var part in Utils.CommandStringParser.SplitChain(state.Command))
-        {
-            if (string.Equals(PluginLayerKey.ParseCommandName(part), commandName, StringComparison.Ordinal))
-                return true;
-        }
-        return false;
+        return CommandBinding.FromLegacy(state.Command)
+            .Any(part => string.Equals(part.Name, commandName, StringComparison.Ordinal));
     }
 }

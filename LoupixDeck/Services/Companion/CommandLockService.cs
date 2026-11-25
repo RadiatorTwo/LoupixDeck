@@ -1,6 +1,6 @@
 using LoupixDeck.Localization;
+using LoupixDeck.Models;
 using LoupixDeck.Registry;
-using LoupixDeck.Utils;
 
 namespace LoupixDeck.Services.Companion;
 
@@ -13,14 +13,14 @@ public interface ICommandLockService
 {
     /// <summary>A user-facing reason when the single command <paramref name="command"/> (name plus
     /// parameters, e.g. <c>Companion.NextTouchPage(key)</c>) is locked on this device, else null.</summary>
-    string GetLockHint(string command);
+    string GetLockHint(CommandCall command);
 }
 
 public sealed class CommandLockService(ICompanionCoordinator coordinator, ResolvedDevice device) : ICommandLockService
 {
-    public string GetLockHint(string command)
+    public string GetLockHint(CommandCall command)
     {
-        string name = CommandStringParser.GetName(command);
+        string name = command?.Name ?? string.Empty;
 
         if (CompanionCommandPolicy.IsContextSwitch(name) && coordinator.IsFollowingMaster(device.ScopeKey))
             return Loc.Tr("Command_LockedOnCompanionFmt", CompanionStatusText.MasterName(coordinator, device.ScopeKey));
@@ -36,7 +36,7 @@ public sealed class CommandLockService(ICompanionCoordinator coordinator, Resolv
             return Loc.Tr("Command_CompanionCommandNeedsMaster");
 
         // The command runs, but the device it names left this master's group: it would do nothing.
-        string[] parameters = CommandStringParser.GetParameters(command);
+        string[] parameters = command.GetParameters();
         string companionKey = parameters is { Length: > 0 } ? parameters[0].Trim() : null;
         return IsCompanionOfThisMaster(companionKey)
             ? null

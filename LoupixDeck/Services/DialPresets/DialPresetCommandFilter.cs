@@ -1,7 +1,6 @@
 using LoupixDeck.Models;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Services.Commands;
-using LoupixDeck.Utils;
 
 namespace LoupixDeck.Services.DialPresets;
 
@@ -36,9 +35,9 @@ public static class DialPresetCommandFilter
         if (registry == null)
             return false;
 
-        foreach (string segment in CommandStringParser.SplitChain(command))
+        foreach (CommandCall segment in CommandBinding.FromLegacy(command))
         {
-            RegisteredCommand registered = registry.Get(CommandStringParser.GetName(segment));
+            RegisteredCommand registered = registry.Get(segment.Name);
             if (registered == null || !registered.SupportedTargets.HasFlag(ButtonTargets.RotaryEncoder))
                 return false;
         }

@@ -1,8 +1,8 @@
+using LoupixDeck.Models;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Registry;
 using LoupixDeck.Services.Commands;
 using LoupixDeck.Services.Companion;
-using LoupixDeck.Utils;
 
 namespace LoupixDeck.Services;
 
@@ -113,34 +113,34 @@ public class CommandService : ICommandService
         // — we no longer rely on the shell's own && short-circuit, the second
         // part runs even if the first failed. Acceptable for the desk-control
         // commands this app targets. Splitting/dissecting is delegated to
-        // CommandStringParser so the command editor stays in lockstep.
-        foreach (var part in CommandStringParser.SplitChain(command))
+        // CommandBinding/CommandCall so the command editor stays in lockstep.
+        foreach (CommandCall call in CommandBinding.FromLegacy(command))
         {
-            await ExecuteSingle(part, target, sourceIndex, ticks, buttonKey);
+            await ExecuteSingle(call, target, sourceIndex, ticks, buttonKey);
         }
     }
 
     public AdjustmentValue? GetAdjustmentValue(string command, int? sourceIndex = null)
     {
-        string part = FirstChainPart(command);
+        CommandCall part = FirstChainPart(command);
         if (part == null)
             return null;
 
-        RegisteredCommand registered = _commandRegistry.Get(CommandStringParser.GetName(part));
+        RegisteredCommand registered = _commandRegistry.Get(part.Name);
         if (registered is not { IsAdjustmentCommand: true } || registered.GetValue == null)
             return null;
 
         using var _routerScope = _router.Enter(_deviceProvider);
-        return registered.GetValue(CommandStringParser.GetParameters(part) ?? [], sourceIndex);
+        return registered.GetValue(part.GetParameters(), sourceIndex);
     }
 
     public bool IsAdjustmentCommand(string command)
     {
-        string part = FirstChainPart(command);
+        CommandCall part = FirstChainPart(command);
         if (part == null)
             return false;
 
-        return _commandRegistry.Get(CommandStringParser.GetName(part)) is { IsAdjustmentCommand: true };
+        return _commandRegistry.Get(part.Name) is { IsAdjustmentCommand: true };
     }
 
     public TimeSpan? GetWheelRenderInterval(string command) =>
@@ -149,12 +149,12 @@ public class CommandService : ICommandService
     public bool TryRenderWheel(string command, int? sourceIndex, IRenderCanvas canvas, int size, string label,
         AdjustmentValue? value)
     {
-        RegisteredCommand registered = WheelRendererFor(command, out string part);
+        RegisteredCommand registered = WheelRendererFor(command, out CommandCall part);
         if (registered == null)
             return false;
 
         using var _routerScope = _router.Enter(_deviceProvider);
-        return registered.RenderWheel(CommandStringParser.GetParameters(part) ?? [], sourceIndex, canvas, size,
+        return registered.RenderWheel(part.GetParameters(), sourceIndex, canvas, size,
             label, value);
     }
 
@@ -162,45 +162,45 @@ public class CommandService : ICommandService
 
     public bool TryHandleWheelTouch(string command, int? sourceIndex, WheelTouch touch)
     {
-        RegisteredCommand registered = WheelInputHandlerFor(command, out string part);
+        RegisteredCommand registered = WheelInputHandlerFor(command, out CommandCall part);
         if (registered == null)
             return false;
 
         using var _routerScope = _router.Enter(_deviceProvider);
-        return registered.HandleWheelTouch(CommandStringParser.GetParameters(part) ?? [], sourceIndex, touch);
+        return registered.HandleWheelTouch(part.GetParameters(), sourceIndex, touch);
     }
 
     public bool TryHandleWheelSwipe(string command, int? sourceIndex, WheelSwipeDirection direction)
     {
-        RegisteredCommand registered = WheelInputHandlerFor(command, out string part);
+        RegisteredCommand registered = WheelInputHandlerFor(command, out CommandCall part);
         if (registered == null)
             return false;
 
         using var _routerScope = _router.Enter(_deviceProvider);
-        return registered.HandleWheelSwipe(CommandStringParser.GetParameters(part) ?? [], sourceIndex, direction);
+        return registered.HandleWheelSwipe(part.GetParameters(), sourceIndex, direction);
     }
 
     /// <summary>The wheel input handler the first chain part of <paramref name="command"/> resolves to, or null.</summary>
-    private RegisteredCommand WheelInputHandlerFor(string command, out string part)
+    private RegisteredCommand WheelInputHandlerFor(string command, out CommandCall part)
     {
         part = FirstChainPart(command);
         if (part == null)
             return null;
 
-        return _commandRegistry.Get(CommandStringParser.GetName(part)) is
+        return _commandRegistry.Get(part.Name) is
             { HandleWheelTouch: not null, HandleWheelSwipe: not null } registered
             ? registered
             : null;
     }
 
     /// <summary>The wheel renderer the first chain part of <paramref name="command"/> resolves to, or null.</summary>
-    private RegisteredCommand WheelRendererFor(string command, out string part)
+    private RegisteredCommand WheelRendererFor(string command, out CommandCall part)
     {
         part = FirstChainPart(command);
         if (part == null)
             return null;
 
-        return _commandRegistry.Get(CommandStringParser.GetName(part)) is { IsWheelRenderer: true, RenderWheel: not null } registered
+        return _commandRegistry.Get(part.Name) is { IsWheelRenderer: true, RenderWheel: not null } registered
             ? registered
             : null;
     }
@@ -210,21 +210,13 @@ public class CommandService : ICommandService
     /// Only that part owns the dial: a wrap's pre/post commands are side actions, not the
     /// adjusted value.
     /// </summary>
-    private static string FirstChainPart(string command)
-    {
-        if (string.IsNullOrWhiteSpace(command))
-            return null;
+    private static CommandCall FirstChainPart(string command) =>
+        string.IsNullOrWhiteSpace(command) ? null : CommandBinding.FromLegacy(command).First;
 
-        string part = CommandStringParser.SplitChain(command).FirstOrDefault();
-        return string.IsNullOrWhiteSpace(part) ? null : part;
-    }
-
-    private async Task ExecuteSingle(string command, ButtonTargets target, int? sourceIndex, int ticks,
+    private async Task ExecuteSingle(CommandCall call, ButtonTargets target, int? sourceIndex, int ticks,
         string buttonKey)
     {
-        if (string.IsNullOrWhiteSpace(command)) return;
-
-        string cleanCommand = CommandStringParser.GetName(command);
+        string cleanCommand = call.Name;
 
         // On a companion the master owns the profile and workspace. Checked here, where every command passes,
         // so no button, macro, CLI call or plugin can switch them on the companion.
@@ -237,7 +229,7 @@ public class CommandService : ICommandService
         RegisteredCommand registered = _commandRegistry.Get(cleanCommand);
         if (registered != null)
         {
-            string[] parameters = CommandStringParser.GetParameters(command, registered.Info) ?? [];
+            string[] parameters = call.GetParameters(registered.Info);
 
             // An adjustment command bound to a dial is driven by the encoder, not by a
             // plain Execute: a turn applies the delta, a press resets. Any other target
@@ -270,7 +262,7 @@ public class CommandService : ICommandService
         }
         else
         {
-            _commandRunner.EnqueueCommand(command);
+            _commandRunner.EnqueueCommand(call.ToLegacyString());
         }
     }
 }

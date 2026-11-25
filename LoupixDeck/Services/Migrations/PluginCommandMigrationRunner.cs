@@ -4,7 +4,6 @@ using LoupixDeck.Models.Extensions;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Services.Commands;
 using LoupixDeck.Services.Plugins;
-using LoupixDeck.Utils;
 
 namespace LoupixDeck.Services.Migrations;
 
@@ -193,10 +192,10 @@ public sealed class PluginCommandMigrationRunner(
                 continue;
             }
 
-            List<string> parts = CommandStringParser.SplitChain(binding)?.ToList() ?? [];
+            CommandBinding parts = CommandBinding.FromLegacy(binding);
             if (parts.Count != 1) return false;
 
-            if (!string.Equals(CommandStringParser.GetName(parts[0]), expected, StringComparison.Ordinal))
+            if (!string.Equals(parts[0].Name, expected, StringComparison.Ordinal))
                 return false;
 
             if (!CollectParameters(parts[0], expected, oldValues))
@@ -222,12 +221,12 @@ public sealed class PluginCommandMigrationRunner(
     /// Returns false when a name already seen carries a different value — two gestures pointing
     /// at different targets are not one dial the rule can replace.
     /// </summary>
-    private bool CollectParameters(string binding, string commandName, Dictionary<string, string> into)
+    private bool CollectParameters(CommandCall binding, string commandName, Dictionary<string, string> into)
     {
         CommandInfo info = commandRegistry.Get(commandName)?.Info;
         if (info == null) return false;
 
-        string[] parameters = CommandStringParser.GetParameters(binding) ?? [];
+        string[] parameters = binding.GetParameters();
 
         for (int i = 0; i < (info.Parameters?.Count ?? 0) && i < parameters.Length; i++)
         {

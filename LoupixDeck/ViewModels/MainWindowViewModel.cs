@@ -1027,12 +1027,12 @@ public partial class MainWindowViewModel : ViewModelBase
     public string DescribeCommand(string command)
     {
         List<string> names = [];
-        foreach (string segment in CommandStringParser.SplitChain(command))
+        foreach (CommandCall segment in CommandBinding.FromLegacy(command))
         {
-            CommandInfo info = _commandRegistry.Get(CommandStringParser.GetName(segment))?.Info;
+            CommandInfo info = _commandRegistry.Get(segment.Name)?.Info;
             if (string.IsNullOrWhiteSpace(info?.DisplayName))
             {
-                names.Add(Shorten(segment));
+                names.Add(Shorten(segment.ToLegacyString()));
                 continue;
             }
 
@@ -1063,9 +1063,9 @@ public partial class MainWindowViewModel : ViewModelBase
 
     /// <summary>The non-empty parameter values of one segment, comma-separated and shortened. Key
     /// values read as the platform names its keys, as in the editor.</summary>
-    private static string DescribeParameters(string segment, CommandInfo info)
+    private static string DescribeParameters(CommandCall segment, CommandInfo info)
     {
-        string[] values = CommandStringParser.GetParameters(segment, info);
+        string[] values = segment.GetParameters(info);
         List<string> shown = [];
         for (int i = 0; i < values.Length; i++)
         {

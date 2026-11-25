@@ -1292,7 +1292,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         {
             string name = string.IsNullOrWhiteSpace(SelectedTextLayer?.TextCommand)
                 ? null
-                : CommandStringParser.GetName(SelectedTextLayer.TextCommand);
+                : CommandBinding.FromLegacy(SelectedTextLayer.TextCommand).First?.Name;
             return TextCommandChoices.FirstOrDefault(c => c.CommandName == name);
         }
         set
@@ -1331,7 +1331,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         get
         {
             string command = (_selectedLayer as PluginLayer)?.Command;
-            string name = string.IsNullOrWhiteSpace(command) ? null : CommandStringParser.GetName(command);
+            string name = string.IsNullOrWhiteSpace(command) ? null : CommandBinding.FromLegacy(command).First?.Name;
             return ImageCommandChoices.FirstOrDefault(c => c.CommandName == name);
         }
         set

@@ -1,4 +1,4 @@
-using LoupixDeck.Utils;
+using LoupixDeck.Models;
 
 namespace LoupixDeck.Services.Commands;
 
@@ -11,7 +11,7 @@ public static class CommandRegistryExtensions
     /// </summary>
     public static bool DrawsOnKey(this ICommandRegistry registry, string command)
     {
-        string name = string.IsNullOrWhiteSpace(command) ? null : CommandStringParser.GetName(command);
+        string name = CommandBinding.FromLegacy(command).First?.Name;
         if (registry == null || string.IsNullOrEmpty(name))
             return false;
 
