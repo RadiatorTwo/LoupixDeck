@@ -3259,16 +3259,35 @@ public partial class LoupedeckLiveSController(
     /// <summary>Adapts an SDK FolderEntry to the core FolderEntry renderer.</summary>
     private SkiaSharp.SKBitmap RenderSdkEntry(PluginSdk.FolderEntry e, int slot, int width, int height)
     {
+        using SkiaSharp.SKBitmap image = DecodeEntryImage(e.Image);
         var core = new Services.FolderNavigation.FolderEntry
         {
             SlotIndex = e.SlotIndex,
             Text = e.Text,
+            Image = image,
+            Render = e.Render,
             BackColor = Avalonia.Media.Color.FromArgb(e.BackColor.A, e.BackColor.R, e.BackColor.G, e.BackColor.B),
             TextColor = Avalonia.Media.Color.FromArgb(e.TextColor.A, e.TextColor.R, e.TextColor.G, e.TextColor.B),
             TextSize = e.TextSize,
             Bold = e.Bold
         };
         return BitmapHelper.RenderFolderEntry(core, null, slot, width, height, folderNav.Grid.Columns);
+    }
+
+    /// <summary>Decodes an entry's PNG for one render; null when absent or undecodable, so a broken
+    /// plugin image still leaves the rest of the slot drawn.</summary>
+    private static SkiaSharp.SKBitmap DecodeEntryImage(byte[] png)
+    {
+        if (png is not { Length: > 0 }) return null;
+
+        try
+        {
+            return SkiaSharp.SKBitmap.Decode(png);
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private async void OnFolderStateChanged()
