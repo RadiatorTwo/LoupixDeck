@@ -64,7 +64,7 @@ public sealed partial class MacroConflictRow : ObservableObject
     public MacroConflictRow(string name)
     {
         Name = name;
-        NewName = $"{name} (imported)";
+        NewName = MacroManager.ImportedName(name);
     }
 
     public string Name { get; }

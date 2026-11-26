@@ -146,6 +146,17 @@ public sealed partial class ProfileImportViewModel : DialogViewModelBase<DialogR
 
     public bool HasPlugins => Plugins.Count > 0;
     public bool HasMacros => Macros.Count > 0;
+
+    /// <summary>True with more than one conflict, when setting them all at once saves clicks.</summary>
+    public bool HasSeveralMacros => Macros.Count > 1;
+
+    /// <summary>Sets every macro conflict row to the given resolution.</summary>
+    public IRelayCommand<MacroConflictResolution> ResolveAllMacrosCommand => field ??=
+        Relay.Create<MacroConflictResolution>(resolution =>
+        {
+            foreach (MacroConflictRow row in Macros)
+                row.Resolution = resolution;
+        });
     public bool HasUnknownCommands => UnknownCommands.Count > 0;
     public bool HasWarnings => Warnings.Count > 0;
 
@@ -335,6 +346,7 @@ public sealed partial class ProfileImportViewModel : DialogViewModelBase<DialogR
 
         OnPropertyChanged(nameof(HasPlugins));
         OnPropertyChanged(nameof(HasMacros));
+        OnPropertyChanged(nameof(HasSeveralMacros));
         OnPropertyChanged(nameof(HasUnknownCommands));
         OnPropertyChanged(nameof(HasWarnings));
         OnPropertyChanged(nameof(HasDisabledPlugins));
