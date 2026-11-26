@@ -760,10 +760,10 @@ public sealed class ProfilePackageService(
             return requested.Trim();
 
         // Fall back to a suffix so a missing or unusable rename never silently overwrites.
-        string candidate = $"{originalName} (imported)";
-        int suffix = 2;
+        string candidate = MacroManager.ImportedName(originalName);
+        int attempt = 2;
         while (Taken(candidate))
-            candidate = $"{originalName} (imported {suffix++})";
+            candidate = MacroManager.ImportedName(originalName, attempt++);
 
         return candidate;
     }
