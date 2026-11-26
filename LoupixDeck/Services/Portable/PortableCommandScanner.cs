@@ -23,17 +23,23 @@ public static class PortableCommandScanner
 
     /// <summary>
     /// JSON property names that hold a command string (or an array of them).
-    /// <c>Command</c> — <c>LoupedeckButton</c> / <c>ButtonState</c>;
+    /// <c>Command</c> — <c>LoupedeckButton</c> / <c>ButtonState</c> / <c>WheelSegment</c> /
+    /// <c>PluginLayer</c>;
+    /// <c>RotaryLeftCommand</c>/<c>RotaryRightCommand</c> — dial rotation on <c>RotaryButton</c>;
     /// <c>PreCommands</c>/<c>PostCommands</c> — <c>CommandWrap</c>;
     /// <c>StripSegmentCommands</c> — free-draw side strips;
+    /// <c>TextCommand</c> — the dynamic-text command of a <c>TextLayer</c>;
     /// <c>CommandString</c> — a macro's Command step.
     /// </summary>
     private static readonly HashSet<string> CommandProperties = new(StringComparer.OrdinalIgnoreCase)
     {
         "Command",
+        "RotaryLeftCommand",
+        "RotaryRightCommand",
         "PreCommands",
         "PostCommands",
         "StripSegmentCommands",
+        "TextCommand",
         "CommandString"
     };
 
