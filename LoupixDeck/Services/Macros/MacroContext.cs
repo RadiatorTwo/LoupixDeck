@@ -59,10 +59,12 @@ public sealed class MacroContext
 
     /// <summary>
     /// Replaces <c>{name}</c> placeholders in <paramref name="template"/> with the matching
-    /// variable value (case-insensitive). Unknown names expand to an empty string. Called
-    /// lazily at use time so loop counters and mid-run mutations resolve to current values.
-    /// Same rules as the former <c>{([^{}]+)}</c> pattern: nested braces and empty
-    /// <c>{}</c> are left as-is.
+    /// variable value (case-insensitive). An unknown name expands to an empty string when it
+    /// looks like a variable name (see <see cref="LooksLikeName"/>); any other unknown
+    /// <c>{…}</c> block is left as-is, so script blocks such as PowerShell's
+    /// <c>{$_.Name -like 'x*'}</c> survive (#705). Called lazily at use time so loop counters and
+    /// mid-run mutations resolve to current values. Same rules as the former <c>{([^{}]+)}</c>
+    /// pattern: nested braces and empty <c>{}</c> are left as-is.
     /// </summary>
     public string Expand(string template)
     {
@@ -106,12 +108,38 @@ public sealed class MacroContext
             }
 
             ReadOnlySpan<char> name = inner.Trim();
-            if (lookup.TryGetValue(name, out var value) && value != null)
-                builder.Append(value);
+            if (lookup.TryGetValue(name, out var value))
+            {
+                if (value != null)
+                    builder.Append(value);
+            }
+            else if (!LooksLikeName(name))
+            {
+                builder.Append(span.Slice(open, closeRel + 2));
+            }
 
             i = open + 1 + closeRel + 1;
         }
 
         return builder.ToString();
+    }
+
+    /// <summary>
+    /// True when <paramref name="name"/> holds only letters, digits, <c>_</c>, <c>-</c> and
+    /// spaces. Such an unknown placeholder still expands to an empty string, as it always did,
+    /// so a macro that reads a variable before setting it behaves as before.
+    /// </summary>
+    private static bool LooksLikeName(ReadOnlySpan<char> name)
+    {
+        if (name.IsEmpty)
+            return false;
+
+        foreach (char c in name)
+        {
+            if (!char.IsLetterOrDigit(c) && c != '_' && c != '-' && c != ' ')
+                return false;
+        }
+
+        return true;
     }
 }
