@@ -1,4 +1,5 @@
 using LoupixDeck.Models;
+using LoupixDeck.Models.Converter;
 using LoupixDeck.Utils;
 using Newtonsoft.Json;
 
@@ -163,7 +164,9 @@ public sealed class DialPresetStore : IDialPresetStore
 
         try
         {
+            int arrayWrites = CommandBindingJsonConverter.ArrayWritesOnThisThread;
             string json = JsonConvert.SerializeObject(file, SerializerSettings);
+            StructuredCommandBackup.BeforeSave(path, CommandBindingJsonConverter.ArrayWritesOnThisThread != arrayWrites);
 
             // Atomic write: temp file first, then move into place (the same pattern ConfigService
             // and MacroManager use), so an interrupted save cannot truncate the presets.
