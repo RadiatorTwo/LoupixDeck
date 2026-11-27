@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:LoupixDeck.ViewModels"
+        xmlns:portable="using:LoupixDeck.Services.Portable"
         xmlns:controls="using:LoupixDeck.Views.Controls"
         mc:Ignorable="d"
         Width="660" Height="700"
@@ -207,6 +208,17 @@
                     <TextBlock Text="{loc:Tr ProfileImport_MacroNameConflicts}" Classes="sectionHeader" />
                     <TextBlock Classes="hint"
                                Text="{loc:Tr ProfileImport_AMacroOfTheSame}" />
+                    <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding HasSeveralMacros}">
+                        <Button Content="{loc:Tr ProfileImport_SkipAll}" FontSize="12"
+                                Command="{Binding ResolveAllMacrosCommand}"
+                                CommandParameter="{x:Static portable:MacroConflictResolution.Skip}" />
+                        <Button Content="{loc:Tr ProfileImport_RenameAll}" FontSize="12"
+                                Command="{Binding ResolveAllMacrosCommand}"
+                                CommandParameter="{x:Static portable:MacroConflictResolution.Rename}" />
+                        <Button Content="{loc:Tr ProfileImport_ReplaceAll}" FontSize="12"
+                                Command="{Binding ResolveAllMacrosCommand}"
+                                CommandParameter="{x:Static portable:MacroConflictResolution.Replace}" />
+                    </StackPanel>
                     <ItemsControl ItemsSource="{Binding Macros}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate DataType="vm:MacroConflictRow">

@@ -203,6 +203,14 @@ public class MacroManager : IMacroManager
         return !string.IsNullOrWhiteSpace(name) && name.IndexOfAny(ForbiddenNameChars) < 0;
     }
 
+    /// <summary>
+    /// Name suggested for an imported macro whose name is already taken: <c>&lt;name&gt; - imported</c>,
+    /// then <c>&lt;name&gt; - imported 2</c>, … for later attempts. Uses no command-parser
+    /// characters, so the result passes <see cref="HasValidNameCharacters"/>.
+    /// </summary>
+    public static string ImportedName(string name, int attempt = 1) =>
+        attempt <= 1 ? $"{name} - imported" : $"{name} - imported {attempt}";
+
     public bool IsNameValid(string name, Macro ignore = null)
     {
         if (!HasValidNameCharacters(name))
