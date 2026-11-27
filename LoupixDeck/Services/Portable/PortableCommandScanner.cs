@@ -1,11 +1,13 @@
-using LoupixDeck.Utils;
+using LoupixDeck.Models;
+using LoupixDeck.Models.Converter;
 using Newtonsoft.Json.Linq;
 
 namespace LoupixDeck.Services.Portable;
 
 /// <summary>
-/// Finds the command strings inside a serialized config subtree (or macro document) and dissects
-/// them into command names and macro references. Used by the profile package exporter to work out
+/// Finds the commands inside a serialized config subtree (or macro document) and dissects them into
+/// command names and macro references. Both stored forms are read: the legacy string and the array
+/// of structured calls. Used by the profile package exporter to work out
 /// which plugins and macros a package must carry, and by the importer to report what an incoming
 /// package references.
 /// </summary>
@@ -22,7 +24,7 @@ public static class PortableCommandScanner
     public const string MacroCommandName = "System.Macro";
 
     /// <summary>
-    /// JSON property names that hold a command string (or an array of them).
+    /// JSON property names that hold a command (or, for <c>StripSegmentCommands</c>, a list of them).
     /// <c>Command</c> — <c>LoupedeckButton</c> / <c>ButtonState</c> / <c>WheelSegment</c> /
     /// <c>PluginLayer</c>;
     /// <c>RotaryLeftCommand</c>/<c>RotaryRightCommand</c> — dial rotation on <c>RotaryButton</c>;
@@ -43,15 +45,38 @@ public static class PortableCommandScanner
         "CommandString"
     };
 
-    /// <summary>True when a JSON property holds a command string (or an array of them).</summary>
+    /// <summary>The property whose value is a list of commands, one per strip segment.</summary>
+    private const string ListProperty = "StripSegmentCommands";
+
+    /// <summary>True when a JSON property holds a command (or a list of them).</summary>
     public static bool IsCommandProperty(string propertyName) =>
         propertyName != null && CommandProperties.Contains(propertyName);
 
+    /// <summary>True when the property's value is a list of commands rather than one command.</summary>
+    public static bool IsCommandListProperty(string propertyName) =>
+        string.Equals(propertyName, ListProperty, StringComparison.OrdinalIgnoreCase);
+
     /// <summary>
-    /// Returns every command string stored anywhere below <paramref name="root"/>, in document
-    /// order and including duplicates (the caller decides how to aggregate).
+    /// The command tokens of one command property: the value itself, or each element for the
+    /// list property. A token is a legacy string or an array of calls.
     /// </summary>
-    public static IEnumerable<string> HarvestCommandStrings(JToken root)
+    public static IEnumerable<JToken> CommandTokensOf(JProperty property)
+    {
+        if (property?.Value == null)
+            return [];
+
+        // Not a collection expression: next to a JArray it would become a new JArray holding a copy
+        // of the value, and a rewrite would then change the copy.
+        return IsCommandListProperty(property.Name) && property.Value is JArray list
+            ? list
+            : new[] { property.Value };
+    }
+
+    /// <summary>
+    /// Returns every command stored anywhere below <paramref name="root"/>, in document order and
+    /// including duplicates (the caller decides how to aggregate). Empty ones are skipped.
+    /// </summary>
+    public static IEnumerable<CommandBinding> HarvestCommands(JToken root)
     {
         if (root is not JContainer container)
             yield break;
@@ -61,27 +86,14 @@ public static class PortableCommandScanner
             if (!CommandProperties.Contains(property.Name))
                 continue;
 
-            foreach (string value in ValuesOf(property.Value))
-                yield return value;
-        }
-    }
-
-    private static IEnumerable<string> ValuesOf(JToken token)
-    {
-        switch (token)
-        {
-            case JValue { Type: JTokenType.String } value when !string.IsNullOrWhiteSpace((string)value.Value):
-                yield return (string)value.Value;
-                break;
-
-            case JArray array:
-                foreach (JValue entry in array.OfType<JValue>())
-                {
-                    if (entry.Type == JTokenType.String && !string.IsNullOrWhiteSpace((string)entry.Value))
-                        yield return (string)entry.Value;
-                }
-
-                break;
+            foreach (JToken token in CommandTokensOf(property))
+            {
+                CommandBinding command = token.Type is JTokenType.String or JTokenType.Array
+                    ? CommandBindingJsonConverter.FromToken(token)
+                    : null;
+                if (!CommandBinding.IsNullOrEmpty(command))
+                    yield return command;
+            }
         }
     }
 
@@ -94,13 +106,12 @@ public static class PortableCommandScanner
     {
         HashSet<string> names = new(StringComparer.Ordinal);
 
-        foreach (string command in HarvestCommandStrings(root))
+        foreach (CommandBinding command in HarvestCommands(root))
         {
-            foreach (string segment in CommandStringParser.SplitChain(command))
+            foreach (CommandCall call in command)
             {
-                string name = CommandStringParser.GetName(segment);
-                if (!string.IsNullOrWhiteSpace(name))
-                    names.Add(name);
+                if (!string.IsNullOrWhiteSpace(call.Name))
+                    names.Add(call.Name);
             }
         }
 
@@ -116,14 +127,14 @@ public static class PortableCommandScanner
     {
         HashSet<string> names = new(StringComparer.OrdinalIgnoreCase);
 
-        foreach (string command in HarvestCommandStrings(root))
+        foreach (CommandBinding command in HarvestCommands(root))
         {
-            foreach (string segment in CommandStringParser.SplitChain(command))
+            foreach (CommandCall call in command)
             {
-                if (!string.Equals(CommandStringParser.GetName(segment), MacroCommandName, StringComparison.Ordinal))
+                if (!string.Equals(call.Name, MacroCommandName, StringComparison.Ordinal))
                     continue;
 
-                string[] parameters = CommandStringParser.GetParameters(segment);
+                string[] parameters = call.GetParameters();
                 if (parameters.Length > 0 && !string.IsNullOrWhiteSpace(parameters[0]))
                     names.Add(parameters[0]);
             }

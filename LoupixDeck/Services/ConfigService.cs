@@ -243,7 +243,10 @@ public class ConfigService : IConfigService
     {
         try
         {
+            int arrayWrites = CommandBindingJsonConverter.ArrayWritesOnThisThread;
             var json = JsonConvert.SerializeObject(config, _settings);
+            StructuredCommandBackup.BeforeSave(filePath,
+                CommandBindingJsonConverter.ArrayWritesOnThisThread != arrayWrites);
 
             // Atomic write: write to temp file first, then rename
             var tempPath = filePath + ".tmp";

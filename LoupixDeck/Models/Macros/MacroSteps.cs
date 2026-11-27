@@ -732,14 +732,14 @@ public partial class PromptStep : MacroStep
 /// <summary>Runs an arbitrary LoupixDeck command string or shell command.</summary>
 public class CommandStep : MacroStep
 {
-    private string _commandString = string.Empty;
+    private CommandBinding _commandString = CommandBinding.Empty;
 
-    public string CommandString
+    public CommandBinding CommandString
     {
         get => _commandString;
         set
         {
-            if (_commandString == value) return;
+            if (Equals(_commandString, value)) return;
             _commandString = value;
             OnValueChanged();
         }
@@ -748,5 +748,5 @@ public class CommandStep : MacroStep
     public override MacroStepType StepType => MacroStepType.Command;
     public override string Icon => Glyph(0xF018D); // mdi-console
     public override string TypeText => "Command";
-    public override string ValueText => CommandString ?? string.Empty;
+    public override string ValueText => CommandString?.ToLegacyString() ?? string.Empty;
 }

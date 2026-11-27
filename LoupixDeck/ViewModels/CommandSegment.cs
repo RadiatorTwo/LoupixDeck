@@ -15,7 +15,7 @@ namespace LoupixDeck.ViewModels;
 /// <summary>
 /// A single editable parameter of a known command. Rendered as a checkbox (bool),
 /// a combo box (enum) or a text box (everything else). The value is kept as a
-/// string and fed back into <see cref="ICommandBuilder.BuildCommandString"/>,
+/// string and fed back into <see cref="ICommandBuilder.BuildCall"/>,
 /// which only ever calls <c>ToString()</c> on it.
 /// </summary>
 [ObservableObject]
@@ -165,9 +165,11 @@ public partial class CommandParameter
 /// Note on the first ("Target") parameter: it is rendered as a plain text field
 /// (or an enum combo when the type is an enum), not as a populated dropdown of
 /// live device/scene values — those are plugin-specific and not retrievable
-/// generically without a plugin round-trip. Values containing ',' or unbalanced
-/// parentheses are not supported by the executor, so the editor does not support
-/// them either. Balanced ones such as "Scene (1)" are.
+/// generically without a plugin round-trip.
+///
+/// A known command is stored as a structured <see cref="CommandCall"/> once it is edited, so its
+/// values keep commas, parentheses, line breaks and surrounding spaces exactly. Until then, and for
+/// shell or unknown commands, the call stays as it was loaded.
 /// </summary>
 [ObservableObject]
 public partial class CommandSegment
@@ -202,21 +204,25 @@ public partial class CommandSegment
 
     public bool IsUnavailable => UnavailableHint != null;
 
-    /// <summary>The current raw text of this single segment (e.g. <c>"OBS.SetScene(Scene 1)"</c>).</summary>
-    public string Raw { get; private set; }
+    /// <summary>The current call of this segment. It is replaced only by an edit, so a segment
+    /// that is opened and left alone hands back the call it was created from.</summary>
+    public CommandCall Call { get; private set; }
+
+    /// <summary>True for a free-text segment without text; it is left out of the chain.</summary>
+    public bool IsBlank => Call.IsText && string.IsNullOrWhiteSpace(Call.Text);
 
     private CommandSegment(ICommandBuilder commandBuilder, CommandInfo info,
-        string commandName, string displayName, string raw)
+        string commandName, string displayName, CommandCall call)
     {
         _commandBuilder = commandBuilder;
         _info = info;
         CommandName = commandName;
         _displayName = displayName;
-        Raw = raw;
+        Call = call;
     }
 
     /// <summary>
-    /// Builds a segment from a raw command string. <paramref name="info"/> is the
+    /// Builds a segment from one call of a chain. <paramref name="info"/> is the
     /// resolved <see cref="CommandInfo"/> when the command name is a known system
     /// command, or null for a shell command.
     /// </summary>
@@ -225,11 +231,11 @@ public partial class CommandSegment
     /// <param name="lockHint">Why a known command will not run on this device (a profile or workspace switch on a
     /// companion). The segment stays fully editable but says so.</param>
     public static CommandSegment Create(ICommandBuilder commandBuilder, IDialogService dialogService,
-        CommandInfo info, string raw, Services.PluginStore.PluginCommandOwner missingOwner = null,
+        CommandInfo info, CommandCall call, Services.PluginStore.PluginCommandOwner missingOwner = null,
         string lockHint = null, Services.Commands.ICommandParameterOptions parameterOptions = null)
     {
-        raw = (raw ?? string.Empty).Trim();
-        var name = CommandStringParser.GetName(raw);
+        call ??= CommandCall.FromText(string.Empty);
+        var name = call.Name;
 
         // Unknown commands and the dedicated Shell command are both edited as free text and
         // stored verbatim as their own segment (like the legacy free-text command field),
@@ -239,29 +245,34 @@ public partial class CommandSegment
         if (info == null || info.CommandName == ShellCommand.CommandName)
         {
             var fromMenu = info != null;
-            var shellRaw = fromMenu ? string.Empty : raw;
+            // An unknown command saved in structured form (its plugin is missing) is shown in the
+            // legacy syntax, but its call is kept as loaded until the text is edited.
+            var shellCall = fromMenu ? CommandCall.FromText(string.Empty) : call;
+            var shellText = shellCall.ToLegacyString();
             // Only used while the free-text is empty — otherwise the chip shows the typed text.
             var shellDisplay = LocalizationManager.Instance.TrText(
                 fromMenu ? info.DisplayName : ShellCommand.DisplayName, info?.OwnerPluginId);
-            var shell = new CommandSegment(commandBuilder, null,
-                CommandStringParser.GetName(shellRaw), shellDisplay, shellRaw)
+            var shell = new CommandSegment(commandBuilder, null, shellCall.Name, shellDisplay, shellCall)
             {
-                ShellText = shellRaw,
+                ShellText = shellText,
                 UnavailableHint = fromMenu || missingOwner == null
                     ? null
                     : Loc.Tr("Command_PluginUnavailable", missingOwner.DisplayName)
             };
+            // Setting the text above made a text call of it; until the user edits it, the segment
+            // keeps the call it was loaded from.
+            shell.Call = shellCall;
             return shell;
         }
 
         var display = string.IsNullOrWhiteSpace(info.DisplayName)
             ? name
             : LocalizationManager.Instance.TrText(info.DisplayName, info.OwnerPluginId);
-        var segment = new CommandSegment(commandBuilder, info, name, display, raw) { UnavailableHint = lockHint };
+        var segment = new CommandSegment(commandBuilder, info, name, display, call) { UnavailableHint = lockHint };
 
-        // Map the positional values parsed from the raw string onto the declared
-        // parameters; missing trailing values default to empty.
-        var values = CommandStringParser.GetParameters(raw, info);
+        // Map the positional values of the call onto the declared parameters; missing
+        // trailing values default to empty.
+        var values = call.GetParameters(info);
         for (var i = 0; i < info.Parameters.Count; i++)
         {
             var descriptor = info.Parameters[i];
@@ -279,16 +290,16 @@ public partial class CommandSegment
     private void OnParameterChanged(object sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName != nameof(CommandParameter.Value)) return;
-        RebuildRaw();
+        RebuildCall();
     }
 
-    private void RebuildRaw()
+    private void RebuildCall()
     {
         if (!IsKnown) return;
 
         var values = Parameters.ToDictionary(p => p.Name, object (p) => p.Value);
-        Raw = _commandBuilder.BuildCommandString(_info, values);
-        OnPropertyChanged(nameof(Raw));
+        Call = _commandBuilder.BuildCall(_info, values);
+        OnPropertyChanged(nameof(Call));
         OnPropertyChanged(nameof(Summary));
         Changed?.Invoke(this, EventArgs.Empty);
     }
@@ -301,8 +312,8 @@ public partial class CommandSegment
         set
         {
             if (!SetProperty(ref field, value)) return;
-            Raw = value ?? string.Empty;
-            OnPropertyChanged(nameof(Raw));
+            Call = CommandCall.FromText(value ?? string.Empty);
+            OnPropertyChanged(nameof(Call));
             OnPropertyChanged(nameof(Summary));
             OnPropertyChanged(nameof(DisplayName));
             Changed?.Invoke(this, EventArgs.Empty);
@@ -314,7 +325,7 @@ public partial class CommandSegment
     public string Summary => IsKnown
         ? string.Join(", ", Parameters.Select(p => p.Value).Where(v => !string.IsNullOrWhiteSpace(v)))
             .ReplaceLineEndings(" ↵ ")
-        : Raw;
+        : ShellText;
 
     // ───────── UI state (not persisted) ─────────
 

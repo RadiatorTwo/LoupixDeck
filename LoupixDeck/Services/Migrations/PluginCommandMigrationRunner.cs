@@ -4,7 +4,6 @@ using LoupixDeck.Models.Extensions;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Services.Commands;
 using LoupixDeck.Services.Plugins;
-using LoupixDeck.Utils;
 
 namespace LoupixDeck.Services.Migrations;
 
@@ -40,7 +39,7 @@ public sealed class PluginCommandMigrationRunner(
 
         // Planned first, applied second: nothing is mutated until the backup exists, so a
         // failure anywhere above leaves the user's bindings untouched.
-        List<(RotaryButton Dial, RotaryAction Action, string Command)> edits = [];
+        List<(RotaryButton Dial, RotaryAction Action, CommandBinding Command)> edits = [];
 
         Dictionary<string, int> rewritten = new(StringComparer.Ordinal);
 
@@ -48,7 +47,7 @@ public sealed class PluginCommandMigrationRunner(
         {
             foreach ((string id, CommandMigration rule) in pending)
             {
-                if (!TryBuildReplacement(dial, rule, out string replacement))
+                if (!TryBuildReplacement(dial, rule, out CommandBinding replacement))
                     continue;
 
                 foreach (RotaryAction action in rule.From.Keys)
@@ -74,7 +73,7 @@ public sealed class PluginCommandMigrationRunner(
         if (!TryBackup(configPath))
             return false;
 
-        foreach ((RotaryButton dial, RotaryAction action, string command) in edits)
+        foreach ((RotaryButton dial, RotaryAction action, CommandBinding command) in edits)
             dial.SetCommand(action, command);
 
         config.AppliedCommandMigrations.AddRange(pending.Select(p => p.Id));
@@ -168,11 +167,11 @@ public sealed class PluginCommandMigrationRunner(
 
     /// <summary>
     /// Decides whether a dial carries exactly the rule's old binding and, if so, builds the
-    /// command string that replaces it. Every gesture the rule names must hold that command on
+    /// command that replaces it, with the carried-over values exactly. Every gesture the rule names must hold that command on
     /// its own — a chain, a different command or an empty slot means the user's dial is not the
     /// one the rule describes, and it is left alone.
     /// </summary>
-    private bool TryBuildReplacement(RotaryButton dial, CommandMigration rule, out string replacement)
+    private bool TryBuildReplacement(RotaryButton dial, CommandMigration rule, out CommandBinding replacement)
     {
         replacement = null;
 
@@ -183,20 +182,20 @@ public sealed class PluginCommandMigrationRunner(
 
         foreach (RotaryAction action in RotaryButtonExtensions.Gestures)
         {
-            string binding = dial.GetCommand(action);
+            CommandBinding binding = dial.GetCommand(action);
 
             if (!rule.From.TryGetValue(action, out string expected))
             {
                 // A gesture the rule does not mention must be free, otherwise the dial is a
                 // composition the user built and not the shape the plugin is replacing.
-                if (!string.IsNullOrWhiteSpace(binding)) return false;
+                if (!CommandBinding.IsNullOrEmpty(binding)) return false;
                 continue;
             }
 
-            List<string> parts = CommandStringParser.SplitChain(binding)?.ToList() ?? [];
+            CommandBinding parts = binding;
             if (parts.Count != 1) return false;
 
-            if (!string.Equals(CommandStringParser.GetName(parts[0]), expected, StringComparison.Ordinal))
+            if (!string.Equals(parts[0].Name, expected, StringComparison.Ordinal))
                 return false;
 
             if (!CollectParameters(parts[0], expected, oldValues))
@@ -213,8 +212,8 @@ public sealed class PluginCommandMigrationRunner(
                 values[parameter.Name] = value;
         }
 
-        replacement = commandBuilder.BuildCommandString(target, values);
-        return !string.IsNullOrWhiteSpace(replacement);
+        replacement = CommandBinding.Of(commandBuilder.BuildCall(target, values));
+        return !replacement.IsEmpty;
     }
 
     /// <summary>
@@ -222,12 +221,12 @@ public sealed class PluginCommandMigrationRunner(
     /// Returns false when a name already seen carries a different value — two gestures pointing
     /// at different targets are not one dial the rule can replace.
     /// </summary>
-    private bool CollectParameters(string binding, string commandName, Dictionary<string, string> into)
+    private bool CollectParameters(CommandCall binding, string commandName, Dictionary<string, string> into)
     {
         CommandInfo info = commandRegistry.Get(commandName)?.Info;
         if (info == null) return false;
 
-        string[] parameters = CommandStringParser.GetParameters(binding) ?? [];
+        string[] parameters = binding.GetParameters();
 
         for (int i = 0; i < (info.Parameters?.Count ?? 0) && i < parameters.Length; i++)
         {

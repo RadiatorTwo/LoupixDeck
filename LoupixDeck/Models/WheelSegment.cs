@@ -13,7 +13,7 @@ public sealed partial class WheelSegment : ObservableObject
 {
     /// <summary>Command sequence run when this segment is tapped. Empty does nothing.</summary>
     [ObservableProperty]
-    public partial string Command { get; set; } = string.Empty;
+    public partial CommandBinding Command { get; set; } = CommandBinding.Empty;
 
     /// <summary>
     /// What this segment shows: a layer canvas the size of the whole wheel screen, clipped to the

@@ -33,7 +33,7 @@ public partial class ButtonState : ObservableObject
 
     /// <summary>The &amp;&amp;-joined command sequence run when the button is pressed in this state.</summary>
     [ObservableProperty]
-    public partial string Command { get; set; }
+    public partial CommandBinding Command { get; set; }
 
     /// <summary>LED color for LED-capable buttons (SimpleButton). Ignored by touch buttons.</summary>
     [ObservableProperty]

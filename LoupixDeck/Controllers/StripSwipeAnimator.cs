@@ -748,7 +748,7 @@ public partial class LoupedeckLiveSController
             0, RotaryButtonPage.StripSegmentCount - 1);
 
         var command = page.GetStripSegmentCommand(segment);
-        if (!string.IsNullOrEmpty(command))
+        if (!CommandBinding.IsNullOrEmpty(command))
         {
             // The strip has no per-button vibration setting, so a tap zone that runs a command
             // plays the global pattern (Settings -> Feedback), like a touch button without an

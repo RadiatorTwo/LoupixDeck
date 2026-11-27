@@ -1044,7 +1044,7 @@
                                                         </DataTemplate>
                                                     </ComboBox.ItemTemplate>
                                                 </ComboBox>
-                                                <TextBox Text="{Binding TextCommand, Mode=TwoWay}" Margin="0,2,0,2"
+                                                <TextBox Text="{Binding TextCommand, Mode=TwoWay, Converter={x:Static conv:CommandBindingTextConverter.Instance}}" Margin="0,2,0,2"
                                                          PlaceholderText="DynamicText.Clock(HH:mm)" />
                                                 <TextBlock Classes="hint" Margin="0,0,0,8"
                                                            Text="{loc:Tr TouchButton_TextCommandHint}" />

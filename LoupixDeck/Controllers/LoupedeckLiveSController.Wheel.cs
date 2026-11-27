@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using LoupixDeck.LoupedeckDevice;
+using LoupixDeck.Models;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Utils;
 using Device = LoupixDeck.LoupedeckDevice.Device.LoupedeckDevice;
@@ -381,7 +382,7 @@ public partial class LoupedeckLiveSController
 
     /// <summary>The first wheel binding of the active wheel mode that handles wheel input, in the same
     /// order the wheel renderer is resolved in (<see cref="RenderBoundWheel"/>), or null.</summary>
-    private string WheelInputCommand()
+    private CommandBinding WheelInputCommand()
     {
         var wheel = config.CurrentTouchButtonPage?.Wheel;
         if (wheel == null) return null;
@@ -615,7 +616,7 @@ public partial class LoupedeckLiveSController
         if (index < 0 || index >= segments.Count) return;
 
         var segment = segments[index];
-        if (string.IsNullOrEmpty(segment.Command)) return;
+        if (CommandBinding.IsNullOrEmpty(segment.Command)) return;
 
         WheelSegmentRegistry.Set(segment.RuntimeKey, wheel.SegmentInfo(index));
         FireAndForget(segment.Command, ButtonTargets.RotaryEncoder, Device.WheelRotaryIndex,

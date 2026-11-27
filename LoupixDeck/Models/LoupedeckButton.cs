@@ -7,7 +7,7 @@ namespace LoupixDeck.Models;
 public partial class LoupedeckButton
 {
     [ObservableProperty]
-    public partial string Command { get; set; }
+    public partial CommandBinding Command { get; set; }
 
     /// <summary>
     /// UI-only selection highlight shown in the device layout view (single click selects,

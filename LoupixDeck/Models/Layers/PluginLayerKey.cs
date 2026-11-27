@@ -29,6 +29,12 @@ public static class PluginLayerKey
             : $"{name}({string.Join(",", parameters)})";
     }
 
+    /// <summary>
+    /// The key for a bound chain. A chain read from a file yields exactly the key its string
+    /// always did.
+    /// </summary>
+    public static string For(CommandBinding boundCommand) => For(boundCommand?.ToLegacyString());
+
     /// <summary>The command name (everything before the first <c>'('</c>), trimmed.</summary>
     public static string ParseCommandName(string command)
     {

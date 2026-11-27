@@ -4,6 +4,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using LoupixDeck.Localization;
+using LoupixDeck.Models;
 using LoupixDeck.Services;
 using LoupixDeck.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
@@ -93,18 +94,18 @@ public static class CommandChainMenu
                 SelectOnly(chain, segment);
 
             List<CommandSegment> selected = chain.Commands.Where(s => s.IsSelected).ToList();
-            bool hasRaw = selected.Any(s => !string.IsNullOrWhiteSpace(s.Raw));
+            bool hasRaw = selected.Any(s => !s.IsBlank);
 
-            Add(menu, "ButtonMenu_Copy", () => clipboard.Copy(selected.Select(s => s.Raw)), hasRaw);
+            Add(menu, "ButtonMenu_Copy", () => clipboard.Copy(selected.Select(s => s.Call)), hasRaw);
             Add(menu, "ButtonMenu_Cut", () =>
             {
-                clipboard.Copy(selected.Select(s => s.Raw));
+                clipboard.Copy(selected.Select(s => s.Call));
                 Remove(chain, selected);
             }, hasRaw);
             Add(menu, "CommandMenu_PasteAfter",
                 () => Insert(chain, clipboard.Commands, AfterLast(chain, selected)), clipboard.HasData);
             Add(menu, "CommandMenu_Duplicate",
-                () => Insert(chain, selected.Select(s => s.Raw).ToList(), AfterLast(chain, selected)), hasRaw);
+                () => Insert(chain, selected.Select(s => s.Call).ToList(), AfterLast(chain, selected)), hasRaw);
             Add(menu, "CommandMenu_Remove", () => Remove(chain, selected));
 
             // When everything is selected, Copy already is the whole sequence.
@@ -179,7 +180,7 @@ public static class CommandChainMenu
         selected.Select(s => chain.Commands.IndexOf(s)).DefaultIfEmpty(chain.Commands.Count - 1).Max() + 1;
 
     private static void CopyAll(ICommandChain chain, ICommandClipboardService clipboard) =>
-        clipboard.Copy(chain.Commands.Select(s => s.Raw));
+        clipboard.Copy(chain.Commands.Select(s => s.Call));
 
     private static void Remove(ICommandChain chain, IEnumerable<CommandSegment> segments)
     {
@@ -189,12 +190,12 @@ public static class CommandChainMenu
 
     /// <summary>Inserts <paramref name="commands"/> at <paramref name="index"/> in their order and
     /// makes them the selection, so a paste can be copied or moved on right away.</summary>
-    private static void Insert(ICommandChain chain, IReadOnlyList<string> commands, int index)
+    private static void Insert(ICommandChain chain, IReadOnlyList<CommandCall> commands, int index)
     {
         SelectOnly(chain, null);
-        foreach (string raw in commands)
+        foreach (CommandCall call in commands)
         {
-            if (!chain.InsertRawAt(raw, index)) continue;
+            if (!chain.InsertCallAt(call, index)) continue;
             chain.Commands[index].IsSelected = true;
             index++;
         }

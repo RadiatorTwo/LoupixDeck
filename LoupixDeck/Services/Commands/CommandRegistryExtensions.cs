@@ -1,4 +1,4 @@
-using LoupixDeck.Utils;
+using LoupixDeck.Models;
 
 namespace LoupixDeck.Services.Commands;
 
@@ -9,9 +9,9 @@ public static class CommandRegistryExtensions
     /// key: an image or animated display command, or a command of a plugin that is not loaded and so
     /// may be one. Text display commands do not count; they fill a text layer rather than drawing over it.
     /// </summary>
-    public static bool DrawsOnKey(this ICommandRegistry registry, string command)
+    public static bool DrawsOnKey(this ICommandRegistry registry, CommandBinding command)
     {
-        string name = string.IsNullOrWhiteSpace(command) ? null : CommandStringParser.GetName(command);
+        string name = command?.First?.Name;
         if (registry == null || string.IsNullOrEmpty(name))
             return false;
 

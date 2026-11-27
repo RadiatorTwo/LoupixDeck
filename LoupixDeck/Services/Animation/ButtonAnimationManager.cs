@@ -6,7 +6,6 @@ using LoupixDeck.Services.Commands;
 using LoupixDeck.Services.Plugins;
 using LoupixDeck.Services.FolderNavigation;
 using LoupixDeck.Services.Screensaver;
-using LoupixDeck.Utils;
 
 namespace LoupixDeck.Services.Animation;
 
@@ -171,9 +170,10 @@ public sealed class ButtonAnimationManager : IButtonAnimationManager, IDisposabl
             }
 
             // Animated plugin command bound to the button.
-            if (!string.IsNullOrWhiteSpace(button.Command))
+            if (!CommandBinding.IsNullOrEmpty(button.Command))
             {
-                var name = PluginLayerKey.ParseCommandName(button.Command);
+                CommandBinding chain = button.Command;
+                var name = chain.First?.Name;
                 var command = string.IsNullOrEmpty(name) ? null : _commandRegistry.Get(name);
                 if (command is { IsAnimatedImageCommand: true, RenderAnimatedFrame: not null })
                 {
@@ -183,8 +183,8 @@ public sealed class ButtonAnimationManager : IButtonAnimationManager, IDisposabl
                     {
                         Button = button,
                         Command = command,
-                        Parameters = CommandStringParser.GetParameters(button.Command),
-                        SequenceCommands = CommandStringParser.BuildSequence(button.Command),
+                        Parameters = chain.First.GetParameters(),
+                        SequenceCommands = chain.ToSequence(),
                         OwnerKey = ownerKey,
                         PluginLayer = layer,
                         DesiredFps = command.AnimatedTargetFps > 0 ? command.AnimatedTargetFps : 0

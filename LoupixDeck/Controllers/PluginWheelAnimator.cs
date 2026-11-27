@@ -160,7 +160,7 @@ public partial class LoupedeckLiveSController
         interval = TimeSpan.Zero;
         string label = string.IsNullOrWhiteSpace(wheel.DisplayText) ? null : wheel.DisplayText;
 
-        foreach (string command in wheel.DialCommands())
+        foreach (CommandBinding command in wheel.DialCommands())
         {
             if (commandService.GetWheelRenderInterval(command) is not { } renderInterval) continue;
 

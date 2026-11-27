@@ -170,9 +170,9 @@ public sealed class StarterProfileService(
             (workspace.RotaryButtonPages ?? []).Concat(workspace.LeftRotaryButtonPages ?? [])
                 .Concat(workspace.RightRotaryButtonPages ?? [])
                 .All(page => page.RotaryButtons.All(dial =>
-                    string.IsNullOrEmpty(dial.Command) &&
-                    string.IsNullOrEmpty(dial.RotaryLeftCommand) &&
-                    string.IsNullOrEmpty(dial.RotaryRightCommand))));
+                    CommandBinding.IsNullOrEmpty(dial.Command) &&
+                    CommandBinding.IsNullOrEmpty(dial.RotaryLeftCommand) &&
+                    CommandBinding.IsNullOrEmpty(dial.RotaryRightCommand))));
 
     /// <summary>The template's name, numbered when a profile of that name already exists.</summary>
     private string UniqueName(string name)

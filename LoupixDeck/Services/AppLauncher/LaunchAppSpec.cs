@@ -1,3 +1,4 @@
+using LoupixDeck.Models;
 using LoupixDeck.Services.AppActivation;
 using LoupixDeck.Utils;
 
@@ -24,15 +25,11 @@ public sealed record LaunchAppSpec(string Target, bool SingleInstance, string Pr
     /// Reads the <c>System.LaunchApp</c> segment of <paramref name="command"/>, or returns null
     /// when the command contains none. In a chain the first such segment counts.
     /// </summary>
-    public static LaunchAppSpec FromCommand(string command)
+    public static LaunchAppSpec FromCommand(CommandBinding command)
     {
-        foreach (string segment in CommandStringParser.SplitChain(command))
-        {
-            if (string.Equals(CommandStringParser.GetName(segment), LoupixDeck.Commands.LaunchAppCommand.CommandName, StringComparison.Ordinal))
-                return FromParameters(CommandStringParser.GetParameters(segment));
-        }
-
-        return null;
+        CommandCall call = command?.FirstOrDefault(c =>
+            string.Equals(c.Name, LoupixDeck.Commands.LaunchAppCommand.CommandName, StringComparison.Ordinal));
+        return call == null ? null : FromParameters(call.GetParameters());
     }
 
     /// <summary>The process this launch becomes; empty when it cannot be known.</summary>

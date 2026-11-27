@@ -12,9 +12,9 @@ public interface ICommandChain
     /// <summary>The chips in execution order.</summary>
     ObservableCollection<CommandSegment> Commands { get; }
 
-    /// <summary>Inserts an already formatted command at the given chip index. Returns false when
-    /// there was nothing to insert.</summary>
-    bool InsertRawAt(string raw, int index);
+    /// <summary>Inserts a call at the given chip index, exactly as given. Returns false when there
+    /// was nothing to insert.</summary>
+    bool InsertCallAt(Models.CommandCall call, int index);
 
     void RemoveSegment(CommandSegment segment);
 }

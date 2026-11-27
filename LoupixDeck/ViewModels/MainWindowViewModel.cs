@@ -1024,15 +1024,15 @@ public partial class MainWindowViewModel : ViewModelBase
     /// #685), e.g. "Key Combination (Ctrl+Shift+T)". Unknown and shell segments show their raw text.
     /// Null when nothing is assigned, so no tooltip opens.
     /// </summary>
-    public string DescribeCommand(string command)
+    public string DescribeCommand(CommandBinding command)
     {
         List<string> names = [];
-        foreach (string segment in CommandStringParser.SplitChain(command))
+        foreach (CommandCall segment in command ?? CommandBinding.Empty)
         {
-            CommandInfo info = _commandRegistry.Get(CommandStringParser.GetName(segment))?.Info;
+            CommandInfo info = _commandRegistry.Get(segment.Name)?.Info;
             if (string.IsNullOrWhiteSpace(info?.DisplayName))
             {
-                names.Add(Shorten(segment));
+                names.Add(Shorten(segment.ToLegacyString()));
                 continue;
             }
 
@@ -1063,9 +1063,9 @@ public partial class MainWindowViewModel : ViewModelBase
 
     /// <summary>The non-empty parameter values of one segment, comma-separated and shortened. Key
     /// values read as the platform names its keys, as in the editor.</summary>
-    private static string DescribeParameters(string segment, CommandInfo info)
+    private static string DescribeParameters(CommandCall segment, CommandInfo info)
     {
-        string[] values = CommandStringParser.GetParameters(segment, info);
+        string[] values = segment.GetParameters(info);
         List<string> shown = [];
         for (int i = 0; i < values.Length; i++)
         {
@@ -1191,7 +1191,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _clipboard.Copy(button, kind.Value, button is TouchButton touch ? CaptureLinkedFolders(CommandsOf(touch)) : null);
     }
 
-    private static IEnumerable<string> CommandsOf(TouchButton button)
+    private static IEnumerable<CommandBinding> CommandsOf(TouchButton button)
         => (button?.States ?? []).Select(static s => s?.Command).Append(button?.Command);
 
     /// <summary>
@@ -1199,7 +1199,7 @@ public partial class MainWindowViewModel : ViewModelBase
     /// device without them can recreate them (issue #535). A folder below another linked one travels
     /// inside that one's snapshot.
     /// </summary>
-    private List<string> CaptureLinkedFolders(IEnumerable<string> commands)
+    private List<string> CaptureLinkedFolders(IEnumerable<CommandBinding> commands)
     {
         Workspace workspace = _config.ActiveWorkspace;
         List<Models.CustomFolder> linked = [.. commands
@@ -1280,7 +1280,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private bool CanCopyPage(PageSlot slot)
         => slot != PageSlot.Touch || !CopiesMirroredFolder(TouchPageCommands(LoupedeckController.PageManager.CurrentTouchButtonPage));
 
-    private static IEnumerable<string> TouchPageCommands(TouchButtonPage page)
+    private static IEnumerable<CommandBinding> TouchPageCommands(TouchButtonPage page)
         => page == null
             ? []
             : page.TouchButtons.SelectMany(CommandsOf)
@@ -1292,7 +1292,7 @@ public partial class MainWindowViewModel : ViewModelBase
     /// show their master's content, which is never stored with the companion, so a copy made here would
     /// carry the folders empty (issue #673). They are copied on the master instead.
     /// </summary>
-    private bool CopiesMirroredFolder(IEnumerable<string> commands)
+    private bool CopiesMirroredFolder(IEnumerable<CommandBinding> commands)
         => _config.CompanionLink != null && commands.SelectMany(Services.Folders.FolderCommand.ReferencedFolders).Any();
 
     private bool CanPastePage(PageSlot slot) => !(slot == PageSlot.Touch && IsMirroredFolderOpen) && _clipboard.CanPasteInto(slot switch
@@ -1834,7 +1834,7 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
 
         PanelDropChoice choice = PanelDropChoice.Overwrite;
-        if (!string.IsNullOrEmpty(page.GetStripSegmentCommand(segment)))
+        if (!CommandBinding.IsNullOrEmpty(page.GetStripSegmentCommand(segment)))
         {
             choice = await AskPanelDropChoice("Confirm_OverwriteSegmentMessage",
                 "Confirm_OverwriteOrAppendSegmentMessage", canAppend: true);
@@ -1943,7 +1943,7 @@ public partial class MainWindowViewModel : ViewModelBase
     /// <summary>Clears one gesture of a dial, then saves and repaints.</summary>
     public async Task ClearDialGestureAsync(RotaryButton dial, RotaryAction gesture)
     {
-        if (dial == null || string.IsNullOrWhiteSpace(dial.GetCommand(gesture)))
+        if (dial == null || CommandBinding.IsNullOrEmpty(dial.GetCommand(gesture)))
             return;
 
         DialMenu.ClearGesture(dial, gesture);

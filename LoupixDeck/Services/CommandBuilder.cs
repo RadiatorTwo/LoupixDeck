@@ -8,7 +8,19 @@ namespace LoupixDeck.Services;
 public interface ICommandBuilder
 {
     string CreateCommandFromMenuEntry(MenuEntry menuEntry);
+
+    /// <summary>
+    /// The structured counterpart of <see cref="CreateCommandFromMenuEntry"/>, built through
+    /// <see cref="BuildCall"/>; null when the entry's command is not registered.
+    /// </summary>
+    CommandCall CreateCallFromMenuEntry(MenuEntry menuEntry);
     string BuildCommandString(CommandInfo commandInfo, Dictionary<string, object> parameterValues);
+
+    /// <summary>
+    /// The structured counterpart of <see cref="BuildCommandString"/>: the same parameter list,
+    /// but every value that fills a whole slot of the template arrives exactly as given.
+    /// </summary>
+    CommandCall BuildCall(CommandInfo commandInfo, Dictionary<string, object> parameterValues);
 }
 
 public class CommandBuilder : ICommandBuilder
@@ -24,8 +36,19 @@ public class CommandBuilder : ICommandBuilder
     {
         var command = _commandRegistry.Get(menuEntry.Command)?.Info;
 
-        if (command == null) return string.Empty;
+        return command == null ? string.Empty : BuildCommandString(command, ResolveMenuParameters(command, menuEntry));
+    }
 
+    public CommandCall CreateCallFromMenuEntry(MenuEntry menuEntry)
+    {
+        var command = _commandRegistry.Get(menuEntry.Command)?.Info;
+
+        return command == null ? null : BuildCall(command, ResolveMenuParameters(command, menuEntry));
+    }
+
+    /// <summary>The value of every parameter of <paramref name="command"/> for a menu entry.</summary>
+    private static Dictionary<string, object> ResolveMenuParameters(CommandInfo command, MenuEntry menuEntry)
+    {
         var parameters = new Dictionary<string, object>();
         Dictionary<string, string> named = MatchMenuParameters(command, menuEntry);
 
@@ -82,7 +105,7 @@ public class CommandBuilder : ICommandBuilder
             }
         }
 
-        return BuildCommandString(command, parameters);
+        return parameters;
     }
 
     /// <summary>
@@ -153,5 +176,43 @@ public class CommandBuilder : ICommandBuilder
 
         sb.Append(templateSb);
         return sb.ToString();
+    }
+
+    /// <remarks>
+    /// The template is split into its slots the way the executor reads a command string. A slot
+    /// that is just one placeholder (<c>{Text}</c>) takes the value exactly, untrimmed and with
+    /// any commas or parentheses it holds. A slot with literal text (<c>text=</c>, or a placeholder
+    /// inside other text) gets its placeholders replaced, as <see cref="BuildCommandString"/>
+    /// does. Trailing empty values are dropped, as the text form always dropped them, so commands
+    /// that check the parameter count see what they did before.
+    /// </remarks>
+    public CommandCall BuildCall(CommandInfo commandInfo, Dictionary<string, object> parameterValues)
+    {
+        string[] slots = Utils.CommandStringParser.GetParameters("x" + commandInfo.ParameterTemplate);
+        List<string> values = new(slots.Length);
+
+        foreach (string slot in slots)
+        {
+            ParameterDescriptor whole = commandInfo.Parameters.FirstOrDefault(p => slot == "{" + p.Name + "}");
+            if (whole != null)
+            {
+                values.Add(ValueOf(whole.Name));
+                continue;
+            }
+
+            StringBuilder text = new(slot);
+            foreach (ParameterDescriptor param in commandInfo.Parameters)
+                text.Replace("{" + param.Name + "}", ValueOf(param.Name));
+            values.Add(text.ToString());
+        }
+
+        int count = values.Count;
+        while ((count > 0) && (values[count - 1].Length == 0))
+            count--;
+
+        return CommandCall.Create(commandInfo.CommandName, values.Take(count));
+
+        string ValueOf(string name) =>
+            parameterValues.TryGetValue(name, out object value) ? value?.ToString() ?? "null" : "null";
     }
 }

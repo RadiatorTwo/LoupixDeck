@@ -175,7 +175,9 @@ public class MacroManager : IMacroManager
 
         try
         {
+            int arrayWrites = CommandBindingJsonConverter.ArrayWritesOnThisThread;
             var json = JsonConvert.SerializeObject(settings, SerializerSettings);
+            StructuredCommandBackup.BeforeSave(path, CommandBindingJsonConverter.ArrayWritesOnThisThread != arrayWrites);
 
             // Atomic write: temp file first, then move into place (same pattern as ConfigService).
             var tempPath = path + ".tmp";

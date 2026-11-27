@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using LoupixDeck.Models;
 using LoupixDeck.Models.Macros;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Services.Mouse;
@@ -584,8 +585,8 @@ public class MacroRunner : IDisposable
                 break;
 
             case CommandStep command:
-                var expandedCommand = context.Expand(command.CommandString);
-                if (!string.IsNullOrWhiteSpace(expandedCommand))
+                CommandBinding expandedCommand = ExpandCommand(command.CommandString, context);
+                if (!CommandBinding.IsNullOrEmpty(expandedCommand))
                     await _commandService.ExecuteCommand(expandedCommand, ButtonTargets.None);
                 break;
 
@@ -593,6 +594,25 @@ public class MacroRunner : IDisposable
                 ExecuteSetVariable(setVariable, context);
                 break;
         }
+    }
+
+    /// <summary>
+    /// Replaces the variable placeholders in a command step's chain. A chain of text calls expands as
+    /// one string and is read again, exactly as before, so a value with a comma or <c>&amp;&amp;</c>
+    /// still splits the way it always did. Structured values expand one by one: a value with a comma
+    /// stays one value.
+    /// </summary>
+    private static CommandBinding ExpandCommand(CommandBinding command, MacroContext context)
+    {
+        if (CommandBinding.IsNullOrEmpty(command))
+            return command;
+
+        if (command.IsAllText)
+            return CommandBinding.FromLegacy(context.Expand(command.ToLegacyString()));
+
+        return new CommandBinding(command.SelectMany<CommandCall, CommandCall>(call => call.IsText
+            ? CommandBinding.FromLegacy(context.Expand(call.Text))
+            : [CommandCall.Create(call.Name, call.GetParameters().Select(context.Expand))]));
     }
 
     private static void ExecuteSetVariable(SetVariableStep step, MacroContext context)

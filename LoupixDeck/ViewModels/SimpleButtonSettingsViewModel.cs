@@ -75,7 +75,7 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
     public IRelayCommand ClearCommandCommand => field ??= Relay.Create(ClearCommandOnly);
 
     /// <summary>True when the button has a non-empty command assigned.</summary>
-    public bool HasCommand => !string.IsNullOrWhiteSpace(ButtonData?.Command);
+    public bool HasCommand => !CommandBinding.IsNullOrEmpty(ButtonData?.Command);
 
     // ───────── States ─────────
 
@@ -317,19 +317,18 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
 
         if (ButtonData == null) return;
 
-        foreach (var raw in CommandStringParser.SplitChain(ButtonData.Command))
-            Commands.Add(CreateSegment(raw));
+        foreach (CommandCall call in ButtonData.Command ?? CommandBinding.Empty)
+            Commands.Add(CreateSegment(call));
     }
 
     /// <summary>Builds a <see cref="CommandSegment"/> from a raw segment, resolving its
     /// <see cref="Commands.Base.CommandInfo"/> when the command name is a known system command.</summary>
-    private CommandSegment CreateSegment(string raw)
+    private CommandSegment CreateSegment(CommandCall call)
     {
-        var name = CommandStringParser.GetName(raw);
-        var info = _commandRegistry.Get(name)?.Info;
-        var owner = info == null ? _commandRegistry.GetMissingPluginOwner(name) : null;
-        var segment = CommandSegment.Create(_commandBuilder, _dialogService, info, raw, owner,
-            info != null ? _commandLock.GetLockHint(raw) : null, _parameterOptions);
+        var info = _commandRegistry.Get(call.Name)?.Info;
+        var owner = info == null ? _commandRegistry.GetMissingPluginOwner(call.Name) : null;
+        var segment = CommandSegment.Create(_commandBuilder, _dialogService, info, call, owner,
+            info != null ? _commandLock.GetLockHint(call) : null, _parameterOptions);
         segment.Changed += OnSegmentChanged;
         return segment;
     }
@@ -344,16 +343,15 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
             Commands[i].Position = i + 1;
     }
 
-    /// <summary>Recomposes the persisted <c>&amp;&amp;</c>-joined command string from the
-    /// current card order/values. Called after every add / remove / reorder / edit.</summary>
+    /// <summary>Recomposes the persisted chain from the current card order/values. Called after
+    /// every add / remove / reorder / edit.</summary>
     private void RebuildCommandString()
     {
         if (ButtonData == null) return;
 
-        var joined = string.Join(" && ",
-            Commands.Select(s => s.Raw).Where(r => !string.IsNullOrWhiteSpace(r)));
+        CommandBinding chain = new(Commands.Where(s => !s.IsBlank).Select(s => s.Call));
 
-        ButtonData.Command = string.IsNullOrWhiteSpace(joined) ? null : joined;
+        ButtonData.Command = chain.IsEmpty ? null : chain;
         ReconcileCommandStates();
         NotifyCommandChanged();
     }
@@ -366,7 +364,7 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
     {
         if (ButtonData == null || menuEntry == null) return;
 
-        InsertRawAt(_commandBuilder.CreateCommandFromMenuEntry(menuEntry), index);
+        InsertCallAt(_commandBuilder.CreateCallFromMenuEntry(menuEntry), index);
     }
 
     /// <summary>Inserts the launch command of <paramref name="app"/> (Apps tab) at the given card
@@ -382,10 +380,25 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
     /// there was nothing to insert.</summary>
     public bool InsertRawAt(string formattedCommand, int index)
     {
-        if (ButtonData == null || string.IsNullOrWhiteSpace(formattedCommand)) return false;
+        // A formatted command may hold a whole chain; each of its commands becomes a card.
+        int inserted = 0;
+        foreach (CommandCall call in CommandBinding.FromLegacy(formattedCommand))
+        {
+            if (InsertCallAt(call, index + inserted))
+                inserted++;
+        }
+
+        return inserted > 0;
+    }
+
+    /// <summary>Inserts a call at the given card index, exactly as given. Returns false when there
+    /// was nothing to insert.</summary>
+    public bool InsertCallAt(CommandCall call, int index)
+    {
+        if (ButtonData == null || call == null || (call.IsText && string.IsNullOrWhiteSpace(call.Text))) return false;
 
         index = Math.Clamp(index, 0, Commands.Count);
-        Commands.Insert(index, CreateSegment(formattedCommand));
+        Commands.Insert(index, CreateSegment(call));
         RebuildCommandString();
         return true;
     }

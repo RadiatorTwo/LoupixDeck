@@ -1,4 +1,5 @@
 using LoupixDeck.Localization;
+using LoupixDeck.Models;
 using LoupixDeck.Utils;
 using Newtonsoft.Json.Linq;
 
@@ -15,17 +16,17 @@ internal sealed record Lp5Context(string WorkspaceId, IReadOnlyList<string> Touc
 }
 
 /// <summary>A converted action, or the reason it could not be converted.</summary>
-internal sealed record Lp5Resolution(string Command, Lp5UnsupportedReason? Reason = null, string Detail = null)
+internal sealed record Lp5Resolution(CommandBinding Command, Lp5UnsupportedReason? Reason = null, string Detail = null)
 {
-    public static readonly Lp5Resolution None = new((string)null);
+    public static readonly Lp5Resolution None = new((CommandBinding)null);
 }
 
 /// <summary>A converted dial: rotation commands, press command and strip label.</summary>
-internal sealed record Lp5DialResolution(string Left, string Right, Lp5Resolution Press, string Label,
+internal sealed record Lp5DialResolution(CommandBinding Left, CommandBinding Right, Lp5Resolution Press, string Label,
     Lp5UnsupportedReason? RotateReason, string RotateDetail);
 
 /// <summary>
-/// Maps Loupedeck action references to LoupixDeck command strings. Unknown actions are never guessed;
+/// Maps Loupedeck action references to LoupixDeck commands. Unknown actions are never guessed;
 /// they come back with a reason instead.
 /// </summary>
 /// <remarks>
@@ -95,7 +96,7 @@ internal sealed class Lp5ActionResolver
             if (!_profileActions.TryGetValue(actionRef, out JObject action))
                 return new Lp5Resolution(null, Lp5UnsupportedReason.MissingDefinition, actionRef);
 
-            string command = ProfileActionCommand(action);
+            CommandBinding command = ProfileActionCommand(action);
             return command != null
                 ? new Lp5Resolution(command)
                 : new Lp5Resolution(null, Lp5UnsupportedReason.UnsupportedProfileAction,
@@ -108,7 +109,7 @@ internal sealed class Lp5ActionResolver
                 return new Lp5Resolution(null, Lp5UnsupportedReason.MissingDefinition, actionRef);
 
             List<string> steps = Lp5Json.Strings(macro, "actions").Where(s => !string.IsNullOrEmpty(s)).ToList();
-            string command = Chain(macro, steps, context, depth, null, out Lp5Resolution failed);
+            CommandBinding command = Chain(macro, steps, context, depth, null, out Lp5Resolution failed);
             if (command != null) return new Lp5Resolution(command);
             if (HasMissingSteps(macro, steps)) return new Lp5Resolution(null, Lp5UnsupportedReason.MissingMacroSteps, actionRef);
 
@@ -199,8 +200,8 @@ internal sealed class Lp5ActionResolver
     {
         Lp5Resolution press = Resolve(pressRef, context);
         string label = Label(IsNone(rotateRef) ? pressRef : rotateRef);
-        string left = null;
-        string right = null;
+        CommandBinding left = null;
+        CommandBinding right = null;
         Lp5UnsupportedReason? rotateReason = null;
 
         if (!IsNone(rotateRef))
@@ -290,7 +291,7 @@ internal sealed class Lp5ActionResolver
         return tail.Length > MaxLabelLength ? tail[..MaxLabelLength] : tail;
     }
 
-    private static string ProfileActionCommand(JObject action)
+    private static CommandBinding ProfileActionCommand(JObject action)
     {
         string template = Lp5Json.Str(action, "templateActionName") ?? string.Empty;
         JObject parameters = Lp5Json.Obj(Lp5Json.Obj(action, "actionParameters"), "parameters");
@@ -351,17 +352,15 @@ internal sealed class Lp5ActionResolver
     }
 
     /// <summary>
-    /// Types <paramref name="text"/>. The command parser splits parameters on <c>,</c> and cuts at
-    /// <c>)</c>, and the text command does not decode escapes, so only text free of those converts.
+    /// Types <paramref name="text"/>. Stored as a structured call, so the text arrives exactly, commas,
+    /// parentheses and surrounding spaces included.
     /// </summary>
     private static Lp5Resolution TypeText(string text, string actionRef)
     {
         if (text.Length == 0)
             return new Lp5Resolution(null, Lp5UnsupportedReason.EmptyText, actionRef);
 
-        return text.IndexOfAny([',', '(', ')']) < 0 && !text.Contains("&&", StringComparison.Ordinal) && text.Trim() == text
-            ? new Lp5Resolution($"System.SimpleMacro({text})")
-            : new Lp5Resolution(null, Lp5UnsupportedReason.UnknownAction, actionRef);
+        return new Lp5Resolution(CommandBinding.Of(CommandCall.Create("System.SimpleMacro", [text])));
     }
 
     /// <summary>
@@ -369,7 +368,7 @@ internal sealed class Lp5ActionResolver
     /// as a partial macro would do something different from the original. <paramref name="right"/> is
     /// the turn direction for an adjustment's steps, null for a command macro.
     /// </summary>
-    private string Chain(JObject macro, IEnumerable<string> steps, Lp5Context context, int depth, bool? right,
+    private CommandBinding Chain(JObject macro, IEnumerable<string> steps, Lp5Context context, int depth, bool? right,
         out Lp5Resolution failed)
     {
         failed = null;
@@ -386,7 +385,7 @@ internal sealed class Lp5ActionResolver
                 local[name] = $"System.KeyCombination({combo})";
         }
 
-        List<string> parts = [];
+        List<CommandBinding> parts = [];
         foreach (string step in steps)
         {
             if (string.IsNullOrEmpty(step)) continue;
@@ -420,7 +419,7 @@ internal sealed class Lp5ActionResolver
             parts.Add(resolution.Command);
         }
 
-        return parts.Count > 0 ? string.Join(" && ", parts) : null;
+        return parts.Count > 0 ? new CommandBinding(parts.SelectMany(part => part)) : null;
     }
 
     /// <summary>

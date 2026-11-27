@@ -80,7 +80,7 @@ public partial class TextLayer : LayerBase
     /// </summary>
     [ObservableProperty]
     [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
-    public partial string TextCommand { get; set; }
+    public partial CommandBinding TextCommand { get; set; }
 
     /// <summary>
     /// The latest text reported by <see cref="TextCommand"/>. Runtime only: it is written silently

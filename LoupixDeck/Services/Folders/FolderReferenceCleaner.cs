@@ -57,7 +57,7 @@ public static class FolderReferenceCleaner
         HashSet<Guid> existing = [.. workspace.EnumerateFolders().Select(static f => f.Id)];
         HashSet<Guid> dangling = [];
 
-        void Collect(string command)
+        void Collect(CommandBinding command)
         {
             foreach (Guid id in FolderCommand.ReferencedFolders(command))
                 if (!existing.Contains(id))
@@ -84,7 +84,7 @@ public static class FolderReferenceCleaner
                 Collect(button?.RotaryRightCommand);
             }
 
-            foreach (string command in page?.StripSegmentCommands ?? [])
+            foreach (CommandBinding command in page?.StripSegmentCommands ?? [])
                 Collect(command);
 
             foreach (CommandWrap wrap in WrapsOf(page))
@@ -132,8 +132,8 @@ public static class FolderReferenceCleaner
         {
             if (state == null || !FolderCommand.ReferencedFolders(state.Command).Any(folderIds.Contains)) continue;
 
-            string remaining = FolderCommand.RemoveReferences(state.Command, folderIds);
-            if (string.IsNullOrEmpty(remaining) && button.States.Count == 1)
+            CommandBinding remaining = FolderCommand.RemoveReferences(state.Command, folderIds);
+            if (CommandBinding.IsNullOrEmpty(remaining) && button.States.Count == 1)
             {
                 clear(button);
                 return true;
@@ -160,14 +160,14 @@ public static class FolderReferenceCleaner
             if (button == null) continue;
             bool touched = false;
 
-            string command = Strip(button.Command, folderIds, ref touched);
-            string left = Strip(button.RotaryLeftCommand, folderIds, ref touched);
-            string right = Strip(button.RotaryRightCommand, folderIds, ref touched);
+            CommandBinding command = Strip(button.Command, folderIds, ref touched);
+            CommandBinding left = Strip(button.RotaryLeftCommand, folderIds, ref touched);
+            CommandBinding right = Strip(button.RotaryRightCommand, folderIds, ref touched);
             if (!touched) continue;
 
             button.Command = command;
-            button.RotaryLeftCommand = left ?? string.Empty;
-            button.RotaryRightCommand = right ?? string.Empty;
+            button.RotaryLeftCommand = left ?? CommandBinding.Empty;
+            button.RotaryRightCommand = right ?? CommandBinding.Empty;
             button.Refresh();
             changed++;
         }
@@ -177,7 +177,7 @@ public static class FolderReferenceCleaner
             for (int i = 0; i < page.StripSegmentCommands.Length; i++)
             {
                 bool touched = false;
-                string command = Strip(page.StripSegmentCommands[i], folderIds, ref touched);
+                CommandBinding command = Strip(page.StripSegmentCommands[i], folderIds, ref touched);
                 if (!touched) continue;
                 page.StripSegmentCommands[i] = command;
                 changed++;
@@ -199,16 +199,16 @@ public static class FolderReferenceCleaner
         if (wrap == null) return false;
 
         bool touched = false;
-        string pre = Strip(wrap.PreCommands, folderIds, ref touched);
-        string post = Strip(wrap.PostCommands, folderIds, ref touched);
+        CommandBinding pre = Strip(wrap.PreCommands, folderIds, ref touched);
+        CommandBinding post = Strip(wrap.PostCommands, folderIds, ref touched);
         if (!touched) return false;
 
-        wrap.PreCommands = pre ?? string.Empty;
-        wrap.PostCommands = post ?? string.Empty;
+        wrap.PreCommands = pre ?? CommandBinding.Empty;
+        wrap.PostCommands = post ?? CommandBinding.Empty;
         return true;
     }
 
-    private static string Strip(string command, IReadOnlySet<Guid> folderIds, ref bool touched)
+    private static CommandBinding Strip(CommandBinding command, IReadOnlySet<Guid> folderIds, ref bool touched)
     {
         if (!FolderCommand.ReferencedFolders(command).Any(folderIds.Contains)) return command;
         touched = true;

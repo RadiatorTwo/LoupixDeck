@@ -221,13 +221,13 @@ public sealed class CommandStateMaterializer(
     /// button is for. Resolved once, here: afterwards it is plain text the user can edit.
     /// </summary>
     private static void ResolveParameterPlaceholders(List<ButtonState> states, RegisteredCommand command,
-        string boundCommand)
+        CommandBinding boundCommand)
     {
         IReadOnlyList<ParameterDescriptor> declared = command.Info?.Parameters;
         if (declared is not { Count: > 0 })
             return;
 
-        string[] values = CommandStringParser.GetParameters(FirstSegment(boundCommand));
+        string[] values = FirstSegment(boundCommand)?.GetParameters() ?? [];
         foreach (TextLayer layer in states.SelectMany(state => state.Layers).OfType<TextLayer>())
         {
             if (string.IsNullOrEmpty(layer.Text) || !layer.Text.Contains('{'))
@@ -249,15 +249,15 @@ public sealed class CommandStateMaterializer(
     {
         foreach (ButtonState state in button.States)
         {
-            if (!string.Equals(state.Command, button.Command, StringComparison.Ordinal))
+            if (!Equals(state.Command, button.Command))
                 state.Command = button.Command;
         }
     }
 
     /// <summary>The command bound to the button, if it declares states; null otherwise.</summary>
-    private RegisteredCommand ResolveDeclaringCommand(string boundCommand)
+    private RegisteredCommand ResolveDeclaringCommand(CommandBinding boundCommand)
     {
-        string name = CommandStringParser.GetName(FirstSegment(boundCommand));
+        string name = FirstSegment(boundCommand)?.Name;
         if (string.IsNullOrEmpty(name))
             return null;
 
@@ -269,15 +269,14 @@ public sealed class CommandStateMaterializer(
     /// Owner key of the button's command — built from the first segment only, so appending a
     /// second command to the sequence does not look like a different owner.
     /// </summary>
-    private static string OwnerKeyOf(string boundCommand) => PluginLayerKey.For(FirstSegment(boundCommand));
+    private static string OwnerKeyOf(CommandBinding boundCommand) => PluginLayerKey.For(FirstSegment(boundCommand)?.ToLegacyString());
 
     /// <summary>True when both owner keys name the same command, whatever their parameters.</summary>
     private static bool IsSameCommand(string ownerKey, string storedOwnerKey) =>
         string.Equals(PluginLayerKey.ParseCommandName(ownerKey), PluginLayerKey.ParseCommandName(storedOwnerKey),
             StringComparison.Ordinal);
 
-    private static string FirstSegment(string boundCommand) =>
-        CommandStringParser.SplitChain(boundCommand).FirstOrDefault();
+    private static CommandCall FirstSegment(CommandBinding boundCommand) => boundCommand?.First;
 
     /// <summary>Drops "jump to a specific state" targets that no longer resolve.</summary>
     private static void ClearDanglingTransitions(StatefulButton button)

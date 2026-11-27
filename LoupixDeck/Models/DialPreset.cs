@@ -25,13 +25,13 @@ public sealed class DialPreset
 
     /// <summary>Command run when the dial is turned counter-clockwise. Empty leaves the gesture
     /// unassigned.</summary>
-    public string Left { get; set; } = string.Empty;
+    public CommandBinding Left { get; set; } = CommandBinding.Empty;
 
     /// <summary>Command run when the dial is turned clockwise.</summary>
-    public string Right { get; set; } = string.Empty;
+    public CommandBinding Right { get; set; } = CommandBinding.Empty;
 
     /// <summary>Command run when the dial is pressed.</summary>
-    public string Press { get; set; } = string.Empty;
+    public CommandBinding Press { get; set; } = CommandBinding.Empty;
 
     /// <summary>True for a preset that ships with the app: it can be applied but not edited or
     /// removed. Never persisted — the built-ins are code, not file content.</summary>
@@ -65,27 +65,28 @@ public sealed class DialPreset
     /// offering.</summary>
     [JsonIgnore]
     public bool IsEmpty =>
-        string.IsNullOrWhiteSpace(Left) &&
-        string.IsNullOrWhiteSpace(Right) &&
-        string.IsNullOrWhiteSpace(Press);
+        CommandBinding.IsNullOrEmpty(Left) &&
+        CommandBinding.IsNullOrEmpty(Right) &&
+        CommandBinding.IsNullOrEmpty(Press);
 
     /// <summary>
     /// The preset as the rotary-group map the rest of the app already speaks — the same shape a
     /// plugin's <see cref="MenuNode.RotaryGroup"/> carries, so a preset can be applied by the code
     /// that already applies those. Gestures the preset leaves empty are omitted, which means they
-    /// keep whatever the dial had.
+    /// keep whatever the dial had. The chains are handed over as they are, so structured values
+    /// reach the dial exactly.
     /// </summary>
-    public IReadOnlyDictionary<RotaryAction, string> ToRotaryGroup()
+    public IReadOnlyDictionary<RotaryAction, CommandBinding> ToRotaryGroup()
     {
-        Dictionary<RotaryAction, string> map = [];
+        Dictionary<RotaryAction, CommandBinding> map = [];
 
-        if (!string.IsNullOrWhiteSpace(Left))
+        if (!CommandBinding.IsNullOrEmpty(Left))
             map[RotaryAction.CounterClockwise] = Left;
 
-        if (!string.IsNullOrWhiteSpace(Right))
+        if (!CommandBinding.IsNullOrEmpty(Right))
             map[RotaryAction.Clockwise] = Right;
 
-        if (!string.IsNullOrWhiteSpace(Press))
+        if (!CommandBinding.IsNullOrEmpty(Press))
             map[RotaryAction.Press] = Press;
 
         return map;

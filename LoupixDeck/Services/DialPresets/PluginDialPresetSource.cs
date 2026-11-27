@@ -128,7 +128,7 @@ public sealed class PluginDialPresetSource : IPluginDialPresetSource
         if (taken.Any(p => p.Id == id))
             return null;
 
-        Dictionary<RotaryAction, string> commands =
+        Dictionary<RotaryAction, CommandBinding> commands =
             RotaryGroupBuilder.Build(descriptor.Actions, _commandBuilder);
 
         DialPreset preset = new()

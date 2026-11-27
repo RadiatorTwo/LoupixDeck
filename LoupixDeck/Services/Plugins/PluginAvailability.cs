@@ -1,5 +1,5 @@
 using LoupixDeck.Models.Layers;
-using LoupixDeck.Utils;
+using LoupixDeck.Models;
 
 namespace LoupixDeck.Services.Plugins;
 
@@ -73,19 +73,13 @@ public static class PluginAvailability
     }
 
     /// <summary>True when any command of <paramref name="boundCommand"/> belongs to an unavailable plugin.</summary>
-    public static bool IsUnavailable(string boundCommand)
+    public static bool IsUnavailable(CommandBinding boundCommand)
     {
         HashSet<string> commands = _unavailableCommands;
-        if (commands.Count == 0 || string.IsNullOrWhiteSpace(boundCommand))
+        if (commands.Count == 0 || CommandBinding.IsNullOrEmpty(boundCommand))
             return false;
 
-        foreach (string segment in CommandStringParser.SplitChain(boundCommand))
-        {
-            if (commands.Contains(PluginLayerKey.ParseCommandName(segment)))
-                return true;
-        }
-
-        return false;
+        return boundCommand.Any(segment => commands.Contains(segment.Name));
     }
 
     /// <summary>Rebuilds the snapshot under the gate; true when it changed.</summary>

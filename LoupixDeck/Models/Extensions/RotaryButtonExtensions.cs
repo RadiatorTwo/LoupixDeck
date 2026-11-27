@@ -10,19 +10,19 @@ namespace LoupixDeck.Models.Extensions;
 /// </summary>
 public static class RotaryButtonExtensions
 {
-    /// <summary>The command bound to <paramref name="action"/>, or an empty string when the gesture
+    /// <summary>The command bound to <paramref name="action"/>, or an empty chain when the gesture
     /// is unassigned.</summary>
-    public static string GetCommand(this RotaryButton dial, RotaryAction action) => action switch
+    public static CommandBinding GetCommand(this RotaryButton dial, RotaryAction action) => action switch
     {
-        RotaryAction.CounterClockwise => dial?.RotaryLeftCommand ?? string.Empty,
-        RotaryAction.Clockwise => dial?.RotaryRightCommand ?? string.Empty,
-        RotaryAction.Press => dial?.Command ?? string.Empty,
-        _ => string.Empty
+        RotaryAction.CounterClockwise => dial?.RotaryLeftCommand ?? CommandBinding.Empty,
+        RotaryAction.Clockwise => dial?.RotaryRightCommand ?? CommandBinding.Empty,
+        RotaryAction.Press => dial?.Command ?? CommandBinding.Empty,
+        _ => CommandBinding.Empty
     };
 
     /// <summary>Binds <paramref name="command"/> to <paramref name="action"/>. An empty command
     /// clears the gesture.</summary>
-    public static void SetCommand(this RotaryButton dial, RotaryAction action, string command)
+    public static void SetCommand(this RotaryButton dial, RotaryAction action, CommandBinding command)
     {
         if (dial == null)
             return;
@@ -45,9 +45,9 @@ public static class RotaryButtonExtensions
 
     /// <summary>True when no gesture of this dial is bound to anything.</summary>
     public static bool IsEmpty(this RotaryButton dial) =>
-        string.IsNullOrWhiteSpace(dial?.RotaryLeftCommand) &&
-        string.IsNullOrWhiteSpace(dial?.RotaryRightCommand) &&
-        string.IsNullOrWhiteSpace(dial?.Command);
+        CommandBinding.IsNullOrEmpty(dial?.RotaryLeftCommand) &&
+        CommandBinding.IsNullOrEmpty(dial?.RotaryRightCommand) &&
+        CommandBinding.IsNullOrEmpty(dial?.Command);
 
     /// <summary>The gestures in the order they are shown to the user.</summary>
     public static IReadOnlyList<RotaryAction> Gestures { get; } =

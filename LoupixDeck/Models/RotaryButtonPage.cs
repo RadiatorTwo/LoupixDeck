@@ -43,14 +43,14 @@ public sealed partial class RotaryButtonPage(int pageSize) : ButtonPageBase()
     /// as "no command", so configs written before this existed load unchanged. A null
     /// array round-trips to null.
     /// </summary>
-    public string[] StripSegmentCommands { get; set; }
+    public CommandBinding[] StripSegmentCommands { get; set; }
 
     /// <summary>Number of free-draw strip segments (matches the three side dials).</summary>
     public const int StripSegmentCount = 3;
 
     /// <summary>Reads the command of free-draw segment <paramref name="index"/> (0..2),
     /// tolerating a null/short backing array.</summary>
-    public string GetStripSegmentCommand(int index)
+    public CommandBinding GetStripSegmentCommand(int index)
     {
         var commands = StripSegmentCommands;
         return commands != null && index >= 0 && index < commands.Length ? commands[index] : null;
@@ -59,13 +59,13 @@ public sealed partial class RotaryButtonPage(int pageSize) : ButtonPageBase()
     /// <summary>Writes the command of free-draw segment <paramref name="index"/> (0..2),
     /// lazily allocating/growing the backing array to length 3 so older configs and a
     /// null array stay valid.</summary>
-    public void SetStripSegmentCommand(int index, string value)
+    public void SetStripSegmentCommand(int index, CommandBinding value)
     {
         if (index < 0 || index >= StripSegmentCount) return;
 
         if (StripSegmentCommands == null || StripSegmentCommands.Length < StripSegmentCount)
         {
-            var grown = new string[StripSegmentCount];
+            var grown = new CommandBinding[StripSegmentCount];
             if (StripSegmentCommands != null)
                 Array.Copy(StripSegmentCommands, grown, StripSegmentCommands.Length);
             StripSegmentCommands = grown;

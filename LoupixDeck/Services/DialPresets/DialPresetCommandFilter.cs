@@ -1,7 +1,6 @@
 using LoupixDeck.Models;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Services.Commands;
-using LoupixDeck.Utils;
 
 namespace LoupixDeck.Services.DialPresets;
 
@@ -28,17 +27,17 @@ public static class DialPresetCommandFilter
     /// True when <paramref name="command"/> can be put on a dial. An empty string is fine — a
     /// preset need not fill all three gestures.
     /// </summary>
-    public static bool IsUsable(string command, ICommandRegistry registry)
+    public static bool IsUsable(CommandBinding command, ICommandRegistry registry)
     {
-        if (string.IsNullOrWhiteSpace(command))
+        if (CommandBinding.IsNullOrEmpty(command))
             return true;
 
         if (registry == null)
             return false;
 
-        foreach (string segment in CommandStringParser.SplitChain(command))
+        foreach (CommandCall segment in command)
         {
-            RegisteredCommand registered = registry.Get(CommandStringParser.GetName(segment));
+            RegisteredCommand registered = registry.Get(segment.Name);
             if (registered == null || !registered.SupportedTargets.HasFlag(ButtonTargets.RotaryEncoder))
                 return false;
         }

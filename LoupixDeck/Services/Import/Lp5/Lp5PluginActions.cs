@@ -1,4 +1,4 @@
-using LoupixDeck.Utils;
+using LoupixDeck.Models;
 
 namespace LoupixDeck.Services.Import.Lp5;
 
@@ -50,7 +50,7 @@ internal static class Lp5PluginActions
     ];
 
     /// <summary>The LoupixDeck command for a Loupedeck plugin action, or null when none is known.</summary>
-    public static string Command(string actionRef)
+    public static CommandBinding Command(string actionRef)
     {
         if (Commands.TryGetValue(actionRef, out string command))
             return command;
@@ -68,41 +68,20 @@ internal static class Lp5PluginActions
     }
 
     /// <summary>
-    /// <c>name(value)</c>, or null when the command parser would not hand <paramref name="value"/> to
-    /// the plugin unchanged.
+    /// <c>name</c> called with <paramref name="value"/> as a structured call, or null for an empty value.
     /// </summary>
     /// <remarks>
-    /// Plugins receive their parameters exactly as the parser cuts them and do not undo
-    /// <see cref="CommandParameterEncoding"/>, so an escaped value would reach them as
-    /// <c>Scene %281%29</c>. The value is therefore written as it is, and an action whose value the
-    /// parser would split (a <c>,</c> or <c>&amp;&amp;</c>), trim, or cut at an unbalanced parenthesis
-    /// is reported as not convertible instead of becoming a button that targets the wrong thing.
+    /// The value reaches the plugin exactly, commas, parentheses, <c>&amp;&amp;</c> and surrounding
+    /// spaces included, so an OBS scene or entity id of any shape converts.
     /// </remarks>
-    internal static string WithParameter(string name, string value)
-    {
-        if (string.IsNullOrEmpty(value) || value.Trim() != value || value.Contains(',') ||
-            value.Contains("&&", StringComparison.Ordinal))
-        {
-            return null;
-        }
-
-        int depth = 0;
-        foreach (char c in value)
-        {
-            if (c == '(')
-                depth++;
-            else if ((c == ')') && (--depth < 0))
-                return null;
-        }
-
-        return depth == 0 ? $"{name}({value})" : null;
-    }
+    internal static CommandBinding WithParameter(string name, string value) =>
+        string.IsNullOrEmpty(value) ? null : CommandBinding.Of(CommandCall.Create(name, [value]));
 
     /// <summary>
     /// The LoupixDeck command for a profile action built from a Loupedeck plugin template, or null when the
     /// template is unknown or uses options LoupixDeck cannot reproduce.
     /// </summary>
-    public static string ProfileActionCommand(string template, Func<string, string> parameter)
+    public static CommandBinding ProfileActionCommand(string template, Func<string, string> parameter)
     {
         switch (template)
         {
@@ -188,10 +167,10 @@ internal static class Lp5PluginActions
     };
 
     /// <summary>The Final Cut Pro plugin command that presses the shortcut of Apple command <paramref name="id"/>.</summary>
-    private static string FinalCutProShortcut(string id) => WithParameter("FinalCutPro.Shortcut", id);
+    private static CommandBinding FinalCutProShortcut(string id) => WithParameter("FinalCutPro.Shortcut", id);
 
     /// <summary>The command for a Final Cut Pro action that is not a plain shortcut, or null when none is known.</summary>
-    private static string FinalCutProCommand(string actionRef) =>
+    private static CommandBinding FinalCutProCommand(string actionRef) =>
         actionRef.StartsWith(FinalCutPro, StringComparison.Ordinal) &&
         FinalCutProCommands.TryGetValue(actionRef[FinalCutPro.Length..], out string id)
             ? FinalCutProShortcut(id)
@@ -201,7 +180,7 @@ internal static class Lp5PluginActions
     /// The left and right turn commands for a Loupedeck plugin dial that steps through two separate commands,
     /// or null when none is known.
     /// </summary>
-    public static (string Left, string Right)? AdjustmentPair(string rotateRef)
+    public static (CommandBinding Left, CommandBinding Right)? AdjustmentPair(string rotateRef)
     {
         if (!rotateRef.StartsWith(FinalCutPro, StringComparison.Ordinal) ||
             !FinalCutProDials.TryGetValue(rotateRef[FinalCutPro.Length..], out (string Left, string Right) ids))
@@ -213,7 +192,7 @@ internal static class Lp5PluginActions
     }
 
     /// <summary>The adjustment command for a Loupedeck plugin dial turn, or null when none is known.</summary>
-    public static string Adjustment(string rotateRef)
+    public static CommandBinding Adjustment(string rotateRef)
     {
         if (Adjustments.TryGetValue(rotateRef, out string command))
             return command;
