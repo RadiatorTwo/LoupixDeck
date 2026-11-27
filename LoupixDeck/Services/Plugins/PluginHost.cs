@@ -29,6 +29,7 @@ public sealed class PluginHost : IPluginHost
     private readonly Action<string> _refreshButtonStates;
     private readonly Action<bool> _setAvailable;
     private readonly Action _requestMenuRefresh;
+    private readonly Action<string, IReadOnlyList<string>> _executeCall;
 
     public PluginHost(
         string pluginId,
@@ -51,7 +52,8 @@ public sealed class PluginHost : IPluginHost
         Action requestRequirementsRefresh,
         Action<string> refreshButtonStates = null,
         Action<bool> setAvailable = null,
-        Action requestMenuRefresh = null)
+        Action requestMenuRefresh = null,
+        Action<string, IReadOnlyList<string>> executeCall = null)
     {
         _pluginId = pluginId;
         Logger = logger;
@@ -74,6 +76,7 @@ public sealed class PluginHost : IPluginHost
         _refreshButtonStates = refreshButtonStates;
         _setAvailable = setAvailable;
         _requestMenuRefresh = requestMenuRefresh;
+        _executeCall = executeCall;
     }
 
     public IPluginLogger Logger { get; }
@@ -103,6 +106,9 @@ public sealed class PluginHost : IPluginHost
     public void RequestRequirementsRefresh() => _requestRequirementsRefresh?.Invoke();
 
     public void ExecuteCommand(string command) => _executeCommand?.Invoke(command);
+
+    public void ExecuteCommand(string name, IReadOnlyList<string> parameters) =>
+        _executeCall?.Invoke(name, parameters);
 
     public void OpenFolder(IFolderProvider provider) => _openFolder?.Invoke(provider);
 

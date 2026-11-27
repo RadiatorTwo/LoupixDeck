@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using LoupixDeck.Localization;
+using LoupixDeck.Models;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Registry;
 using Microsoft.Extensions.DependencyInjection;
@@ -657,6 +658,20 @@ public class PluginManager : IPluginManager
             }
         }
 
+        // A structured call: the values reach the command exactly, without the string syntax.
+        void ExecuteCall(string name, IReadOnlyList<string> parameters)
+        {
+            try
+            {
+                CommandBinding call = CommandBinding.Of(CommandCall.Create(name, parameters));
+                _ = Device.GetRequiredService<ICommandService>().ExecuteCommand(call, ButtonTargets.None);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"PluginHost[{manifest.Id}]: ExecuteCommand({name}) failed: {ex.Message}");
+            }
+        }
+
         void RequestButtonRefresh(string commandName)
         {
             foreach (IServiceProvider target in ButtonTargetDevices())
@@ -932,7 +947,8 @@ public class PluginManager : IPluginManager
             () => _ = RefreshRequirementsAsync(),
             RefreshButtonStates,
             SetAvailable,
-            RequestMenuRefresh);
+            RequestMenuRefresh,
+            ExecuteCall);
 
         void RequestMenuRefresh()
         {
