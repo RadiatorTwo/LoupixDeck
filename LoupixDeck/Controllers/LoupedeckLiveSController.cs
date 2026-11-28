@@ -3887,8 +3887,8 @@ public partial class LoupedeckLiveSController(
     {
         if (sender is not TouchButtonPage page) return;
 
-        // Only redraw if this is the current page and wallpaper properties changed
-        if (page != config.CurrentTouchButtonPage) return;
+        // Only redraw if the current view shows this page's wallpaper
+        if (!ShowsWallpaperOf(page)) return;
 
         // Only a new invalidation restarts the debounce. Other page notifications must not
         // cancel it: the settings page answers WallpaperInvalidated by refreshing every page's
@@ -3917,6 +3917,24 @@ public partial class LoupedeckLiveSController(
         {
             // ignore canceled Tasks
         }
+    }
+
+    /// <summary>
+    /// True when a wallpaper edit on <paramref name="page"/> can change what the current view
+    /// shows: it is the current page, or an earlier page the current one inherits its wallpaper
+    /// from. The check runs after the edit, so a page that just gained or lost the wallpaper the
+    /// current page inherits still counts.
+    /// </summary>
+    private bool ShowsWallpaperOf(TouchButtonPage page)
+    {
+        if (ReferenceEquals(page, config.CurrentTouchButtonPage)) return true;
+        if (!config.InheritWallpaperFromPreviousPage) return false;
+
+        TouchButtonPage current = config.ActiveWorkspace?.CurrentPageLayout;
+        if (current == null || current.HasAnyWallpaper) return false;
+
+        int index = config.TouchButtonPages?.IndexOf(page) ?? -1;
+        return index >= 0 && index < config.CurrentTouchPageIndex;
     }
 
     // Buttons with a redraw queued but not yet started. A single edit raises ItemChanged several
