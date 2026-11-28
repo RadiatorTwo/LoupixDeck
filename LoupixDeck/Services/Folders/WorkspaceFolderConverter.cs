@@ -19,7 +19,8 @@ public static class WorkspaceFolderConverter
     /// A folder holding the touch pages and folders of <paramref name="workspace"/>. Dial pages have
     /// no place in a folder and are not carried over. Keys a navigation tile would cover (Back on
     /// every page, Next on every page but the last) move to a free key, on a later page when their
-    /// own page is full.
+    /// own page is full. A folder has no background of its own, so the pages' wallpapers are
+    /// dropped (issue #706).
     /// </summary>
     /// <param name="movedKeys">Number of keys that had to move for a navigation tile.</param>
     public static CustomFolder ToFolder(Workspace workspace, FolderGrid grid, int keyCount, DeviceGeometry geometry,
@@ -45,6 +46,7 @@ public static class WorkspaceFolderConverter
         if (folder == null) return null;
 
         Fit(folder, keyCount, geometry);
+        ClearWallpapers(folder);
         movedKeys = MakeRoomForNavigationTiles(folder, grid, keyCount, geometry);
         return folder;
     }
@@ -87,6 +89,18 @@ public static class WorkspaceFolderConverter
         {
             PortablePayloadNormalizer.Normalize(layout, keyCount);
             layout.Geometry = geometry;
+        }
+    }
+
+    /// <summary>Removes every wallpaper from the pages of the tree.</summary>
+    private static void ClearWallpapers(CustomFolder root)
+    {
+        foreach (CustomFolder folder in root.SelfAndDescendants())
+        foreach (TouchButtonPage layout in folder.Pages())
+        {
+            layout.MainWallpaper.Clear();
+            layout.LeftWallpaper.Clear();
+            layout.RightWallpaper.Clear();
         }
     }
 

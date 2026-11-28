@@ -250,7 +250,9 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
         if (_disposed) return;
 
         // A companion following its master's backgrounds (issue #665) plays the master's clip.
-        var page = _config?.WallpaperMaster?.CurrentTouchButtonPage ?? _pageManager.CurrentTouchButtonPage;
+        // An open folder has no background of its own, so the page it was opened from keeps
+        // playing (issue #706).
+        var page = (_config?.WallpaperMaster ?? _config)?.ActiveWorkspace?.CurrentPageLayout;
         var slot = page?.MainWallpaper;
         WatchSlot(slot);
 

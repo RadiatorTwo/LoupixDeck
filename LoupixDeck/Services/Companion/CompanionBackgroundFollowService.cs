@@ -166,6 +166,7 @@ public sealed class CompanionBackgroundFollowService
     /// <summary>
     /// Watches what one host shows as its background: the touch layout on screen (a page, folder or
     /// workspace switch), edits of the current page's wallpaper, and the wallpaper inheritance setting.
+    /// An open folder has no background of its own, so the page it was opened from is watched (issue #706).
     /// </summary>
     private sealed class HostWatch(DeviceHost host, Action changed)
     {
@@ -175,7 +176,7 @@ public sealed class CompanionBackgroundFollowService
         {
             host.Controller.PageManager.TouchLayoutChanged += OnTouchLayoutChanged;
             host.Controller.Config.PropertyChanged += OnConfigPropertyChanged;
-            WatchPage(host.Controller.Config.CurrentTouchButtonPage);
+            WatchPage(host.Controller.Config.ActiveWorkspace?.CurrentPageLayout);
         }
 
         public void Detach()
@@ -187,7 +188,7 @@ public sealed class CompanionBackgroundFollowService
 
         private void OnTouchLayoutChanged() => OnUiThread(() =>
         {
-            WatchPage(host.Controller.Config.CurrentTouchButtonPage);
+            WatchPage(host.Controller.Config.ActiveWorkspace?.CurrentPageLayout);
             changed();
         });
 

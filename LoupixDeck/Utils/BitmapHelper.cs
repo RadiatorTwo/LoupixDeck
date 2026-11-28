@@ -1320,8 +1320,9 @@ public static class BitmapHelper
     /// <summary>
     /// Picks the page whose wallpapers should be drawn for the current view: the current
     /// page when it has <b>any</b> of its three wallpapers set, otherwise the nearest page
-    /// before it that has one (an open folder searches its own earlier pages first, then the
-    /// page it was opened from). Once a page defines a wallpaper it is self-contained — its empty slots stay
+    /// before it that has one. An open folder has no background of its own: it only replaces the
+    /// keys, so the page it was opened from resolves as if no folder were open (issue #706).
+    /// Once a page defines a wallpaper it is self-contained — its empty slots stay
     /// empty rather than borrowing from an earlier page (so a page that only sets a main
     /// wallpaper does not inherit another page's side wallpapers). With
     /// <see cref="LoupedeckConfig.InheritWallpaperFromPreviousPage"/> off, the current page
@@ -1339,19 +1340,12 @@ public static class BitmapHelper
 
     private static TouchButtonPage ResolveOwnWallpaperSourcePage(LoupedeckConfig config)
     {
-        var current = config?.CurrentTouchButtonPage;
+        // The page the folder was opened from, never a folder page (issue #706).
+        var current = config?.ActiveWorkspace?.CurrentPageLayout;
         // A page playing a clip has a wallpaper of its own even without a still image: while the
         // clip is paused its keys draw on the clip's last frame, never on an earlier page's image.
         if ((current?.HasAnyWallpaper ?? false) || (current?.MainWallpaper?.HasVideo ?? false) ||
             !(config?.InheritWallpaperFromPreviousPage ?? false)) return current;
-
-        // A later page of an open folder inherits from the folder's earlier pages first (issue #603).
-        if (config.OpenFolder is { } folder)
-        {
-            for (int i = folder.CurrentPageIndex - 1; i >= 0; i--)
-                if (folder.PageAt(i) is { HasAnyWallpaper: true } earlier)
-                    return earlier;
-        }
 
         return TouchButtonPage.FindWallpaperSource(config.TouchButtonPages, config.CurrentTouchPageIndex) ?? current;
     }

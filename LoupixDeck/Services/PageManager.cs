@@ -950,8 +950,8 @@ public class PageManager : IPageManager
     /// <summary>An empty folder page for this device.</summary>
     private TouchButtonPage NewFolderPage()
     {
-        // Like a new page, a new folder page has no wallpaper of its own; with
-        // InheritWallpaperFromPreviousPage on it shows the one of the page the folder is opened from.
+        // A folder page never has a wallpaper: the folder always shows the background of the page
+        // it is opened from (issue #706).
         int keyCount = _deviceService.TouchButtonCount;
         TouchButtonPage page = new(keyCount) { Geometry = _config.Geometry };
         for (int i = 0; i < keyCount; i++)

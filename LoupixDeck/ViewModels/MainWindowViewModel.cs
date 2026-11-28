@@ -582,6 +582,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     /// <summary>True while a custom folder is open on this device.</summary>
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(PastePageBackgroundCommand))]
     public partial bool IsFolderOpen { get; private set; }
 
     /// <summary>True while the open custom folder has more than one page, so one can be deleted (issue #603).</summary>
@@ -1384,7 +1385,7 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     private bool CanPastePageBackground(PageSlot slot)
-        => slot == PageSlot.Touch && !IsMirroredFolderOpen && _clipboard.CanPasteInto(ButtonKind.PageBackground);
+        => slot == PageSlot.Touch && !IsFolderOpen && _clipboard.CanPasteInto(ButtonKind.PageBackground);
 
     /// <summary>
     /// Replaces the background of the current touch page with the copied one, asking first when
