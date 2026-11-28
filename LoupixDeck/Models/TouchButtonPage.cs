@@ -6,9 +6,21 @@ using SkiaSharp;
 
 namespace LoupixDeck.Models;
 
-public sealed partial class TouchButtonPage(int pageSize) : ButtonPageBase()
+public sealed partial class TouchButtonPage : ButtonPageBase
 {
-    public ObservableCollection<TouchButton> TouchButtons { get; } = new(Enumerable.Range(0, pageSize).Select(static i => new TouchButton(i)));
+    public TouchButtonPage(int pageSize)
+    {
+        TouchButtons = new(Enumerable.Range(0, pageSize).Select(static i => new TouchButton(i)));
+
+        // Assigned here rather than inline: an inline initializer writes the backing field and
+        // skips the setters, so a page created at runtime never wired its slots' Changed events
+        // and a wallpaper set on it did not repaint the device until the page was reloaded.
+        MainWallpaper = new WallpaperSlot();
+        LeftWallpaper = new WallpaperSlot();
+        RightWallpaper = new WallpaperSlot();
+    }
+
+    public ObservableCollection<TouchButton> TouchButtons { get; }
 
     /// <summary>
     /// Main 480×270 wallpaper. Always non-null; an empty slot (no
@@ -26,7 +38,7 @@ public sealed partial class TouchButtonPage(int pageSize) : ButtonPageBase()
             OnPropertyChanged();
             OnWallpaperSlotChanged(this, EventArgs.Empty);
         }
-    } = new();
+    }
 
     /// <summary>
     /// Optional wallpaper for the left Razer side display (60×270). When set it
@@ -44,7 +56,7 @@ public sealed partial class TouchButtonPage(int pageSize) : ButtonPageBase()
             OnPropertyChanged();
             OnWallpaperSlotChanged(this, EventArgs.Empty);
         }
-    } = new();
+    }
 
     /// <summary>Optional wallpaper for the right Razer side display (60×270).</summary>
     public WallpaperSlot RightWallpaper
@@ -59,7 +71,7 @@ public sealed partial class TouchButtonPage(int pageSize) : ButtonPageBase()
             OnPropertyChanged();
             OnWallpaperSlotChanged(this, EventArgs.Empty);
         }
-    } = new();
+    }
 
     /// <summary>
     /// Baked main wallpaper, used for thumbnails/previews (settings list). Read-only;
